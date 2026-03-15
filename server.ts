@@ -815,15 +815,19 @@ async function startServer() {
       }
       const saleId = saleData.id;
 
-      // 2. Create Items & Update Stock
-      const saleItems = items.map((item: any) => ({
-        company_id: req.user.company_id,
-        sale_id: saleId,
-        product_id: item.id,
-        quantity: item.quantity,
-        unit_price: item.sale_price,
-        subtotal: item.quantity * item.sale_price
-      }));
+      console.log(`[Venda] Preparando saleItems para inserir. Total itens: ${items.length}`);
+      const saleItems = items.map((item: any) => {
+        const payload = {
+          company_id: req.user.company_id,
+          sale_id: saleId,
+          product_id: item.id,
+          quantity: item.quantity,
+          unit_price: item.sale_price,
+          subtotal: item.quantity * item.sale_price
+        };
+        console.log(`[Venda Item] Product: ${item.name} (${item.id}), Company: ${payload.company_id}`);
+        return payload;
+      });
 
       const { error: itemsError } = await supabase.from("sale_items").insert(saleItems);
       if (itemsError) throw itemsError;
@@ -1432,7 +1436,7 @@ async function startServer() {
         const itemIva = (qtdDeducao * item.preco_unitario) * 0.14;
         const itemTotalValue = (qtdDeducao * item.preco_unitario) + itemIva;
 
-        await supabase.from("itens_venda_farmacia").insert([{
+        const pharmItem = {
           company_id: companyId,
           venda_id: venda.id,
           medicamento_id: item.medicamento_id,
@@ -1441,7 +1445,10 @@ async function startServer() {
           preco_unitario: item.preco_unitario,
           iva: itemIva,
           total: itemTotalValue
-        }]);
+        };
+        console.log(`[Venda Farmácia Item] Lote: ${lote.id}, Company: ${pharmItem.company_id}`);
+
+        await supabase.from("itens_venda_farmacia").insert([pharmItem]);
 
         // Record movement
         await supabase.from("movimentos_stock_farmacia").insert([{
@@ -2255,3 +2262,4 @@ async function startServer() {
 }
 
 startServer();
+ 

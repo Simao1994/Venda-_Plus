@@ -9,7 +9,10 @@ export async function runMigration(name: string, sql: string) {
             .eq('name', name)
             .maybeSingle();
 
-        if (fetchError && !fetchError.message.includes('relation "system_migrations" does not exist')) {
+        if (fetchError &&
+            !fetchError.message.includes('relation "system_migrations" does not exist') &&
+            !fetchError.message.includes('Could not find the table')
+        ) {
             console.error(`❌ Erro ao verificar migração ${name}:`, fetchError.message);
             return;
         }
