@@ -1,4 +1,7 @@
 import express from "express";
+import dotenv from "dotenv";
+dotenv.config();
+
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
@@ -8,12 +11,22 @@ import { supabase } from "./src/lib/supabase";
 import { syncDatabaseSchema } from "./src/lib/database-sync";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-erp-key";
+import { runMigration } from "./src/lib/migrations-manager.ts";
 
 // Note: Database schema initialization is now handled via supabase_schema.sql
 // which should be run in the Supabase Dashboard SQL Editor.
 
 async function startServer() {
   console.log('🚀 Server starting...');
+  // 0. Key Validation
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (anonKey && serviceKey && anonKey === serviceKey) {
+    console.error('⚠️ [CRÍTICO] SUPABASE_SERVICE_ROLE_KEY é igual à ANON_KEY!');
+    console.error('⚠️ As operações administrativas do servidor serão bloqueadas pelo RLS.');
+    console.error('⚠️ Por favor, obtenha a "service_role" key correta no Dashboard do Supabase.');
+  }
+
   // Sync database schema on startup (Non-blocking)
   syncDatabaseSchema().then(() => {
     console.log('✅ Database Schema Sync Complete');
@@ -48,6 +61,9 @@ async function startServer() {
     }
   } catch (err: any) {
     console.error('❌ Data Repair Failed:', err.message);
+  } finally {
+    const { data: testCount } = await supabase.from('branches').select('count', { count: 'exact', head: true });
+    console.log(`📊 Diagnostic: Total branches in DB: ${testCount || 0}`);
   }
 
   const app = express();
@@ -311,6 +327,27 @@ async function startServer() {
     await supabase.from("companies").update({ status: 'active' }).eq("id", company_id);
     await supabase.from("saas_subscriptions").update({ status: 'active' }).eq("company_id", company_id);
     res.json({ success: true });
+  });
+
+  app.post("/api/saas/master/execute-sql", authenticate, isMaster, async (req: any, res) => {
+    const { sql, name } = req.body;
+    console.log(`📋 [Master SQL] Executando bloco: ${name || 'Manual'} por ${req.user.email}`);
+
+    try {
+      if (name) {
+        // Run as a tracked migration
+        await runMigration(name, sql);
+        res.json({ success: true, message: `Migração ${name} executada ou já existente.` });
+      } else {
+        // Direct execution
+        const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
+        if (error) throw error;
+        res.json({ success: true, data });
+      }
+    } catch (err: any) {
+      console.error('❌ Erro no Master SQL:', err.message);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   app.put("/api/saas/master/companies/:id/subscription", authenticate, isMaster, async (req, res) => {
@@ -734,7 +771,22 @@ async function startServer() {
       branchId = branch?.id;
     }
 
-    console.log(`[Venda] Usando branch_id: ${branchId}`);
+    if (!branchId) {
+      console.warn(`[Venda] AVISO: branchId continua nulo para ${req.user.email}. Tentando find-any...`);
+      const { data: anyBranch } = await supabase.from("branches").select("id").eq("company_id", req.user.company_id).limit(1).maybeSingle();
+      branchId = anyBranch?.id;
+    }
+
+    if (!branchId) {
+      console.error(`[Venda] ERRO CRÍTICO: Não foi possível determinar branchId para utilizador ${req.user.email} (Empresa: ${req.user.company_id})`);
+      return res.status(400).json({
+        error: "Erro de configuração: Seu utilizador não tem uma filial associada.",
+        details: "Isso pode ocorrer se a configuração do servidor (Service Role Key) estiver incorreta ou se os dados foram reparados recentemente.",
+        action: "Por favor, SAIA DO SISTEMA (Logout) e ENTRE NOVAMENTE para atualizar as suas permissões."
+      });
+    }
+
+    console.log(`[Venda] Final branch_id: ${branchId}`);
 
     try {
       // 1. Create Sale
@@ -765,6 +817,7 @@ async function startServer() {
 
       // 2. Create Items & Update Stock
       const saleItems = items.map((item: any) => ({
+        company_id: req.user.company_id,
         sale_id: saleId,
         product_id: item.id,
         quantity: item.quantity,
@@ -1307,7 +1360,21 @@ async function startServer() {
       branchId = branch?.id;
     }
 
-    console.log(`[Venda Farmácia] Usando branch_id: ${branchId}`);
+    if (!branchId) {
+      console.warn(`[Venda Farmácia] AVISO: branchId continua nulo para ${req.user.email}. Tentando find-any...`);
+      const { data: anyBranch } = await supabase.from("branches").select("id").eq("company_id", companyId).limit(1).maybeSingle();
+      branchId = anyBranch?.id;
+    }
+
+    if (!branchId) {
+      console.error(`[Venda Farmácia] ERRO CRÍTICO: Não foi possível determinar branchId para utilizador ${req.user.email} (Empresa: ${companyId})`);
+      return res.status(400).json({
+        error: "Erro de filial: Falha ao determinar filial na Farmácia.",
+        details: "Certifique-se que o utilizador ou empresa possui uma filial válida."
+      });
+    }
+
+    console.log(`[Venda Farmácia] Final branch_id: ${branchId}`);
 
     // Create sale record
     const { data: venda, error: vendaError } = await supabase
@@ -1366,6 +1433,7 @@ async function startServer() {
         const itemTotalValue = (qtdDeducao * item.preco_unitario) + itemIva;
 
         await supabase.from("itens_venda_farmacia").insert([{
+          company_id: companyId,
           venda_id: venda.id,
           medicamento_id: item.medicamento_id,
           lote_id: lote.id,
@@ -1396,155 +1464,6 @@ async function startServer() {
 
   // --- FIM MÓDULO FARMÁCIA APIs ---
 
-  // --- CORE SYSTEM APIs ---
-
-  // Products
-  app.get("/api/products", authenticate, async (req: any, res) => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*, categories(name)")
-      .eq("company_id", req.user.company_id)
-      .order("name");
-
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data || []);
-  });
-
-  app.post("/api/products", authenticate, isAdmin, async (req: any, res) => {
-    const product = { ...req.body, company_id: req.user.company_id };
-    const { data, error } = await supabase.from("products").insert([product]).select().single();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-  });
-
-  // Categories
-  app.get("/api/categories", authenticate, async (req: any, res) => {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("company_id", req.user.company_id)
-      .order("name");
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data || []);
-  });
-
-  app.post("/api/categories", authenticate, isAdmin, async (req: any, res) => {
-    const category = { ...req.body, company_id: req.user.company_id };
-    const { data, error } = await supabase.from("categories").insert([category]).select().single();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-  });
-
-  // Sales
-  app.get("/api/sales", authenticate, async (req: any, res) => {
-    const { data, error } = await supabase
-      .from("sales")
-      .select("*, users(name), customers(name)")
-      .eq("company_id", req.user.company_id)
-      .order("created_at", { ascending: false });
-
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data || []);
-  });
-
-  // Dashboard Stats
-  app.get("/api/dashboard/stats", authenticate, async (req: any, res) => {
-    const companyId = req.user.company_id;
-    const today = new Date().toISOString().split('T')[0];
-    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-
-    try {
-      const [salesTodayRes, salesMonthRes, lowStockRes, recentSalesRes] = await Promise.all([
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today),
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", firstDayOfMonth),
-        supabase.from("products").select("id").eq("company_id", companyId).lt("stock", "min_stock"),
-        supabase.from("sales").select("created_at, total").eq("company_id", companyId).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      ]);
-
-      const salesToday = salesTodayRes.data?.reduce((acc, s) => acc + s.total, 0) || 0;
-      const salesMonth = salesMonthRes.data?.reduce((acc, s) => acc + s.total, 0) || 0;
-      const lowStockCount = lowStockRes.data?.length || 0;
-
-      // Group daily sales for chart
-      const dailyMap: Record<string, number> = {};
-      recentSalesRes.data?.forEach(s => {
-        const date = s.created_at.split('T')[0];
-        dailyMap[date] = (dailyMap[date] || 0) + s.total;
-      });
-      const dailySales = Object.entries(dailyMap).map(([date, total]) => ({
-        date: new Date(date).toLocaleDateString('pt-PT', { weekday: 'short' }),
-        total
-      }));
-
-      res.json({
-        salesToday,
-        salesMonth,
-        lowStock: lowStockCount,
-        dailySales,
-        totalReceivable: 0, // Placeholder for future feature
-        totalPayable: 0     // Placeholder for future feature
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Company Profile
-  app.get("/api/company/profile", authenticate, async (req: any, res) => {
-    const { data, error } = await supabase.from("companies").select("*").eq("id", req.user.company_id).single();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
-  });
-
-  app.put("/api/company/profile", authenticate, isAdmin, async (req: any, res) => {
-    const { data, error } = await supabase.from("companies").update(req.body).eq("id", req.user.company_id);
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
-  });
-
-  // System State with Table List
-  app.get("/api/system/state", authenticate, isAdmin, async (req: any, res) => {
-    try {
-      // Get table list using RPC or a raw query if enabled. 
-      // Since we don't have a direct "list tables" in PostgREST easily, 
-      // we can use a list of known tables or an RPC.
-      // For now, let's list the core ones and their counts.
-      const tables = [
-        'products', 'sales', 'customers', 'users', 'categories',
-        'saas_subscriptions', 'hr_employees', 'hr_departments',
-        'medicamentos', 'lotes_medicamentos', 'vendas_farmacia'
-      ];
-
-      const counts: Record<string, number> = {};
-      await Promise.all(tables.map(async table => {
-        const { count } = await supabase.from(table).select("*", { count: 'exact', head: true }).eq("company_id", req.user.company_id);
-        counts[table] = count || 0;
-      }));
-
-      res.json(counts);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Export Data
-  app.get("/api/system/export", authenticate, isAdmin, async (req: any, res) => {
-    try {
-      const tables = ['products', 'sales', 'sale_items', 'customers', 'categories', 'expenses', 'stock_movements'];
-      const exportData: Record<string, any> = {};
-
-      await Promise.all(tables.map(async table => {
-        const { data } = await supabase.from(table).select("*").eq("company_id", req.user.company_id);
-        exportData[table] = data || [];
-      }));
-
-      res.json(exportData);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // --- FIM CORE SYSTEM APIs ---
 
   // Reports
   app.get("/api/reports/profit", authenticate, async (req: any, res) => {
@@ -2328,70 +2247,6 @@ async function startServer() {
     }
   });
 
-  // Cashier API
-  app.get("/api/cash-registers/status", authenticate, async (req: any, res: any) => {
-    try {
-      const { data, error } = await supabase
-        .from("cash_registers")
-        .select("*")
-        .eq("company_id", req.user.company_id)
-        .eq("user_id", req.user.id)
-        .eq("status", "open")
-        .maybeSingle();
-
-      if (error) throw error;
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/cash-registers/open", authenticate, async (req: any, res: any) => {
-    try {
-      const { initial_value } = req.body;
-      const { data: user } = await supabase.from("users").select("branch_id").eq("id", req.user.id).single();
-
-      const { data, error } = await supabase
-        .from("cash_registers")
-        .insert({
-          company_id: req.user.company_id,
-          branch_id: user?.branch_id || 1,
-          user_id: req.user.id,
-          initial_value: initial_value || 0,
-          status: 'open',
-          opened_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/cash-registers/close", authenticate, async (req: any, res: any) => {
-    try {
-      const { total_sold } = req.body;
-      const { data: currentRegister } = await supabase.from("cash_registers").select("*").eq("company_id", req.user.company_id).eq("user_id", req.user.id).eq("status", "open").maybeSingle();
-
-      if (!currentRegister) return res.status(404).json({ error: "No open register found" });
-      const finalValue = (currentRegister.initial_value || 0) + (total_sold || 0);
-
-      const { data, error } = await supabase.from("cash_registers").update({
-        status: 'closed',
-        closed_at: new Date().toISOString(),
-        total_sold: total_sold || 0,
-        final_value: finalValue
-      }).eq("id", currentRegister.id).select().single();
-
-      if (error) throw error;
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   const PORT = 3000;
   app.listen(PORT, "0.0.0.0", () => {
