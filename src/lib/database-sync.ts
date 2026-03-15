@@ -19,6 +19,11 @@ export async function syncDatabaseSchema() {
                 // Apply the core schema as a tracked migration "initial_schema_20260314"
                 await runMigration('initial_schema_20260314', cleanSql);
             }
+
+            // Migration: Add register_id to sales for turn/shift tracking
+            await runMigration('add_register_id_to_sales_20260315', `
+                ALTER TABLE sales ADD COLUMN IF NOT EXISTS register_id INTEGER REFERENCES cash_registers(id) ON DELETE SET NULL;
+            `);
         }
 
         console.log('✅ Verificação de base de dados concluída.');

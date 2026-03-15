@@ -158,6 +158,8 @@ CREATE TABLE IF NOT EXISTS sales (
     tax REAL NOT NULL,
     amount_paid REAL NOT NULL,
     change REAL NOT NULL,
+    discount REAL DEFAULT 0,
+    is_pro_forma BOOLEAN DEFAULT FALSE,
     payment_method TEXT CHECK(payment_method IN ('cash', 'credit')) DEFAULT 'cash',
     status TEXT CHECK(status IN ('paid', 'pending')) DEFAULT 'paid',
     invoice_number TEXT UNIQUE NOT NULL,

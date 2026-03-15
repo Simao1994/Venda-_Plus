@@ -1,6 +1,5 @@
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
-dotenv.config();
 
 import { createServer as createViteServer } from "vite";
 import path from "path";
@@ -28,8 +27,14 @@ async function startServer() {
   }
 
   // Sync database schema on startup (Non-blocking)
-  syncDatabaseSchema().then(() => {
+  syncDatabaseSchema().then(async () => {
     console.log('✅ Database Schema Sync Complete');
+
+    // Core migrations for requested features
+    await runMigration('add_discount_and_proforma_to_sales_20260315', `
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount REAL DEFAULT 0;
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_pro_forma BOOLEAN DEFAULT FALSE;
+    `);
   }).catch(err => {
     console.error('❌ Database Schema Sync Failed:', err.message);
   });
@@ -492,11 +497,55 @@ async function startServer() {
 
   app.put("/api/company/profile", authenticate, async (req: any, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
-    const { name, nif, address, phone, email, tax_percentage, currency } = req.body;
+    const { name, nif, address, phone, email, tax_percentage, currency, logo } = req.body;
     const { error } = await supabase
       .from("companies")
-      .update({ name, nif, address, phone, email, tax_percentage, currency })
+      .update({ name, nif, address, phone, email, tax_percentage, currency, logo })
       .eq("id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  });
+
+  // Suppliers
+  app.get("/api/suppliers", authenticate, async (req: any, res) => {
+    const { data: suppliers, error } = await supabase
+      .from("suppliers")
+      .select("*")
+      .eq("company_id", req.user.company_id);
+    res.json(suppliers || []);
+  });
+
+  app.post("/api/suppliers", authenticate, isAdmin, async (req: any, res) => {
+    const { name, phone, email, address } = req.body;
+    const { data, error } = await supabase
+      .from("suppliers")
+      .insert([{ company_id: req.user.company_id, name, phone, email, address }])
+      .select("id")
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ id: data.id });
+  });
+
+  app.put("/api/suppliers/:id", authenticate, isAdmin, async (req: any, res) => {
+    const { name, phone, email, address } = req.body;
+    const { error } = await supabase
+      .from("suppliers")
+      .update({ name, phone, email, address })
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  });
+
+  app.delete("/api/suppliers/:id", authenticate, isAdmin, async (req: any, res) => {
+    const { error } = await supabase
+      .from("suppliers")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
 
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
@@ -647,6 +696,35 @@ async function startServer() {
     res.json(formatted || []);
   });
 
+  // Customers
+  app.get("/api/customers", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("company_id", req.user.company_id)
+      .order("name");
+    res.json(data || []);
+  });
+
+  app.post("/api/customers", authenticate, validateBody(['name']), async (req: any, res) => {
+    const { name, nif, phone, address, email } = req.body;
+    const { data, error } = await supabase
+      .from("customers")
+      .insert([{
+        company_id: req.user.company_id,
+        name,
+        nif,
+        phone,
+        address,
+        email
+      }])
+      .select("id, name")
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  });
+
   app.get("/api/customers/:id/pending-sales", authenticate, async (req: any, res) => {
     const { data: sales, error } = await supabase
       .from("sales")
@@ -733,11 +811,17 @@ async function startServer() {
 
   // Sales & POS
   app.get("/api/sales", authenticate, async (req: any, res) => {
-    const { data: sales, error } = await supabase
+    const { start_date, end_date, register_id } = req.query;
+    let query = supabase
       .from("sales")
       .select("*, customers(name), items:sale_items(*, products(name))")
-      .eq("company_id", req.user.company_id)
-      .order("created_at", { ascending: false });
+      .eq("company_id", req.user.company_id);
+
+    if (start_date) query = query.gte("created_at", start_date);
+    if (end_date) query = query.lte("created_at", `${end_date}T23:59:59`);
+    if (register_id) query = query.eq("register_id", register_id);
+
+    const { data: sales, error } = await query.order("created_at", { ascending: false });
 
     if (error) return res.status(500).json({ error: error.message });
 
@@ -754,9 +838,9 @@ async function startServer() {
   });
 
   app.post("/api/sales", authenticate, async (req: any, res) => {
-    const { items, customer_id, subtotal, tax, total, amount_paid, change, payment_method } = req.body;
-    const invoice_number = `FAC-${Date.now()}`;
-    const status = payment_method === 'credit' ? 'pending' : 'paid';
+    const { items, customer_id, subtotal, tax, total, amount_paid, change, payment_method, discount, is_pro_forma } = req.body;
+    const invoice_number = is_pro_forma ? `PRO-${Date.now()}` : `FAC-${Date.now()}`;
+    const status = is_pro_forma ? 'pending' : (payment_method === 'credit' ? 'pending' : 'paid');
 
     let branchId = req.user.branch_id;
     if (!branchId) {
@@ -786,7 +870,14 @@ async function startServer() {
       });
     }
 
-    console.log(`[Venda] Final branch_id: ${branchId}`);
+    // Fetch open cash register for this user
+    const { data: openRegister } = await supabase
+      .from("cash_registers")
+      .select("id")
+      .eq("company_id", req.user.company_id)
+      .eq("user_id", req.user.id)
+      .eq("status", "open")
+      .maybeSingle();
 
     try {
       // 1. Create Sale
@@ -796,13 +887,16 @@ async function startServer() {
           company_id: req.user.company_id,
           branch_id: branchId,
           user_id: req.user.id,
+          register_id: openRegister?.id || null,
           customer_id: customer_id || null,
           total,
           subtotal,
           tax,
-          amount_paid,
-          change,
-          payment_method,
+          amount_paid: is_pro_forma ? 0 : amount_paid,
+          change: is_pro_forma ? 0 : change,
+          discount: discount || 0,
+          is_pro_forma: !!is_pro_forma,
+          payment_method: is_pro_forma ? 'credit' : payment_method,
           status,
           invoice_number
         }])
@@ -816,40 +910,40 @@ async function startServer() {
       const saleId = saleData.id;
 
       console.log(`[Venda] Preparando saleItems para inserir. Total itens: ${items.length}`);
-      const saleItems = items.map((item: any) => {
-        const payload = {
-          company_id: req.user.company_id,
-          sale_id: saleId,
-          product_id: item.id,
-          quantity: item.quantity,
-          unit_price: item.sale_price,
-          subtotal: item.quantity * item.sale_price
-        };
-        console.log(`[Venda Item] Product: ${item.name} (${item.id}), Company: ${payload.company_id}`);
-        return payload;
-      });
+      const saleItems = items.map((item: any) => ({
+        company_id: req.user.company_id,
+        sale_id: saleId,
+        product_id: item.id,
+        quantity: item.quantity,
+        unit_price: item.sale_price,
+        subtotal: item.quantity * item.sale_price
+      }));
 
       const { error: itemsError } = await supabase.from("sale_items").insert(saleItems);
       if (itemsError) throw itemsError;
 
-      // Update products stock (sequentially or via RPC for safety)
-      for (const item of items) {
-        const { data: product } = await supabase.from("products").select("stock").eq("id", item.id).single();
-        if (product) {
-          await supabase.from("products").update({ stock: product.stock - item.quantity }).eq("id", item.id);
+      // 2. Update stock & customer balance ONLY if NOT Pro Forma
+      if (!is_pro_forma) {
+        // Update products stock
+        for (const item of items) {
+          const { data: product } = await supabase.from("products").select("stock").eq("id", item.id).single();
+          if (product) {
+            await supabase.from("products").update({ stock: product.stock - item.quantity }).eq("id", item.id);
+          }
         }
-      }
 
-      // 3. Update Customer Balance
-      if (payment_method === 'credit' && customer_id) {
-        const { data: customer } = await supabase.from("customers").select("balance").eq("id", customer_id).single();
-        if (customer) {
-          await supabase.from("customers").update({ balance: (customer.balance || 0) + total }).eq("id", customer_id);
+        // 3. Update Customer Balance
+        if (payment_method === 'credit' && customer_id) {
+          const { data: customer } = await supabase.from("customers").select("balance").eq("id", customer_id).single();
+          if (customer) {
+            await supabase.from("customers").update({ balance: (customer.balance || 0) + total }).eq("id", customer_id);
+          }
         }
       }
 
       res.json({ id: saleId, invoice_number });
     } catch (err: any) {
+      console.error('❌ Erro inesperado ao processar venda:', err);
       res.status(500).json({ error: err.message || "Erro ao processar venda" });
     }
   });
@@ -866,6 +960,15 @@ async function startServer() {
 
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
+  });
+
+  app.get("/api/cash-registers", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("cash_registers")
+      .select("*, users(name)")
+      .eq("company_id", req.user.company_id)
+      .order("opened_at", { ascending: false });
+    res.json(data || []);
   });
 
   app.post("/api/cash-registers/open", authenticate, async (req: any, res) => {
@@ -2255,11 +2358,11 @@ async function startServer() {
   });
 
 
-  const PORT = 3000;
-  app.listen(PORT, "0.0.0.0", () => {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
 startServer();
- 
+

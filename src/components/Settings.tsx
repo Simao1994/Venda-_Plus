@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Building2, Save, Globe, Phone, Mail, Hash, Percent, DollarSign, Database, Download, CheckCircle2, Server, Shield } from 'lucide-react';
 
@@ -18,6 +18,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<'profile' | 'system'>('profile');
   const [dbState, setDbState] = useState<any>(null);
   const [exporting, setExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCompany();
@@ -34,6 +35,18 @@ export default function Settings() {
       console.error('Error fetching company:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) return alert('Imagem muito grande (máx 2MB)');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompany({ ...company, logo: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -131,6 +144,46 @@ export default function Settings() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white p-6 md:p-8 rounded-[32px] shadow-sm border border-gray-100 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 space-y-4">
+                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <Globe size={14} /> Logotipo da Empresa (Imagem)
+                </label>
+                <div className="flex gap-6 items-center bg-gray-50 p-6 rounded-[24px]">
+                  <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-white overflow-hidden shadow-inner relative group">
+                    {company.logo ? (
+                      <>
+                        <img src={company.logo} alt="Logo" className="w-full h-full object-contain" />
+                        <button
+                          type="button"
+                          onClick={() => setCompany({ ...company, logo: '' })}
+                          className="absolute inset-0 bg-red-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-black text-[10px] uppercase"
+                        >
+                          Remover
+                        </button>
+                      </>
+                    ) : (
+                      <Globe size={24} className="text-gray-300" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-xs font-bold text-gray-500">Selecione uma imagem quadrada (PNG, JPG) com fundo transparente para melhores resultados nos recibos.</p>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm"
+                    >
+                      Selecionar Imagem
+                    </button>
+                  </div>
+                </div>
+              </div>
               <div className="space-y-2">
                 <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                   <Globe size={14} /> Nome da Empresa

@@ -20,7 +20,8 @@ import {
   AlertCircle,
   ArrowRight,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  Truck
 } from 'lucide-react';
 import { supabase } from "./lib/supabase";
 import Support from "./components/Support";
@@ -37,6 +38,8 @@ import MasterAdmin from './components/MasterAdmin';
 import Registration from './components/Registration';
 import SubscriptionManagement from './components/SubscriptionManagement';
 import MobileAppInfo from './components/MobileAppInfo';
+import Suppliers from './components/Suppliers';
+import BlogPage from './components/Blog';
 
 function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void, onGoToRegister: () => void }) {
   const { login } = useAuth();
@@ -295,9 +298,11 @@ export default function App() {
     { id: 'pharmacy', label: "Farmácia", icon: Cross, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'pharmacy' },
     { id: 'hr', label: "RH", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
     { id: 'marketing', label: "Marketing", icon: Smartphone, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
+    { id: 'blog', label: "Blog Corporativo", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'subscription', label: "Gestão de Assinatura", icon: CreditCard, roles: ['admin', 'manager'], feature: 'settings' },
     { id: 'mobile', label: "APP Mobile", icon: Smartphone, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'marketing' },
     { id: 'users', label: "Utilizadores", icon: Users, roles: ['admin', 'master'], feature: 'settings' },
+    { id: 'suppliers', label: "Fornecedores", icon: Truck, roles: ['admin', 'manager', 'master'], feature: 'settings' },
     { id: 'settings', label: "Configurações", icon: SettingsIcon, roles: ['admin', 'master'], feature: 'settings' },
     { id: 'support', label: "Suporte Técnico", icon: MessageSquare, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'sales' },
   ];
@@ -407,9 +412,11 @@ export default function App() {
           {activeTab === 'pharmacy' && <PharmacyModule />}
           {activeTab === 'hr' && <HRModule />}
           {activeTab === 'marketing' && <Marketing />}
+          {activeTab === 'blog' && <BlogPage user={user as any} />}
           {activeTab === 'subscription' && <SubscriptionManagement />}
           {activeTab === 'mobile' && <MobileAppInfo />}
           {activeTab === 'users' && <UsersList />}
+          {activeTab === 'suppliers' && <Suppliers />}
           {activeTab === 'settings' && <Settings />}
           {activeTab === 'support' && <Support />}
         </div>

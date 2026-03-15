@@ -3,6 +3,27 @@ import { Smartphone, Download, QrCode, Zap, Bell, Shield, TrendingUp, CheckCircl
 
 export default function MobileAppInfo() {
     const [showInstructions, setShowInstructions] = useState<'ios' | 'android' | null>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+    React.useEffect(() => {
+        const handler = (e: any) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            setDeferredPrompt(null);
+        } else {
+            setShowInstructions('android');
+        }
+    };
 
     return (
         <div className="p-6 lg:p-12 max-w-6xl mx-auto space-y-12">
@@ -27,7 +48,7 @@ export default function MobileAppInfo() {
                             <span>Disponível para <span className="text-white">iPhone</span></span>
                         </button>
                         <button
-                            onClick={() => setShowInstructions('android')}
+                            onClick={handleInstallClick}
                             className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-[24px] font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 border border-slate-700"
                         >
                             <Download size={20} className="text-indigo-400" />
@@ -121,10 +142,16 @@ export default function MobileAppInfo() {
                             )}
 
                             <button
-                                onClick={() => setShowInstructions(null)}
+                                onClick={() => {
+                                    if (showInstructions === 'android' && deferredPrompt) {
+                                        deferredPrompt.prompt();
+                                        setDeferredPrompt(null);
+                                    }
+                                    setShowInstructions(null);
+                                }}
                                 className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black uppercase tracking-widest text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
                             >
-                                Entendi, vou instalar agora
+                                {showInstructions === 'android' && deferredPrompt ? 'Instalar Agora' : 'Entendi, vou instalar agora'}
                             </button>
                         </div>
                     </div>

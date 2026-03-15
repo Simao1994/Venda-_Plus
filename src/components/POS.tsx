@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet, UserPlus, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useReactToPrint } from 'react-to-print';
 import PaymentModal from './PaymentModal';
@@ -33,6 +33,10 @@ export default function POS() {
   const [showOpenRegister, setShowOpenRegister] = useState(false);
   const [initialCash, setInitialCash] = useState('0');
   const [autoPrint, setAutoPrint] = useState(true);
+  const [discountPercentage, setDiscountPercentage] = useState<number>(0);
+  const [isProForma, setIsProForma] = useState(false);
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: '', nif: '', phone: '', address: '' });
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -157,6 +161,29 @@ export default function POS() {
     setCustomers(data);
   };
 
+  const handleSaveNewCustomer = async () => {
+    if (!newCustomer.name) return alert('Nome é obrigatório');
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(newCustomer)
+      });
+      if (res.ok) {
+        const savedCustomer = await res.json();
+        await fetchCustomers();
+        setSelectedCustomer(savedCustomer.id);
+        setShowAddCustomer(false);
+        setNewCustomer({ name: '', nif: '', phone: '', address: '' });
+      }
+    } catch (error) {
+      console.error('Error saving customer:', error);
+    }
+  };
+
   const addToCart = (product: Product) => {
     const existing = cart.find(item => item.id === product.id);
     if (existing) {
@@ -176,9 +203,11 @@ export default function POS() {
   };
 
   const subtotal = cart.reduce((acc, item) => acc + (item.sale_price * item.quantity), 0);
+  const discountAmount = subtotal * (discountPercentage / 100);
+  const discountedSubtotal = subtotal - discountAmount;
   const taxRate = companyProfile?.tax_percentage || 14;
-  const tax = subtotal * (taxRate / 100);
-  const total = subtotal + tax;
+  const tax = discountedSubtotal * (taxRate / 100);
+  const total = discountedSubtotal + tax;
   const amountPaidNum = parseFloat(amountPaid) || 0;
   const change = amountPaidNum > total ? amountPaidNum - total : 0;
 
@@ -199,9 +228,11 @@ export default function POS() {
           subtotal,
           tax,
           total,
-          amount_paid: paymentMethod === 'credit' ? 0 : amountPaidNum,
-          change: paymentMethod === 'credit' ? 0 : change,
-          payment_method: paymentMethod
+          discount: discountPercentage,
+          is_pro_forma: isProForma,
+          amount_paid: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : amountPaidNum),
+          change: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : change),
+          payment_method: isProForma ? 'credit' : paymentMethod
         })
       });
 
@@ -224,16 +255,21 @@ export default function POS() {
       }
 
       const data = await res.json();
+      const currentCustomer = customers.find(c => c.id === selectedCustomer);
       const saleRecord = {
         ...data,
         items: cart,
         subtotal,
         tax,
         total,
-        amountPaid: paymentMethod === 'credit' ? 0 : amountPaidNum,
-        change: paymentMethod === 'credit' ? 0 : change,
-        payment_method: paymentMethod,
-        date: new Date().toLocaleString()
+        discount: discountPercentage,
+        is_pro_forma: isProForma,
+        amountPaid: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : amountPaidNum),
+        change: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : change),
+        payment_method: isProForma ? 'credit' : paymentMethod,
+        date: new Date().toLocaleString(),
+        customer_name: currentCustomer?.name || 'Consumidor Final',
+        customer_nif: currentCustomer?.nif || 'Consumidor Final'
       };
 
       setLastSale(saleRecord);
@@ -357,16 +393,25 @@ export default function POS() {
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-2">
                 <User size={16} className="text-gray-400" />
-                <select
-                  className="text-xs border-none bg-transparent focus:ring-0 font-medium text-gray-600"
-                  value={selectedCustomer || ''}
-                  onChange={(e) => setSelectedCustomer(e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">Consumidor Final</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1">
+                  <select
+                    className="text-xs border-none bg-transparent focus:ring-0 font-medium text-gray-600 pr-0"
+                    value={selectedCustomer || ''}
+                    onChange={(e) => setSelectedCustomer(e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">Consumidor Final</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => setShowAddCustomer(true)}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors text-emerald-600"
+                    title="Novo Cliente"
+                  >
+                    <UserPlus size={14} />
+                  </button>
+                </div>
               </div>
               {selectedCustomer && customers.find(c => c.id === selectedCustomer)?.balance > 0 && (
                 <button
@@ -431,6 +476,30 @@ export default function POS() {
           <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t">
             <span>TOTAL</span>
             <span>{total.toLocaleString()} {user?.currency}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="bg-white p-2 rounded-lg border border-gray-100">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Desconto (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={discountPercentage}
+                onChange={(e) => setDiscountPercentage(Number(e.target.value))}
+                className="w-full text-sm font-bold border-none p-0 focus:ring-0"
+                placeholder="0"
+              />
+            </div>
+            <div
+              onClick={() => setIsProForma(!isProForma)}
+              className={`p-2 rounded-lg border cursor-pointer transition-all flex flex-col justify-center ${isProForma ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100'}`}
+            >
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Pro-Forma</label>
+              <span className={`text-xs font-bold ${isProForma ? 'text-emerald-600' : 'text-gray-600'}`}>
+                {isProForma ? 'ACTIVADO' : 'DESACTIVADO'}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 mb-2 p-2 bg-white rounded-lg border border-gray-100">
@@ -598,7 +667,7 @@ export default function POS() {
                   onClick={handleCheckout}
                   className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700"
                 >
-                  Confirmar Venda
+                  {isProForma ? 'Emitir Pro-Forma' : 'Confirmar Venda'}
                 </button>
               </div>
             </div>
@@ -606,90 +675,208 @@ export default function POS() {
         </div>
       )}
 
-      {/* Receipt Template (Hidden) */}
+      {showAddCustomer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="p-8 bg-emerald-600 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-widest">Novo Cliente</h3>
+                <p className="opacity-70 text-xs font-bold mt-1">Registe o cliente para esta venda</p>
+              </div>
+              <button onClick={() => setShowAddCustomer(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-8 space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nome Completo</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                  value={newCustomer.name}
+                  onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIF</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                    value={newCustomer.nif}
+                    onChange={e => setNewCustomer({ ...newCustomer, nif: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Telefone</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                    value={newCustomer.phone}
+                    onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Endereço</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                  value={newCustomer.address}
+                  onChange={e => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                />
+              </div>
+
+              <button
+                onClick={handleSaveNewCustomer}
+                className="w-full py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 mt-4"
+              >
+                Salvar e Seleccionar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'none' }}>
-        <div ref={receiptRef} className="p-8 font-mono text-sm w-[80mm] text-gray-900">
-          <div className="text-center mb-6">
-            <h2 className="font-black text-xl uppercase tracking-tighter mb-1">{companyProfile?.name || user?.company_name}</h2>
-            <p className="text-xs">NIF: {companyProfile?.nif || '---'}</p>
-            <p className="text-xs">{companyProfile?.address || '---'}</p>
-            <p className="text-xs">Tel: {companyProfile?.phone || '---'}</p>
+        <div ref={receiptRef} className="receipt-container" style={{
+          width: '80mm',
+          padding: '2mm 4mm',
+          backgroundColor: 'white',
+          color: 'black',
+          fontFamily: "'Times New Roman', Times, serif",
+          fontSize: '12px',
+          lineHeight: '1.5'
+        }}>
+          <div className="text-center" style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {companyProfile?.logo && (
+              <img src={companyProfile.logo} alt="Logo" style={{ maxWidth: '40mm', maxHeight: '15mm', marginBottom: '5px', objectFit: 'contain' }} />
+            )}
+            <h2 style={{
+              fontWeight: '900',
+              fontSize: '14px',
+              textTransform: 'uppercase',
+              margin: '0 0 2px 0',
+              letterSpacing: '-0.5px'
+            }}>{companyProfile?.name || user?.company_name}</h2>
+            <div style={{ fontSize: '12px', opacity: 0.8 }}>
+              <p style={{ margin: 0 }}>NIF: {companyProfile?.nif || '---'}</p>
+              <p style={{ margin: 0 }}>{companyProfile?.address || '---'}</p>
+              <p style={{ margin: 0 }}>Tel: {companyProfile?.phone || '---'}</p>
+            </div>
           </div>
 
-          <div className="border-t border-b border-dashed py-3 mb-4 space-y-1 text-xs">
-            <div className="flex justify-between">
-              <span>FATURA:</span>
-              <span className="font-bold">{lastSale?.invoice_number}</span>
+          <div style={{
+            textAlign: 'center',
+            borderTop: '1px dashed black',
+            borderBottom: '1px dashed black',
+            padding: '3px 0',
+            marginBottom: '8px',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }}>
+            {lastSale?.is_pro_forma ? 'FACTURA PRO-FORMA' : 'FACTURA / RECIBO'}
+          </div>
+
+          <div style={{ marginBottom: '8px', fontSize: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Nº DOC:</span>
+              <span style={{ fontWeight: 'bold' }}>{lastSale?.invoice_number}</span>
             </div>
-            <div className="flex justify-between">
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>DATA:</span>
               <span>{lastSale?.date}</span>
             </div>
-            <div className="flex justify-between">
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>OPERADOR:</span>
-              <span className="uppercase text-right">{user?.name}</span>
+              <span style={{ textTransform: 'uppercase' }}>{user?.name}</span>
             </div>
-            {lastSale?.customer_name && (
-              <div className="flex justify-between border-t border-dashed pt-1 mt-1">
-                <span>CLIENTE:</span>
-                <span className="font-bold">{lastSale.customer_name}</span>
-              </div>
-            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '0.5px dashed black', paddingTop: '2px', marginTop: '2px' }}>
+              <span>CLIENTE:</span>
+              <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{lastSale?.customer_name || 'Consumidor Final'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>NIF CLIENTE:</span>
+              <span style={{ fontWeight: 'bold' }}>{lastSale?.customer_nif || 'Consumidor Final'}</span>
+            </div>
           </div>
 
-          <table className="w-full mb-6 text-xs">
+          <table style={{ width: '100%', marginBottom: '8px', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
-              <tr className="border-b border-dashed">
-                <th className="text-left py-1">DESCRIÇÃO</th>
-                <th className="text-right py-1">QTD</th>
-                <th className="text-right py-1">TOTAL</th>
+              <tr style={{ borderBottom: '1px dashed black' }}>
+                <th style={{ textAlign: 'left', padding: '1px 0' }}>DESCRIÇÃO</th>
+                <th style={{ textAlign: 'right', padding: '1px 0' }}>QTD</th>
+                <th style={{ textAlign: 'right', padding: '1px 0' }}>TOTAL</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-dashed">
+            <tbody>
               {lastSale?.items.map((item: any) => (
                 <tr key={item.id}>
-                  <td className="py-2">{item.name}</td>
-                  <td className="text-right py-2">{item.quantity}</td>
-                  <td className="text-right py-2">{(item.quantity * item.sale_price).toLocaleString()}</td>
+                  <td style={{ padding: '2px 0', maxWidth: '40mm', wordWrap: 'break-word' }}>{item.name}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 0', verticalAlign: 'top' }}>{item.quantity}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 0', verticalAlign: 'top' }}>{(item.quantity * item.sale_price).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div className="border-t border-dashed pt-3 space-y-1 text-xs">
-            <div className="flex justify-between">
+          <div style={{ borderTop: '1px dashed black', paddingTop: '3px', fontSize: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>SUBTOTAL:</span>
               <span>{lastSale?.subtotal.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between">
+            {lastSale?.discount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>DESC. ({lastSale.discount}%):</span>
+                <span>- {(lastSale.subtotal * (lastSale.discount / 100)).toLocaleString()}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>IVA ({taxRate}%):</span>
               <span>{lastSale?.tax.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between font-black text-lg pt-2 border-t border-dashed mt-2">
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontWeight: '900',
+              fontSize: '12px',
+              paddingTop: '3px',
+              borderTop: '1px dashed black',
+              marginTop: '3px'
+            }}>
               <span>TOTAL:</span>
               <span>{lastSale?.total.toLocaleString()} {user?.currency}</span>
             </div>
           </div>
 
-          <div className="mt-6 border-t border-dashed pt-3 text-xs space-y-1">
-            <div className="flex justify-between">
-              <span>MÉTODO:</span>
-              <span className="font-bold uppercase">{lastSale?.payment_method}</span>
+          {!lastSale?.is_pro_forma && (
+            <div style={{ marginTop: '8px', paddingTop: '3px', fontSize: '12px', borderTop: '0.5px dashed black' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>MÉTODO:</span>
+                <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{lastSale?.payment_method}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>ENTREGUE:</span>
+                <span>{lastSale?.amountPaid.toLocaleString()} {user?.currency}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                <span>TROCO:</span>
+                <span>{lastSale?.change.toLocaleString()} {user?.currency}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span>ENTREGUE:</span>
-              <span>{lastSale?.amountPaid.toLocaleString()} {user?.currency}</span>
-            </div>
-            <div className="flex justify-between font-bold text-sm">
-              <span>TROCO:</span>
-              <span>{lastSale?.change.toLocaleString()} {user?.currency}</span>
-            </div>
-          </div>
+          )}
 
-          <div className="text-center mt-10 text-[10px] uppercase tracking-widest leading-relaxed">
-            <p className="font-bold">Obrigado pela preferência!</p>
-            <p>Este documento não serve de fatura</p>
-            <p className="mt-2">Processado por Venda Plus</p>
+          <div style={{
+            textAlign: 'center',
+            marginTop: '10px',
+            fontSize: '8px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            lineHeight: '1.2'
+          }}>
+            <p style={{ margin: 0, fontWeight: 'bold' }}>Obrigado pela preferência!</p>
+            <p style={{ margin: 0 }}>{lastSale?.is_pro_forma ? 'ORÇAMENTO VÁLIDO POR 15 DIAS' : 'O VALOR DESTE DOC. NÃO SERVE DE FATURA'}</p>
+            <p style={{ margin: '3px 0 0 0', opacity: 0.7 }}>Processado por Venda Plus</p>
           </div>
         </div>
       </div>
@@ -722,6 +909,7 @@ export default function POS() {
           </div>
         </div>
       )}
+
       {showDebtPayment && selectedCustomer && (
         <PaymentModal
           customer={customers.find(c => c.id === selectedCustomer)}

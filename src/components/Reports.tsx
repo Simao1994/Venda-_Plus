@@ -12,12 +12,38 @@ export default function Reports() {
   const [profitReport, setProfitReport] = useState<any>(null);
   const [payrollSummary, setPayrollSummary] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState('month');
+  const [registerId, setRegisterId] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [registers, setRegisters] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [expandedSale, setExpandedSale] = useState<number | null>(null);
   const [saleToPrint, setSaleToPrint] = useState<any>(null);
-  
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  const handleExport = () => {
+    const csvRows = [
+      ['Data', 'Fatura', 'Cliente', 'Total', 'Metodo', 'Status'],
+      ...filteredSales.map(s => [
+        new Date(s.created_at).toLocaleDateString(),
+        s.invoice_number,
+        s.customer_name || 'Consumidor Final',
+        s.total,
+        s.payment_method,
+        s.status
+      ])
+    ];
+
+    const csvContent = csvRows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `vendas_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handlePrintReceipt = useReactToPrint({
     contentRef: receiptRef,
@@ -33,13 +59,32 @@ export default function Reports() {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab, dateFilter]);
+  }, [activeTab, startDate, endDate, registerId]);
+
+  useEffect(() => {
+    fetchRegisters();
+  }, []);
+
+  const fetchRegisters = async () => {
+    try {
+      const res = await fetch('/api/cash-registers', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setRegisters(data);
+    } catch (error) {
+      console.error('Error fetching registers:', error);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
     try {
       if (activeTab === 'sales') {
-        const res = await fetch('/api/sales', { headers: { Authorization: `Bearer ${token}` } });
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('start_date', startDate);
+        if (endDate) queryParams.append('end_date', endDate);
+        if (registerId) queryParams.append('register_id', registerId);
+
+        const res = await fetch(`/api/sales?${queryParams.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
         setAllSales(data);
       } else if (activeTab === 'products') {
@@ -62,7 +107,7 @@ export default function Reports() {
     }
   };
 
-  const filteredSales = allSales.filter(s => 
+  const filteredSales = allSales.filter(s =>
     s.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
     (s.customer_name && s.customer_name.toLowerCase().includes(search.toLowerCase()))
   );
@@ -77,14 +122,17 @@ export default function Reports() {
           <p className="text-gray-500">Analise o desempenho do seu negócio em tempo real</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <button 
+          <button
             onClick={() => window.print()}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 font-black uppercase tracking-widest text-xs transition-all shadow-sm"
           >
             <Printer size={18} />
             Imprimir
           </button>
-          <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-emerald-200">
+          <button
+            onClick={handleExport}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-emerald-200"
+          >
             <Download size={18} />
             Exportar
           </button>
@@ -102,9 +150,8 @@ export default function Reports() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all whitespace-nowrap ${
-              activeTab === tab.id ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'
-            }`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'
+              }`}
           >
             <tab.icon size={16} />
             {tab.label}
@@ -135,15 +182,48 @@ export default function Reports() {
 
           <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="relative w-full md:w-96">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Pesquisar fatura ou cliente..."
-                  className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+              <div className="flex flex-wrap items-center gap-4 w-full">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Pesquisar fatura..."
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">De:</span>
+                  <input
+                    type="date"
+                    className="px-4 py-2 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-xs"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Até:</span>
+                  <input
+                    type="date"
+                    className="px-4 py-2 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-xs"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 min-w-[200px]">
+                  <Filter size={14} className="text-gray-400" />
+                  <select
+                    className="flex-1 px-4 py-2 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-xs"
+                    value={registerId}
+                    onChange={e => setRegisterId(e.target.value)}
+                  >
+                    <option value="">Todos os Turnos (Tornos)</option>
+                    {registers.map(reg => (
+                      <option key={reg.id} value={reg.id}>
+                        {new Date(reg.opened_at).toLocaleDateString()} - {reg.users?.name} ({reg.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -190,7 +270,7 @@ export default function Reports() {
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" hide />
                   <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fontWeight: 700 }} />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                     itemStyle={{ fontWeight: 900, color: '#10b981' }}
                   />
