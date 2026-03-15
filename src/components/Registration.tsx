@@ -8,7 +8,8 @@ import {
     Zap,
     Crown,
     Upload,
-    ArrowLeft
+    ArrowLeft,
+    X
 } from 'lucide-react';
 
 interface Plan {
@@ -33,6 +34,7 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
     const [loading, setLoading] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
+    const [tenantLink, setTenantLink] = useState<string | null>(null);
 
     useEffect(() => {
         setLoading(true);
@@ -58,11 +60,17 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
+            const data = await res.json();
             if (res.ok) {
+                const slug = formData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+                setTenantLink(`${window.location.origin}/?tenant=${slug}`);
                 setStep(3);
+            } else {
+                setError(data.error || 'Erro ao processar registo. Tente novamente.');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Registration error:', error);
+            setError('Ocorreu um erro inesperado. Verifique sua conexão.');
         } finally {
             setLoading(false);
         }
@@ -90,7 +98,17 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
                         <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Crie a conta da sua empresa</h1>
                         <p className="text-slate-500 font-medium mb-10 text-lg">Inicie sua jornada na gestão profissional em menos de 2 minutos.</p>
 
-                        <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-6">
+                        {error && (
+                            <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm mb-6 text-center font-bold border border-red-100 flex items-center justify-center gap-2">
+                                <Zap size={16} />
+                                {error}
+                                <button onClick={() => setError(null)} className="ml-auto hover:scale-110 transition-transform">
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        )}
+
+                        <form onSubmit={(e) => { e.preventDefault(); setError(null); setStep(2); }} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome da Empresa</label>
@@ -153,9 +171,12 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
                             <div className="bg-red-50 text-red-600 p-6 rounded-3xl mb-8 font-bold border-2 border-red-100 flex items-center gap-4">
                                 <Zap className="flex-shrink-0" />
                                 <div>
-                                    <p>Erro ao carregar planos SaaS.</p>
-                                    <p className="text-xs opacity-70">Certifique-se que o servidor está online e as sementes foram criadas.</p>
+                                    <p className="text-sm font-black uppercase tracking-widest mb-1">Ocorreu um problema</p>
+                                    <p className="text-xs opacity-80">{error}</p>
                                 </div>
+                                <button onClick={() => setError(null)} className="ml-auto hover:rotate-90 transition-transform">
+                                    <X size={20} />
+                                </button>
                             </div>
                         )}
 
@@ -224,7 +245,26 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
                             <CheckCircle2 size={48} />
                         </div>
                         <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Registo efectuado com sucesso!</h1>
-                        <p className="text-slate-500 font-medium mb-12 text-lg max-w-md mx-auto">Sua conta foi criada. Para ativar o acesso, por favor anexe o comprovativo de pagamento abaixo via IBAN: <br /><br /><strong>AO06 0051 0000 1234 5678 9012 3</strong></p>
+                        <p className="text-slate-500 font-medium mb-8 text-lg max-w-md mx-auto">Sua conta foi criada. Para ativar o acesso, por favor anexe o comprovativo de pagamento abaixo via IBAN: <br /><br /><strong>AO06 0051 0000 1234 5678 9012 3</strong></p>
+
+                        {tenantLink && (
+                            <div className="max-w-md mx-auto bg-indigo-50 p-6 rounded-[32px] mb-8 border-2 border-indigo-100 animate-in fade-in zoom-in duration-700 delay-300">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Seu Link de Acesso Exclusivo</p>
+                                <div className="flex items-center gap-3 bg-white p-4 rounded-2xl shadow-sm overflow-hidden border border-indigo-100 transition-all hover:shadow-md">
+                                    <code className="text-indigo-600 font-bold text-sm truncate flex-1 text-left">{tenantLink}</code>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(tenantLink);
+                                            alert('Link copiado!');
+                                        }}
+                                        className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition-all"
+                                    >
+                                        <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                                <p className="text-[10px] font-bold text-indigo-400 mt-3 italic">Guarde este link para aceder ao portal da sua empresa.</p>
+                            </div>
+                        )}
 
                         <div className="max-w-md mx-auto p-8 border-4 border-dashed border-slate-100 rounded-[40px] mb-12 hover:border-indigo-100 transition-colors group cursor-pointer">
                             <Upload size={32} className="text-slate-300 mx-auto mb-4 group-hover:text-indigo-500 transition-colors" />

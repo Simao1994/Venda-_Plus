@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Smartphone, Download, QrCode, Zap, Bell, Shield, TrendingUp, CheckCircle2 } from 'lucide-react';
 
 export default function MobileAppInfo() {
+    const [showInstructions, setShowInstructions] = useState<'ios' | 'android' | null>(null);
+
     return (
         <div className="p-6 lg:p-12 max-w-6xl mx-auto space-y-12">
             {/* Hero Section */}
@@ -18,16 +20,18 @@ export default function MobileAppInfo() {
                     </p>
                     <div className="flex flex-wrap gap-4 pt-4">
                         <button
-                            onClick={() => alert('Venda Plus para iOS - Brevemente na App Store. Utilize a versão PWA no Safari para já.')}
-                            className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-[24px] font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95"
+                            onClick={() => setShowInstructions('ios')}
+                            className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-[24px] font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 border border-slate-700"
                         >
-                            <Download size={20} /> App Store
+                            <Smartphone size={20} className="text-indigo-400" />
+                            <span>Disponível para <span className="text-white">iPhone</span></span>
                         </button>
                         <button
-                            onClick={() => alert('Venda Plus para Android - Brevemente na Play Store. Pode instalar como PWA através do Chrome.')}
-                            className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-[24px] font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95"
+                            onClick={() => setShowInstructions('android')}
+                            className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-[24px] font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 border border-slate-700"
                         >
-                            <Download size={20} /> Play Store
+                            <Download size={20} className="text-indigo-400" />
+                            <span>Baixar para <span className="text-white">Android</span></span>
                         </button>
                     </div>
                 </div>
@@ -58,6 +62,74 @@ export default function MobileAppInfo() {
                     </div>
                 ))}
             </div>
+
+            {/* Instruction Modal */}
+            {showInstructions && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[48px] w-full max-w-lg shadow-2xl overflow-hidden">
+                        <div className="p-10 text-center relative">
+                            <button
+                                onClick={() => setShowInstructions(null)}
+                                className="absolute top-8 right-8 text-slate-400 hover:text-slate-900 transition-colors"
+                            >
+                                <CheckCircle2 size={32} />
+                            </button>
+
+                            <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                {showInstructions === 'ios' ? <Smartphone size={40} /> : <Download size={40} />}
+                            </div>
+
+                            <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                                Instalar no {showInstructions === 'ios' ? 'iPhone' : 'Android'}
+                            </h2>
+                            <p className="text-slate-500 font-medium mt-2">
+                                Tenha o Venda Plus como um App nativo no seu telemóvel.
+                            </p>
+                        </div>
+
+                        <div className="px-10 pb-10 space-y-8">
+                            {showInstructions === 'ios' ? (
+                                <div className="space-y-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs shrink-0">1</div>
+                                        <p className="text-slate-600 font-bold leading-tight">Abra este link no <span className="text-indigo-600">Safari</span> do seu iPhone.</p>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs shrink-0">2</div>
+                                        <p className="text-slate-600 font-bold leading-tight">Toque no botão de <span className="text-indigo-600">Compartilhar</span> (ícone quadrado com seta para cima).</p>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs shrink-0">3</div>
+                                        <p className="text-slate-600 font-bold leading-tight">Role para baixo e selecione <span className="text-indigo-600 font-black italic">"Adicionar ao Ecrã Principal"</span>.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs shrink-0">1</div>
+                                        <p className="text-slate-600 font-bold leading-tight">Abra este link no <span className="text-indigo-600">Chrome</span>.</p>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs shrink-0">2</div>
+                                        <p className="text-slate-600 font-bold leading-tight">Toque nos <span className="text-indigo-600">três pontos</span> no canto superior direito.</p>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs shrink-0">3</div>
+                                        <p className="text-slate-600 font-bold leading-tight">Selecione <span className="text-indigo-600 font-black italic">"Instalar Aplicativo"</span> ou "Adicionar à Tela Inicial".</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => setShowInstructions(null)}
+                                className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black uppercase tracking-widest text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
+                            >
+                                Entendi, vou instalar agora
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

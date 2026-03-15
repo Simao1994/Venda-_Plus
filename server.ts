@@ -21,12 +21,33 @@ async function startServer() {
     console.error('❌ Database Schema Sync Failed:', err.message);
   });
 
-  // Diagnostic: Check users table
-  const { count, error: connError } = await supabase.from('users').select('*', { count: 'exact', head: true });
-  if (connError) {
-    console.error('❌ Database Connection Error:', connError.message);
-  } else {
-    console.log('✅ Database Connected. Visible users:', count);
+  // Diagnostic & Repair: Ensure all companies have a branch and users are associated
+  try {
+    const { data: companies } = await supabase.from('companies').select('id, name');
+    if (companies) {
+      for (const company of companies) {
+        const { data: branches } = await supabase.from('branches').select('id').eq('company_id', company.id);
+        let defaultBranchId: number;
+
+        if (!branches || branches.length === 0) {
+          console.log(`🔧 Repair: Creating default branch for company ${company.name}`);
+          const { data: newBranch } = await supabase.from('branches').insert({
+            company_id: company.id,
+            name: 'Sede Central'
+          }).select('id').single();
+          defaultBranchId = newBranch?.id;
+        } else {
+          defaultBranchId = branches[0].id;
+        }
+
+        // Fix users without branch_id
+        if (defaultBranchId) {
+          await supabase.from('users').update({ branch_id: defaultBranchId }).eq('company_id', company.id).is('branch_id', null);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('❌ Data Repair Failed:', err.message);
   }
 
   const app = express();
@@ -172,43 +193,84 @@ async function startServer() {
     const initialStatus = status === 'active' ? 'active' : 'pending';
     const subStatus = status === 'active' ? 'active' : 'suspended';
 
-    // 1. Create Company
-    const { data: company, error: cError } = await supabase.from("companies").insert([{ name, email, status: initialStatus }]).select("id").single();
-    if (cError) return res.status(500).json({ error: cError.message });
+    console.log(`[Registo SaaS] Iniciando para: ${email} (${name})`);
 
+    try {
+      // 1. Create Company
+      const { data: company, error: cError } = await supabase.from("companies").insert([{ name, email, status: initialStatus }]).select("id").single();
+      if (cError) {
+        console.error('❌ Erro ao criar empresa:', cError.message);
+        return res.status(500).json({ error: `Erro na empresa: ${cError.message}` });
+      }
 
-    // 2. Create User (Admin)
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const { data: user, error: uError } = await supabase.from("users").insert([{
-      company_id: company.id,
-      name: "Administrador",
-      email,
-      password: hashedPassword,
-      role: 'admin'
-    }]).select("id").single();
+      // 2. Create Default Branch
+      const { data: branch, error: bError } = await supabase.from("branches").insert([{
+        company_id: company.id,
+        name: "Sede Central"
+      }]).select("id").single();
 
-    if (uError) return res.status(500).json({ error: uError.message });
+      if (bError) {
+        console.error('❌ Erro ao criar filial padrão:', bError.message);
+        await supabase.from("companies").delete().eq("id", company.id);
+        return res.status(500).json({ error: `Erro na filial: ${bError.message}` });
+      }
 
-    // 3. Create initial pending subscription
-    const { data: plan } = await supabase.from("saas_plans").select("duration_months, price_monthly, price_semestrial, price_yearly").eq("id", plan_id).single();
-    const planDuration = plan?.duration_months || 1;
-    const months = tipo_plano === 'anual' ? 12 : (tipo_plano === 'semestrial' ? 6 : planDuration);
+      // 3. Create User (Admin)
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      const { data: user, error: uError } = await supabase.from("users").insert([{
+        company_id: company.id,
+        branch_id: branch.id,
+        name: "Administrador",
+        email,
+        password: hashedPassword,
+        role: 'admin'
+      }]).select("id").single();
 
-    const expiry = new Date();
-    expiry.setMonth(expiry.getMonth() + months);
+      if (uError) {
+        console.error('❌ Erro ao criar utilizador admin:', uError.message);
+        // Clean up company and branch if user creation fails
+        await supabase.from("branches").delete().eq("id", branch.id);
+        await supabase.from("companies").delete().eq("id", company.id);
+        return res.status(500).json({ error: `Erro no utilizador: ${uError.message}` });
+      }
 
-    const valor = plan ? (tipo_plano === 'anual' ? plan.price_yearly : (tipo_plano === 'semestrial' ? plan.price_semestrial : plan.price_monthly)) : 0;
+      // 3. Create initial pending subscription
+      console.log(`[Registo SaaS] Buscando plano: ${plan_id}`);
+      const { data: plan, error: pError } = await supabase.from("saas_plans").select("duration_months, price_monthly, price_semestrial, price_yearly").eq("id", plan_id).single();
 
-    await supabase.from("saas_subscriptions").insert([{
-      company_id: company.id,
-      plan_id,
-      tipo_plano,
-      data_expiracao: expiry.toISOString(),
-      valor_pago: valor,
-      status: subStatus
-    }]);
+      if (pError || !plan) {
+        console.error('❌ Plano não encontrado:', plan_id, pError?.message);
+        return res.status(400).json({ error: "Plano selecionado não é válido." });
+      }
 
-    res.json({ success: true, company_id: company.id });
+      const planDuration = plan.duration_months || 1;
+      const months = tipo_plano === 'anual' ? 12 : (tipo_plano === 'semestrial' ? 6 : planDuration);
+
+      const expiry = new Date();
+      expiry.setMonth(expiry.getMonth() + months);
+
+      const valor = tipo_plano === 'anual' ? plan.price_yearly : (tipo_plano === 'semestrial' ? plan.price_semestrial : plan.price_monthly);
+
+      const { error: sError } = await supabase.from("saas_subscriptions").insert([{
+        company_id: company.id,
+        plan_id,
+        tipo_plano,
+        data_expiracao: expiry.toISOString(),
+        valor_pago: valor,
+        status: subStatus
+      }]);
+
+      if (sError) {
+        console.error('❌ Erro ao criar subscrição:', sError.message);
+        return res.status(500).json({ error: `Erro na subscrição: ${sError.message}` });
+      }
+
+      console.log(`✅ Registo SaaS concluído com sucesso para: ${email}`);
+      res.json({ success: true, company_id: company.id });
+    } catch (err: any) {
+      console.error('❌ Erro inesperado no registo:', err.message);
+      res.status(500).json({ error: "Erro interno do servidor durante o registo." });
+    }
   });
 
   // Master Admin Area
@@ -477,6 +539,29 @@ async function startServer() {
     if (error) return res.status(500).json({ error: error.message });
     res.json({ id: data.id });
   });
+
+  app.put("/api/categories/:id", authenticate, async (req: any, res) => {
+    const { name } = req.body;
+    const { error } = await supabase
+      .from("categories")
+      .update({ name })
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  });
+
+  app.delete("/api/categories/:id", authenticate, async (req: any, res) => {
+    const { error } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  });
   app.post("/api/expenses", authenticate, async (req: any, res) => {
     const { supplier_id, description, amount, due_date, status } = req.body;
     const { data, error } = await supabase
@@ -636,13 +721,28 @@ async function startServer() {
     const invoice_number = `FAC-${Date.now()}`;
     const status = payment_method === 'credit' ? 'pending' : 'paid';
 
+    let branchId = req.user.branch_id;
+    if (!branchId) {
+      console.log(`[Venda] Utilizador ${req.user.email} sem branch_id. À procura de filial...`);
+      let { data: branch } = await supabase.from("branches").select("id").eq("company_id", req.user.company_id).limit(1).maybeSingle();
+
+      if (!branch) {
+        console.log(`[Venda] Nenhuma filial encontrada para empresa ${req.user.company_id}. Criando padrão...`);
+        const { data: newBranch } = await supabase.from("branches").insert({ company_id: req.user.company_id, name: 'Sede Central' }).select("id").single();
+        branch = newBranch;
+      }
+      branchId = branch?.id;
+    }
+
+    console.log(`[Venda] Usando branch_id: ${branchId}`);
+
     try {
       // 1. Create Sale
       const { data: saleData, error: saleError } = await supabase
         .from("sales")
         .insert([{
           company_id: req.user.company_id,
-          branch_id: req.user.branch_id,
+          branch_id: branchId,
           user_id: req.user.id,
           customer_id: customer_id || null,
           total,
@@ -657,7 +757,10 @@ async function startServer() {
         .select("id")
         .single();
 
-      if (saleError) throw saleError;
+      if (saleError) {
+        console.error('❌ Erro Supabase ao inserir venda:', saleError);
+        return res.status(500).json({ error: `Erro na BD: ${saleError.message}`, details: saleError });
+      }
       const saleId = saleData.id;
 
       // 2. Create Items & Update Stock
@@ -710,11 +813,12 @@ async function startServer() {
 
   app.post("/api/cash-registers/open", authenticate, async (req: any, res) => {
     const { initial_value } = req.body;
+    const branchId = req.user.branch_id || 1;
     const { data, error } = await supabase
       .from("cash_registers")
       .insert([{
         company_id: req.user.company_id,
-        branch_id: req.user.branch_id || 1,
+        branch_id: branchId,
         user_id: req.user.id,
         initial_value,
         status: 'open'
@@ -1190,11 +1294,27 @@ async function startServer() {
     const troco = valor_entregue ? valor_entregue - total : 0;
     const numero_factura = `FR-FARM-${Date.now()}`;
 
+    let branchId = req.user.branch_id;
+    if (!branchId) {
+      console.log(`[Venda Farmácia] Utilizador ${req.user.email} sem branch_id. À procura de filial...`);
+      let { data: branch } = await supabase.from("branches").select("id").eq("company_id", companyId).limit(1).maybeSingle();
+
+      if (!branch) {
+        console.log(`[Venda Farmácia] Nenhuma filial encontrada para empresa ${companyId}. Criando padrão...`);
+        const { data: newBranch } = await supabase.from("branches").insert({ company_id: companyId, name: 'Sede Central' }).select("id").single();
+        branch = newBranch;
+      }
+      branchId = branch?.id;
+    }
+
+    console.log(`[Venda Farmácia] Usando branch_id: ${branchId}`);
+
     // Create sale record
     const { data: venda, error: vendaError } = await supabase
       .from("vendas_farmacia")
       .insert([{
         company_id: companyId,
+        branch_id: branchId,
         cliente_id: cliente_id || null,
         vendedor_id: vendedorId,
         numero_factura,
@@ -1208,7 +1328,10 @@ async function startServer() {
       .select("id")
       .single();
 
-    if (vendaError) return res.status(500).json({ error: vendaError.message });
+    if (vendaError) {
+      console.error('❌ Erro Supabase ao inserir venda farmácia:', vendaError);
+      return res.status(500).json({ error: `Erro na BD Farmácia: ${vendaError.message}`, details: vendaError });
+    }
 
     // Process each item (Lot deduction - FIFO)
     for (const item of itens) {
@@ -1912,11 +2035,12 @@ async function startServer() {
     const { supplier_id, items } = req.body;
     const total_amount = items.reduce((acc: number, curr: any) => acc + (curr.quantity * curr.cost), 0);
 
+    const branchId = req.user.branch_id || 1;
     const { data: order, error: orderError } = await supabase
       .from("purchase_orders")
       .insert([{
         company_id: req.user.company_id,
-        branch_id: req.user.branch_id,
+        branch_id: branchId,
         supplier_id,
         total_amount,
         status: 'pending'
@@ -2027,10 +2151,11 @@ async function startServer() {
   app.post("/api/inventory/movements", authenticate, async (req: any, res) => {
     const { product_id, quantity, type, reason } = req.body;
 
+    const branchId = req.user.branch_id || 1;
     // Record movement
     const { error: movementError } = await supabase.from("stock_movements").insert([{
       company_id: req.user.company_id,
-      branch_id: req.user.branch_id,
+      branch_id: branchId,
       product_id,
       type,
       quantity,

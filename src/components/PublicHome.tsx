@@ -18,8 +18,33 @@ import {
   CreditCard,
   Zap,
   Settings,
-  X
+  X,
+  Clock,
+  Calendar
 } from 'lucide-react';
+
+function DigitalClock() {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm transition-all hover:bg-gray-100">
+      <div className="flex items-center gap-2 text-emerald-600">
+        <Clock size={16} />
+        <span className="text-xs font-black tracking-tighter uppercase italic">{time.toLocaleTimeString('pt-PT')}</span>
+      </div>
+      <div className="w-px h-4 bg-gray-200" />
+      <div className="flex items-center gap-2 text-gray-400">
+        <Calendar size={16} />
+        <span className="text-xs font-black tracking-tighter uppercase italic">{time.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClick: () => void, onStartClick: () => void }) {
   const [publications, setPublications] = useState<any[]>([]);
@@ -146,6 +171,10 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
             <a href="#precos" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Preços</a>
           </div>
 
+          <div className="hidden lg:block">
+            <DigitalClock />
+          </div>
+
           <div className="flex items-center gap-4">
             <button
               onClick={onLoginClick}
@@ -160,14 +189,14 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       {/* Hero Section */}
       <header className="pt-32 pb-20 overflow-hidden relative min-h-[90vh] flex items-center">
         {/* Background Effects */}
-        <div className="absolute inset-0 bg-slate-950">
+        <div className="absolute inset-0 bg-gray-950">
           <img
-            src="/hero.png"
-            alt="Venda Plus Supermarket Hero"
-            className="w-full h-full object-cover opacity-40 mix-blend-overlay"
-            style={{ filter: 'brightness(0.7) contrast(1.1)' }}
+            src="/hero-new.png"
+            alt="Venda Plus Analytics Hero"
+            className="w-full h-full object-cover opacity-60"
+            style={{ filter: 'brightness(0.7)', objectPosition: 'center right' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-gray-950 via-gray-950/80 to-transparent" />
         </div>
 
         <div className="max-w-7xl mx-auto px-6 relative z-10 w-full">
@@ -177,7 +206,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               Software de Gestão Retail Premium
             </div>
 
-            <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.85] tracking-tighter mb-8">
+            <h1 className="text-5xl md:text-7xl font-black text-white leading-tight tracking-tighter mb-8 max-w-2xl">
               A inteligência por trás do seu <br />
               <span className="text-emerald-500">supermercado.</span>
             </h1>
@@ -332,7 +361,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {plans.map((plan, i) => {
+            {plans.slice(0, 3).map((plan, i) => {
               const publicFeatures = Array.isArray(plan.public_features) ? plan.public_features : [];
               return (
                 <div key={i} className={`p-10 rounded-[40px] border-2 transition-all duration-500 ${plan.is_featured ? 'bg-indigo-600 border-indigo-500 shadow-2xl shadow-indigo-500/20 scale-105' : 'bg-slate-800/50 border-slate-700 hover:border-slate-500'
@@ -403,9 +432,9 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           </div>
 
           <div className="flex gap-8">
-            <a href="#" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Termos</a>
-            <a href="#" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Privacidade</a>
-            <a href="#" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Contactos</a>
+            <a href="https://wa.me/244923000000?text=Termos" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Termos</a>
+            <a href="https://wa.me/244923000000?text=Privacidade" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Privacidade</a>
+            <a href="https://wa.me/244923000000?text=Contactos" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Contactos</a>
           </div>
         </div>
       </footer>
@@ -447,14 +476,16 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                   }}
                   className="flex-1 py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200"
                 >
-                  Começar Agora
+                  Ativar Módulo
                 </button>
-                <button
-                  onClick={() => setSelectedModule(null)}
-                  className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black text-lg hover:bg-slate-200 transition-all"
+                <a
+                  href={`https://wa.me/244923000000?text=${encodeURIComponent(`Olá! Gostaria de mais informações sobre o módulo "${selectedModule.title}" do Venda Plus.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black text-lg hover:bg-slate-200 transition-all text-center flex items-center justify-center"
                 >
-                  Explorar Outros
-                </button>
+                  Solicitar Informação
+                </a>
               </div>
             </div>
           </div>

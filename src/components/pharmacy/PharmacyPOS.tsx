@@ -12,7 +12,8 @@ export default function PharmacyPOS() {
   const [lastSale, setLastSale] = useState<any>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'multicaixa' | 'credit'>('cash');
-  const [amountPaid, setAmountPaid] = useState(0);
+  const [amountPaid, setAmountPaid] = useState<string>('0');
+  const [autoPrint, setAutoPrint] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -45,18 +46,18 @@ export default function PharmacyPOS() {
     }
   };
 
-  const filteredMedicamentos = medicamentos.filter(m => 
-    m.nome_medicamento.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredMedicamentos = medicamentos.filter(m =>
+    m.nome_medicamento.toLowerCase().includes(search.toLowerCase()) ||
     (m.codigo_barras && m.codigo_barras.includes(search))
   );
 
   const addToCart = (med: any) => {
     if (med.stock_total <= 0) return;
-    
+
     const existing = cart.find(item => item.id === med.id);
     if (existing) {
       if (existing.quantity >= med.stock_total) return;
-      setCart(cart.map(item => 
+      setCart(cart.map(item =>
         item.id === med.id ? { ...item, quantity: item.quantity + 1 } : item
       ));
     } else {
@@ -84,15 +85,16 @@ export default function PharmacyPOS() {
   const subtotal = cart.reduce((sum, item) => sum + (item.preco_venda * item.quantity), 0);
   const tax = subtotal * 0.14; // 14% IVA
   const total = subtotal + tax;
-  const change = Math.max(0, amountPaid - total);
+  const amountPaidNum = parseFloat(amountPaid) || 0;
+  const change = Math.max(0, amountPaidNum - total);
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    if ((paymentMethod === 'cash' || paymentMethod === 'multicaixa') && amountPaid < total) {
+    if ((paymentMethod === 'cash' || paymentMethod === 'multicaixa') && amountPaidNum < total) {
       alert('Valor insuficiente');
       return;
     }
-    
+
     try {
       const payload = {
         itens: cart.map(item => ({
@@ -101,7 +103,7 @@ export default function PharmacyPOS() {
           preco_unitario: item.preco_venda
         })),
         forma_pagamento: paymentMethod,
-        valor_entregue: amountPaid
+        valor_entregue: amountPaidNum
       };
 
       const res = await fetch('/api/farmacia/vendas', {
@@ -114,27 +116,49 @@ export default function PharmacyPOS() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erro ao finalizar venda');
+        const errorText = await res.text();
+        console.error('Pharmacy sale error details:', errorText);
+        let errorMessage = 'Erro ao finalizar venda';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) { }
+
+        if (res.status === 401) {
+          alert('A sua sessão expirou. Por favor, faça login novamente.');
+          window.location.reload();
+          return;
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = await res.json();
-      setLastSale({ 
-        ...data, 
-        items: cart, 
-        subtotal, 
-        tax, 
-        total, 
-        amountPaid, 
-        change, 
-        date: new Date().toLocaleString() 
-      });
+      const saleRecord = {
+        ...data,
+        items: cart,
+        subtotal,
+        tax,
+        total,
+        amountPaid: amountPaidNum,
+        change,
+        date: new Date().toLocaleString()
+      };
+
+      setLastSale(saleRecord);
       setCart([]);
       setShowPayment(false);
-      setAmountPaid(0);
+      setAmountPaid('0');
       fetchMedicamentos(); // Refresh stock
+
+      // Automatic print
+      if (autoPrint) {
+        setTimeout(() => {
+          handlePrint();
+        }, 500);
+      }
     } catch (error: any) {
-      alert(error.message);
+      alert(`Erro: ${error.message}`);
     }
   };
 
@@ -158,21 +182,20 @@ export default function PharmacyPOS() {
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredMedicamentos.map(med => (
-              <div 
+              <div
                 key={med.id}
                 onClick={() => addToCart(med)}
-                className={`bg-white p-4 rounded-2xl border transition-all cursor-pointer ${
-                  med.stock_total > 0 
-                    ? 'hover:border-emerald-500 hover:shadow-md border-gray-200' 
-                    : 'opacity-50 border-gray-200 cursor-not-allowed'
-                }`}
+                className={`bg-white p-4 rounded-2xl border transition-all cursor-pointer ${med.stock_total > 0
+                  ? 'hover:border-emerald-500 hover:shadow-md border-gray-200'
+                  : 'opacity-50 border-gray-200 cursor-not-allowed'
+                  }`}
               >
                 <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-3">
                   <Pill size={24} />
                 </div>
                 <h3 className="font-bold text-gray-900 line-clamp-2 min-h-[40px]">{med.nome_medicamento}</h3>
                 <p className="text-xs text-gray-500 mb-2">{med.dosagem} • {med.forma_farmaceutica}</p>
-                
+
                 <div className="flex justify-between items-end mt-4">
                   <div>
                     <div className="text-xs text-gray-500">Preço</div>
@@ -231,14 +254,14 @@ export default function PharmacyPOS() {
                       )}
                     </div>
                     <div className="flex items-center gap-3 bg-white border rounded-lg p-1">
-                      <button 
+                      <button
                         onClick={() => updateQuantity(item.id, -1)}
                         className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 rounded-md"
                       >
                         <Minus size={14} />
                       </button>
                       <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-                      <button 
+                      <button
                         onClick={() => updateQuantity(item.id, 1)}
                         className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 rounded-md"
                       >
@@ -274,6 +297,19 @@ export default function PharmacyPOS() {
             <CreditCard size={20} />
             PAGAR
           </button>
+
+          <div className="flex items-center gap-2 mt-4 p-2 bg-white rounded-lg border border-gray-100">
+            <input
+              type="checkbox"
+              id="autoPrintPharm"
+              checked={autoPrint}
+              onChange={(e) => setAutoPrint(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+            />
+            <label htmlFor="autoPrintPharm" className="text-xs font-bold text-gray-600 cursor-pointer flex items-center gap-1">
+              <Printer size={12} /> Impressão Automática
+            </label>
+          </div>
         </div>
       </div>
 
@@ -317,11 +353,11 @@ export default function PharmacyPOS() {
                       type="number"
                       className="w-full text-3xl font-mono p-4 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0"
                       value={amountPaid}
-                      onChange={(e) => setAmountPaid(Number(e.target.value))}
+                      onChange={(e) => setAmountPaid(e.target.value)}
                       autoFocus
                     />
                   </div>
-                  
+
                   {paymentMethod === 'cash' && (
                     <div className="bg-gray-50 p-4 rounded-xl flex justify-between items-center">
                       <span className="text-gray-600 font-medium">Troco</span>
@@ -403,19 +439,19 @@ export default function PharmacyPOS() {
               <span>IVA (14%):</span>
               <span>{lastSale?.tax.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between font-bold text-lg">
+            <div className="flex justify-between font-black text-lg pt-2 border-t border-dashed mt-2">
               <span>TOTAL:</span>
               <span>{lastSale?.total.toLocaleString()} {user?.currency}</span>
             </div>
           </div>
-          <div className="mt-4 border-t pt-2">
+          <div className="mt-4 border-t border-dashed pt-2 text-xs space-y-1">
             <div className="flex justify-between">
-              <span>Entregue:</span>
-              <span>{lastSale?.amountPaid.toLocaleString()}</span>
+              <span>ENTREGUE:</span>
+              <span>{lastSale?.amountPaid.toLocaleString()} {user?.currency}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Troco:</span>
-              <span>{lastSale?.change.toLocaleString()}</span>
+            <div className="flex justify-between font-bold text-sm">
+              <span>TROCO:</span>
+              <span>{lastSale?.change.toLocaleString()} {user?.currency}</span>
             </div>
           </div>
           <div className="text-center mt-8 italic">
@@ -437,13 +473,13 @@ export default function PharmacyPOS() {
               <p className="text-sm text-gray-500">Fatura {lastSale.numero_factura}</p>
             </div>
             <div className="flex gap-2 ml-4">
-              <button 
+              <button
                 onClick={handlePrint}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700"
               >
                 Imprimir
               </button>
-              <button 
+              <button
                 onClick={() => setLastSale(null)}
                 className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-200"
               >

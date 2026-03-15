@@ -20,10 +20,10 @@ export default function POS() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'multicaixa' | 'credit'>('cash');
   const [cart, setCart] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [amountPaid, setAmountPaid] = useState<number>(0);
+  const [amountPaid, setAmountPaid] = useState<string>('0');
   const [showPayment, setShowPayment] = useState(false);
   const [showDebtPayment, setShowDebtPayment] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
@@ -32,6 +32,7 @@ export default function POS() {
   const [view, setView] = useState<'products' | 'cart'>('products');
   const [showOpenRegister, setShowOpenRegister] = useState(false);
   const [initialCash, setInitialCash] = useState('0');
+  const [autoPrint, setAutoPrint] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -178,48 +179,79 @@ export default function POS() {
   const taxRate = companyProfile?.tax_percentage || 14;
   const tax = subtotal * (taxRate / 100);
   const total = subtotal + tax;
-  const change = amountPaid > total ? amountPaid - total : 0;
+  const amountPaidNum = parseFloat(amountPaid) || 0;
+  const change = amountPaidNum > total ? amountPaidNum - total : 0;
 
   const handleCheckout = async () => {
-    if (paymentMethod === 'cash' && amountPaid < total) return alert('Valor insuficiente');
+    if (paymentMethod === 'cash' && amountPaidNum < total) return alert('Valor insuficiente');
     if (paymentMethod === 'credit' && !selectedCustomer) return alert('Seleccione um cliente para venda a crédito');
 
-    const res = await fetch('/api/sales', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        items: cart,
-        customer_id: selectedCustomer,
-        subtotal,
-        tax,
-        total,
-        amount_paid: paymentMethod === 'credit' ? 0 : amountPaid,
-        change: paymentMethod === 'credit' ? 0 : change,
-        payment_method: paymentMethod
-      })
-    });
+    try {
+      const res = await fetch('/api/sales', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          items: cart,
+          customer_id: selectedCustomer,
+          subtotal,
+          tax,
+          total,
+          amount_paid: paymentMethod === 'credit' ? 0 : amountPaidNum,
+          change: paymentMethod === 'credit' ? 0 : change,
+          payment_method: paymentMethod
+        })
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Sale error details:', errorText);
+        let errorMessage = 'Erro ao processar venda';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) { }
+
+        if (res.status === 401) {
+          alert('A sua sessão expirou. Por favor, faça login novamente.');
+          window.location.reload();
+          return;
+        }
+
+        throw new Error(errorMessage);
+      }
+
       const data = await res.json();
-      setLastSale({
+      const saleRecord = {
         ...data,
         items: cart,
         subtotal,
         tax,
         total,
-        amountPaid: paymentMethod === 'credit' ? 0 : amountPaid,
+        amountPaid: paymentMethod === 'credit' ? 0 : amountPaidNum,
         change: paymentMethod === 'credit' ? 0 : change,
         payment_method: paymentMethod,
         date: new Date().toLocaleString()
-      });
+      };
+
+      setLastSale(saleRecord);
       setCart([]);
-      setAmountPaid(0);
+      setAmountPaid('0');
       setSelectedCustomer(null);
       setPaymentMethod('cash');
       setShowPayment(false);
+      fetchProducts(); // Refresh stock in UI
+
+      // Automatic print if enabled
+      if (autoPrint) {
+        setTimeout(() => {
+          handlePrint();
+        }, 500);
+      }
+    } catch (err: any) {
+      alert(`Erro: ${err.message}`);
     }
   };
 
@@ -401,10 +433,23 @@ export default function POS() {
             <span>{total.toLocaleString()} {user?.currency}</span>
           </div>
 
+          <div className="flex items-center gap-2 mb-2 p-2 bg-white rounded-lg border border-gray-100">
+            <input
+              type="checkbox"
+              id="autoPrint"
+              checked={autoPrint}
+              onChange={(e) => setAutoPrint(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+            />
+            <label htmlFor="autoPrint" className="text-xs font-bold text-gray-600 cursor-pointer flex items-center gap-1">
+              <Printer size={12} /> Impressão Automática
+            </label>
+          </div>
+
           <button
             disabled={cart.length === 0}
             onClick={() => setShowPayment(true)}
-            className="w-full mt-4 bg-emerald-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-200"
+            className="w-full mt-2 bg-emerald-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-200"
           >
             <CreditCard size={20} />
             PAGAR (F12)
@@ -490,7 +535,7 @@ export default function POS() {
                       type="number"
                       className="w-full text-3xl font-mono p-4 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0"
                       value={amountPaid}
-                      onChange={(e) => setAmountPaid(Number(e.target.value))}
+                      onChange={(e) => setAmountPaid(e.target.value)}
                       autoFocus
                     />
                   </div>
@@ -582,7 +627,7 @@ export default function POS() {
             </div>
             <div className="flex justify-between">
               <span>OPERADOR:</span>
-              <span className="uppercase">{user?.name}</span>
+              <span className="uppercase text-right">{user?.name}</span>
             </div>
             {lastSale?.customer_name && (
               <div className="flex justify-between border-t border-dashed pt-1 mt-1">
@@ -620,7 +665,7 @@ export default function POS() {
               <span>IVA ({taxRate}%):</span>
               <span>{lastSale?.tax.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between font-black text-base pt-2 border-t border-dashed mt-2">
+            <div className="flex justify-between font-black text-lg pt-2 border-t border-dashed mt-2">
               <span>TOTAL:</span>
               <span>{lastSale?.total.toLocaleString()} {user?.currency}</span>
             </div>
@@ -628,16 +673,16 @@ export default function POS() {
 
           <div className="mt-6 border-t border-dashed pt-3 text-xs space-y-1">
             <div className="flex justify-between">
-              <span>PAGAMENTO:</span>
+              <span>MÉTODO:</span>
               <span className="font-bold uppercase">{lastSale?.payment_method}</span>
             </div>
             <div className="flex justify-between">
               <span>ENTREGUE:</span>
-              <span>{lastSale?.amountPaid.toLocaleString()}</span>
+              <span>{lastSale?.amountPaid.toLocaleString()} {user?.currency}</span>
             </div>
-            <div className="flex justify-between font-bold">
+            <div className="flex justify-between font-bold text-sm">
               <span>TROCO:</span>
-              <span>{lastSale?.change.toLocaleString()}</span>
+              <span>{lastSale?.change.toLocaleString()} {user?.currency}</span>
             </div>
           </div>
 

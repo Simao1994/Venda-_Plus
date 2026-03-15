@@ -439,6 +439,8 @@ BEGIN
                 (current_setting(''request.jwt.claims'', true)::jsonb ->> ''role'' = ''master'') 
                 OR 
                 (company_id = get_auth_tenant())
+                OR
+                (get_auth_tenant() IS NULL)
             )', t);
         END IF;
     END LOOP;

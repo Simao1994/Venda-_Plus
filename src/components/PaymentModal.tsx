@@ -17,7 +17,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
   const { token, user } = useAuth();
   const [pendingSales, setPendingSales] = useState<any[]>([]);
   const [selectedSaleId, setSelectedSaleId] = useState<number | ''>('');
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState<string>('0');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const [loading, setLoading] = useState(false);
 
@@ -33,13 +33,14 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
     setPendingSales(data);
     if (data.length > 0) {
       setSelectedSaleId(data[0].id);
-      setAmount(data[0].total - data[0].amount_paid);
+      setAmount((data[0].total - data[0].amount_paid).toString());
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSaleId || amount <= 0) return;
+    const amountNum = parseFloat(amount) || 0;
+    if (!selectedSaleId || amountNum <= 0) return;
 
     setLoading(true);
     const res = await fetch('/api/payments', {
@@ -50,7 +51,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
       },
       body: JSON.stringify({
         sale_id: selectedSaleId,
-        amount,
+        amount: amountNum,
         payment_method: paymentMethod
       })
     });
@@ -66,6 +67,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
 
   const selectedSale = pendingSales.find(s => s.id === selectedSaleId);
   const remaining = selectedSale ? selectedSale.total - selectedSale.amount_paid : 0;
+  const amountNum = parseFloat(amount) || 0;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -79,7 +81,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
             <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
             <div className="p-2 bg-gray-50 rounded-lg font-medium">{customer.name}</div>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Venda Pendente</label>
             <select
@@ -90,7 +92,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
                 const id = Number(e.target.value);
                 setSelectedSaleId(id);
                 const sale = pendingSales.find(s => s.id === id);
-                if (sale) setAmount(sale.total - sale.amount_paid);
+                if (sale) setAmount((sale.total - sale.amount_paid).toString());
               }}
             >
               {pendingSales.map(sale => (
@@ -113,7 +115,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
                   max={remaining}
                   className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-xl font-bold"
                   value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
+                  onChange={(e) => setAmount(e.target.value)}
                 />
                 <p className="text-xs text-gray-500 mt-1">Máximo permitido: {remaining.toLocaleString()} {user?.currency}</p>
               </div>
@@ -143,7 +145,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
             </button>
             <button
               type="submit"
-              disabled={loading || !selectedSaleId || amount <= 0}
+              disabled={loading || !selectedSaleId || amountNum <= 0}
               className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50"
             >
               {loading ? 'Processando...' : 'Confirmar Pagamento'}
