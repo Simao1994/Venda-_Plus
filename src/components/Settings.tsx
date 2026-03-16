@@ -1,19 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Save, Globe, Phone, Mail, Hash, Percent, DollarSign, Database, Download, CheckCircle2, Server, Shield } from 'lucide-react';
+import {
+  Building2, Save, Globe, Phone, Mail, Hash, Percent,
+  DollarSign, Database, Download, CheckCircle2, Server,
+  Shield, Store, Package, Users, User, BarChart3,
+  Plus, Newspaper, Megaphone, PieChart, Settings as SettingsIcon,
+  X, Check
+} from 'lucide-react';
+
+const MODULE_DEFS = [
+  { key: 'sales', label: 'Vendas & PDV', icon: <Store size={14} /> },
+  { key: 'products', label: 'Produtos & Stock', icon: <Package size={14} /> },
+  { key: 'customers', label: 'Clientes', icon: <Users size={14} /> },
+  { key: 'hr', label: 'Recursos Humanos', icon: <User size={14} /> },
+  { key: 'accounting', label: 'Contabilidade', icon: <BarChart3 size={14} /> },
+  { key: 'pharmacy', label: 'Farmácia', icon: <Plus size={14} /> },
+  { key: 'blog', label: 'Blog Corporativo', icon: <Newspaper size={14} /> },
+  { key: 'marketing', label: 'Marketing', icon: <Megaphone size={14} /> },
+  { key: 'reports', label: 'Relatórios', icon: <PieChart size={14} /> },
+  { key: 'users', label: 'Gestão de Utilizadores', icon: <Shield size={14} /> },
+  { key: 'settings', label: 'Configurações', icon: <SettingsIcon size={14} /> },
+];
 
 export default function Settings() {
   const { token, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [company, setCompany] = useState({
+  const [company, setCompany] = useState<any>({
     name: '',
     nif: '',
     address: '',
     phone: '',
     email: '',
     tax_percentage: 14,
-    currency: 'Kz'
+    currency: 'Kz',
+    logo: '',
+    role_permissions: {}
   });
   const [activeTab, setActiveTab] = useState<'profile' | 'system'>('profile');
   const [dbState, setDbState] = useState<any>(null);
@@ -86,6 +108,22 @@ export default function Settings() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const togglePermission = (role: string, moduleKey: string) => {
+    const currentPerms = company.role_permissions || {};
+    const rolePerms = currentPerms[role] || {};
+
+    setCompany({
+      ...company,
+      role_permissions: {
+        ...currentPerms,
+        [role]: {
+          ...rolePerms,
+          [moduleKey]: !rolePerms[moduleKey]
+        }
+      }
+    });
   };
 
   const handleExport = async () => {
@@ -268,6 +306,60 @@ export default function Settings() {
                 />
               </div>
             </div>
+
+            <div className="pt-8 border-t border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <Shield className="text-purple-600" size={24} />
+                <h3 className="text-xl font-black text-gray-900">Matriz de Permissões (Modelos)</h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-6 font-medium bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                Ajuste os modelos de permissão para cada papel. Estas definições serão aplicadas automaticamente a cada novo utilizador criado.
+              </p>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400">Módulo / Funcionalidade</th>
+                      <th className="py-4 px-2 font-black text-purple-600 text-center text-[10px] uppercase">Admin</th>
+                      <th className="py-4 px-2 font-black text-blue-600 text-center text-[10px] uppercase">Gerente</th>
+                      <th className="py-4 px-2 font-black text-emerald-600 text-center text-[10px] uppercase">Caixa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {MODULE_DEFS.map((mod) => (
+                      <tr key={mod.key} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="py-4 px-2">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
+                              {mod.icon}
+                            </span>
+                            <span className="font-bold text-gray-700 text-xs">{mod.label}</span>
+                          </div>
+                        </td>
+                        {['admin', 'manager', 'cashier'].map((role) => {
+                          const isChecked = company.role_permissions?.[role]?.[mod.key] === true;
+                          return (
+                            <td key={role} className="py-4 px-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => togglePermission(role, mod.key)}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all ${isChecked
+                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
+                                    : 'bg-gray-100 text-gray-300 hover:bg-gray-200'
+                                  }`}
+                              >
+                                {isChecked ? <Check size={18} strokeWidth={3} /> : <X size={16} />}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end">
@@ -286,75 +378,60 @@ export default function Settings() {
           <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                <h3 className="text-xl font-black text-gray-900 flex items-center gap-2 uppercase tracking-tight italic">
                   <Database className="text-emerald-600" size={24} />
-                  Estado da Base de Dados
+                  Diagnóstico do Sistema
                 </h3>
-                <p className="text-gray-500 text-sm">Resumo da ocupação de dados da sua empresa</p>
+                <p className="text-gray-500 text-sm font-medium">Informações técnicas e estado operacional da plataforma</p>
               </div>
-              <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest">
-                <Server size={14} /> Supabase Cloud + Edge Runtime
+              <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${dbState?.db_status === 'Online' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                  <div className={`w-2 h-2 rounded-full ${dbState?.db_status === 'Online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  DB {dbState?.db_status || 'OFFLINE'}
+                </div>
+                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  <Server size={14} /> {dbState?.system_status || 'OPERACIONAL'}
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              {dbState ? Object.entries(dbState).map(([table, count]: any) => (
-                <div key={table} className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{table}</p>
-                  <p className="text-2xl font-black text-gray-900">{count}</p>
-                  <p className="text-[10px] text-gray-400 font-bold">Registos activos</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+              <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">UTILIZADORES ACTIVOS</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-4xl font-black text-gray-900 italic">{dbState?.current_users || 0}</p>
+                  <p className="text-gray-400 font-black text-lg">/ {dbState?.user_limit || '---'}</p>
+                </div>
+                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">Limite do seu plano</p>
+              </div>
+
+              <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">TABELAS GERIDAS</p>
+                <p className="text-4xl font-black text-gray-900 italic">{dbState?.total_tables || 0}</p>
+                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">Estrutura de dados activa</p>
+              </div>
+
+              <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">ESTADO DO BANCO</p>
+                <p className="text-2xl font-black text-emerald-600 uppercase italic">OPERACIONAL</p>
+                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">Supabase Cloud + Edge</p>
+              </div>
+            </div>
+
+            <div className="w-full h-px bg-gray-100 mb-10" />
+
+            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6 italic">RESUMO DE REGISTOS POR TABELA</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {dbState?.table_stats ? Object.entries(dbState.table_stats).map(([table, count]: any) => (
+                <div key={table} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm transition-transform hover:scale-[1.02]">
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1 italic">{table.replace(/_/g, ' ')}</p>
+                  <p className="text-xl font-black text-gray-900 italic">{count}</p>
                 </div>
               )) : (
-                <div className="col-span-full py-12 text-center text-gray-400 font-bold animate-pulse">
-                  Sincronizando estatísticas...
+                <div className="col-span-full py-12 text-center text-gray-400 font-black uppercase tracking-widest text-xs animate-pulse italic">
+                  SINCRONIZANDO ESTATÍSTICAS...
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3 mb-6">
-              <Shield className="text-purple-600" size={24} />
-              <h3 className="text-xl font-black text-gray-900">Matriz de Permissões</h3>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="py-4 font-black uppercase tracking-widest text-[10px] text-gray-400">Funcionalidade</th>
-                    <th className="py-4 font-black text-emerald-600">Admin</th>
-                    <th className="py-4 font-black text-blue-600">Gerente</th>
-                    <th className="py-4 font-black text-gray-600">Caixa</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  <tr>
-                    <td className="py-4 font-bold text-gray-700">Gestão Financeira</td>
-                    <td className="py-4 text-emerald-500"><CheckCircle2 size={16} /></td>
-                    <td className="py-4 text-emerald-500"><CheckCircle2 size={16} /></td>
-                    <td className="py-4 text-gray-300">-</td>
-                  </tr>
-                  <tr>
-                    <td className="py-4 font-bold text-gray-700">Gestão de Utilizadores</td>
-                    <td className="py-4 text-emerald-500"><CheckCircle2 size={16} /></td>
-                    <td className="py-4 text-gray-300">-</td>
-                    <td className="py-4 text-gray-300">-</td>
-                  </tr>
-                  <tr>
-                    <td className="py-4 font-bold text-gray-700">Vendas e Checkout</td>
-                    <td className="py-4 text-emerald-500"><CheckCircle2 size={16} /></td>
-                    <td className="py-4 text-emerald-500"><CheckCircle2 size={16} /></td>
-                    <td className="py-4 text-emerald-500"><CheckCircle2 size={16} /></td>
-                  </tr>
-                  <tr>
-                    <td className="py-4 font-bold text-gray-700">Configurações de Sistema</td>
-                    <td className="py-4 text-emerald-500"><CheckCircle2 size={16} /></td>
-                    <td className="py-4 text-gray-300">-</td>
-                    <td className="py-4 text-gray-300">-</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
 

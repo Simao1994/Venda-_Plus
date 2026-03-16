@@ -95,13 +95,13 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
     },
     'Marketing Digital': {
       features: [
-        'Exposição no Venda Plus Market',
+        'Exposição no Mercado Venda Plus',
         'Criação de promoções em segundos',
         'Botão de contacto direto via WhatsApp',
         'Estatísticas de visualização de ofertas',
         'Partilha em redes sociais facilitada'
       ],
-      longDesc: 'Leve os seus produtos até aos clientes. O nosso Market público é a montra digital que o seu negócio precisava para crescer.'
+      longDesc: 'Leve os seus produtos até aos clientes. O nosso Mercado público é a montra digital que o seu negócio precisava para crescer.'
     }
   };
 
@@ -207,7 +207,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
           <div className="hidden md:flex items-center gap-10">
             <a href="#solucoes" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Soluções</a>
-            <a href="#market" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Market</a>
+            <a href="#market" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Mercado</a>
             <a href="#vagas" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Vagas</a>
             <a href="#precos" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Preços</a>
             <a href="#contacto" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Contacto</a>
@@ -387,7 +387,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
                     {pub.company_phone && (
                       <a
-                        href={`https://wa.me/${pub.company_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Vi a vossa publicação "${pub.title}" no Venda Plus Market e gostaria de obter mais informações.`)}`}
+                        href={`https://wa.me/${pub.company_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Vi a vossa publicação "${pub.title}" no Venda Plus Mercado e gostaria de obter mais informações.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full py-4 bg-gold-primary/10 text-gold-primary rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-gold-primary hover:text-bg-deep transition-all border border-gold-primary/20 hover:border-gold-primary"

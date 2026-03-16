@@ -468,19 +468,49 @@ async function startServer() {
 
   // System State & Export
   app.get("/api/system/state", authenticate, async (req: any, res) => {
-    const tables = ['products', 'customers', 'sales', 'expenses', 'users', 'medicamentos'];
-    const results: any = {};
+    try {
+      // 1. Check DB Connectivity
+      const { data: dbCheck, error: dbError } = await supabase.from('companies').select('count', { count: 'exact', head: true }).limit(1);
 
-    for (const table of tables) {
-      const { count, error } = await supabase
-        .from(table)
+      // 2. Get User Count & Limit
+      const { count: currentUsers } = await supabase
+        .from("users")
         .select('*', { count: 'exact', head: true })
         .eq('company_id', req.user.company_id);
 
-      if (!error) results[table] = count;
-    }
+      const { data: subscription } = await supabase
+        .from("saas_subscriptions")
+        .select("*, saas_plans(user_limit)")
+        .eq("company_id", req.user.company_id)
+        .eq("status", "active")
+        .single();
 
-    res.json(results);
+      const userLimit = subscription?.saas_plans?.user_limit || 1;
+
+      // 3. Table Counts
+      const tables = ['products', 'customers', 'sales', 'expenses', 'users', 'medicamentos', 'branches', 'suppliers'];
+      const tableCounts: any = {};
+
+      for (const table of tables) {
+        const { count, error } = await supabase
+          .from(table)
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', req.user.company_id);
+
+        if (!error) tableCounts[table] = count;
+      }
+
+      res.json({
+        db_status: dbError ? 'Offline' : 'Online',
+        system_status: 'Operacional',
+        current_users: currentUsers || 0,
+        user_limit: userLimit,
+        total_tables: tables.length,
+        table_stats: tableCounts
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "Falha ao obter estado do sistema" });
+    }
   });
 
   app.get("/api/system/export", authenticate, async (req: any, res) => {
@@ -575,10 +605,10 @@ async function startServer() {
 
   app.put("/api/company/profile", authenticate, async (req: any, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
-    const { name, nif, address, phone, email, tax_percentage, currency, logo } = req.body;
+    const { name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions } = req.body;
     const { error } = await supabase
       .from("companies")
-      .update({ name, nif, address, phone, email, tax_percentage, currency, logo })
+      .update({ name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions })
       .eq("id", req.user.company_id);
 
     if (error) return res.status(500).json({ error: error.message });

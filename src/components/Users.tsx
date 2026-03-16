@@ -61,7 +61,7 @@ export default function Users() {
     try {
       const [usersRes, companyRes] = await Promise.all([
         fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } }),
-        supabase.from('companies').select('id, name, access_token').eq('id', currentUser?.company_id).single()
+        supabase.from('companies').select('id, name, access_token, role_permissions').eq('id', currentUser?.company_id).single()
       ]);
       if (usersRes.ok) setUsers(await usersRes.json());
       if (companyRes.data) setCompany(companyRes.data);
@@ -76,7 +76,7 @@ export default function Users() {
     e.preventDefault();
     setSaving(true);
     try {
-      const defaultPerms = DEFAULT_PERMS[formData.role] || DEFAULT_PERMS.cashier;
+      const defaultPerms = company?.role_permissions?.[formData.role] || DEFAULT_PERMS[formData.role] || DEFAULT_PERMS.cashier;
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -102,7 +102,8 @@ export default function Users() {
   };
 
   const openPermissions = (u: any) => {
-    const currentPerms = u.permissions || DEFAULT_PERMS[u.role] || DEFAULT_PERMS.cashier;
+    const defaultForRole = company?.role_permissions?.[u.role] || DEFAULT_PERMS[u.role] || DEFAULT_PERMS.cashier;
+    const currentPerms = u.permissions || defaultForRole;
     setPendingPerms({ ...DEFAULT_PERMS.cashier, ...currentPerms });
     setEditingPermissions(u);
   };
@@ -125,7 +126,8 @@ export default function Users() {
   };
 
   const applyRoleTemplate = (role: string) => {
-    setPendingPerms({ ...DEFAULT_PERMS[role] || DEFAULT_PERMS.cashier });
+    const perms = company?.role_permissions?.[role] || DEFAULT_PERMS[role] || DEFAULT_PERMS.cashier;
+    setPendingPerms({ ...perms });
   };
 
   const generateAccessLink = async () => {
@@ -207,8 +209,8 @@ export default function Users() {
                 <div className="flex items-start justify-between">
                   <span className="text-2xl">{mod.icon}</span>
                   <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${pendingPerms[mod.key]
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
-                      : 'bg-zinc-100 text-zinc-300'
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
+                    : 'bg-zinc-100 text-zinc-300'
                     }`}>
                     {pendingPerms[mod.key] ? <Check size={13} strokeWidth={3} /> : <X size={11} />}
                   </div>
