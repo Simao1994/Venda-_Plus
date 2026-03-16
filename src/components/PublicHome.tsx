@@ -34,13 +34,13 @@ function DigitalClock() {
   }, []);
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm transition-all hover:bg-gray-100">
-      <div className="flex items-center gap-2 text-emerald-600">
+    <div className="flex items-center gap-4 px-4 py-2 bg-white/[0.03] rounded-2xl border border-white/5 shadow-inner transition-all hover:bg-white/[0.05]">
+      <div className="flex items-center gap-2 text-gold-primary">
         <Clock size={16} />
-        <span className="text-xs font-black tracking-tighter uppercase italic">{time.toLocaleTimeString('pt-PT')}</span>
+        <span className="text-xs font-black tracking-tighter uppercase italic tabular-nums">{time.toLocaleTimeString('pt-PT')}</span>
       </div>
-      <div className="w-px h-4 bg-gray-200" />
-      <div className="flex items-center gap-2 text-gray-400">
+      <div className="w-px h-4 bg-white/10" />
+      <div className="flex items-center gap-2 text-white/40">
         <Calendar size={16} />
         <span className="text-xs font-black tracking-tighter uppercase italic">{time.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
       </div>
@@ -190,23 +190,23 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
 
   return (
-    <div className="min-h-screen bg-white selection:bg-emerald-100">
+    <div className="min-h-screen bg-bg-deep selection:bg-gold-primary/30">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b z-50">
+      <nav className="fixed top-0 left-0 right-0 bg-bg-deep/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-[0_0_20px_rgba(212,175,55,0.3)] group-hover:shadow-[0_0_30px_rgba(212,175,55,0.5)] transition-all">
               <Store size={24} />
             </div>
-            <span className="text-2xl font-black text-gray-900 tracking-tighter italic">VENDA <span className="text-emerald-600">PLUS</span></span>
+            <span className="text-2xl font-black text-white tracking-tighter italic uppercase">VENDA <span className="text-gold-gradient">PLUS</span></span>
           </div>
 
           <div className="hidden md:flex items-center gap-10">
-            <a href="#solucoes" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Soluções</a>
-            <a href="#market" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Market</a>
-            <a href="#vagas" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Vagas</a>
-            <a href="#contacto" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Contacto</a>
-            <a href="#precos" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Preços</a>
+            <a href="#solucoes" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Soluções</a>
+            <a href="#market" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Market</a>
+            <a href="#vagas" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Vagas</a>
+            <a href="#precos" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Preços</a>
+            <a href="#contacto" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Contacto</a>
           </div>
 
           <div className="hidden lg:block">
@@ -216,7 +216,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           <div className="flex items-center gap-4">
             <button
               onClick={onLoginClick}
-              className="px-8 py-3 bg-gray-900 text-white rounded-2xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-xl shadow-gray-200"
+              className="px-8 py-3 bg-white/5 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-primary hover:text-bg-deep transition-all border border-white/10 hover:border-gold-primary shadow-2xl"
             >
               Acesso à Gestão
             </button>
@@ -225,54 +225,60 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </nav>
 
       {/* Hero Section */}
-      <header className="pt-32 pb-20 overflow-hidden relative min-h-[90vh] flex items-center">
+      <header className="pt-32 pb-20 overflow-hidden relative min-h-screen flex items-center">
         {/* Background Effects */}
-        <div className="absolute inset-0 bg-gray-950">
+        <div className="absolute inset-0 bg-bg-deep">
           <img
             src="/hero-new.png"
             alt="Venda Plus Analytics Hero"
-            className="w-full h-full object-cover opacity-60"
-            style={{ filter: 'brightness(0.7)', objectPosition: 'center right' }}
+            className="w-full h-full object-cover opacity-30 grayscale contrast-125"
+            style={{ objectPosition: 'center right' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-950 via-gray-950/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-bg-deep via-bg-deep/80 to-transparent" />
+          <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-bg-deep to-transparent" />
+
+          {/* Animated Glows */}
+          <div className="absolute top-[20%] left-[10%] w-[30%] h-[30%] bg-gold-primary/10 rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute bottom-[20%] right-[10%] w-[40%] h-[40%] bg-gold-secondary/5 rounded-full blur-[150px]" />
         </div>
 
         <div className="max-w-7xl mx-auto px-6 relative z-10 w-full">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-8 backdrop-blur-md">
-              <ShieldCheck size={14} />
-              Software de Gestão Retail Premium
+            <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-gold-primary/10 border border-gold-primary/20 rounded-full text-gold-primary text-[10px] font-black uppercase tracking-[0.3em] mb-10 backdrop-blur-xl shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+              <ShieldCheck size={16} />
+              Protocolo Retail Premium V.2026
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-black text-white leading-tight tracking-tighter mb-8 max-w-2xl">
+            <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-10 max-w-2xl italic uppercase">
               A inteligência por trás do seu <br />
-              <span className="text-emerald-500">supermercado.</span>
+              <span className="text-gold-gradient">supermercado.</span>
             </h1>
 
-            <p className="text-xl text-slate-300 font-medium leading-relaxed mb-12 max-w-xl">
+            <p className="text-xl text-white/40 font-black leading-relaxed mb-14 max-w-xl uppercase tracking-tight">
               Venda Plus Retail Cloud: Uma plataforma completa para gestão de inventário, PDV de alta performance e fidelização de clientes em tempo real.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-20">
+            <div className="flex flex-col sm:flex-row gap-6 mb-24">
               <button
                 onClick={onStartClick}
-                className="px-10 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-lg hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-600/20 flex items-center justify-center gap-2"
+                className="px-12 py-6 bg-gold-primary text-bg-deep rounded-[32px] font-black text-lg uppercase tracking-[0.2em] hover:bg-white transition-all shadow-[0_0_40px_rgba(212,175,55,0.3)] flex items-center justify-center gap-4 active:scale-95"
               >
-                Ativar Minha Licença <ArrowRight size={20} />
+                Inicie Agora <ArrowRight size={20} />
               </button>
               <a
                 href="#precos"
-                className="px-10 py-5 bg-white/5 text-white border-2 border-white/10 backdrop-blur-md rounded-[24px] font-black text-lg hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                className="px-12 py-6 bg-white/5 text-white border border-white/10 backdrop-blur-xl rounded-[32px] font-black text-lg uppercase tracking-[0.2em] hover:bg-white/10 transition-all flex items-center justify-center gap-4"
               >
                 Explorar Planos
               </a>
             </div>
 
-            <div className="grid grid-cols-3 gap-12 border-t border-white/10 pt-12">
+            <div className="grid grid-cols-3 gap-16 border-t border-white/5 pt-16 relative">
+              <div className="absolute top-0 left-0 w-20 h-px bg-gold-primary/40" />
               {config.landing_stats.map((stat: any, i: number) => (
                 <div key={i}>
-                  <p className="text-3xl font-black text-white">{stat.value}</p>
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                  <p className="text-4xl font-black text-white tracking-tighter tabular-nums mb-1 italic">{stat.value}</p>
+                  <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -281,11 +287,15 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </header>
 
       {/* Modules Grid */}
-      <section id="solucoes" className="py-32 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-4">Módulos Inteligentes</h2>
-            <p className="text-gray-500 font-medium text-lg max-w-2xl mx-auto">
+      <section id="solucoes" className="py-40 bg-bg-deep relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-gold-primary/10 to-transparent" />
+
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-24">
+            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter mb-6 uppercase italic">
+              Módulos <span className="text-gold-gradient">Inteligentes</span>
+            </h2>
+            <p className="text-white/40 font-black text-xs uppercase tracking-[0.4em] max-w-2xl mx-auto italic">
               Cada módulo foi desenhado para maximizar a eficiência de um pilar específico do seu negócio.
             </p>
           </div>
@@ -297,15 +307,17 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 <div
                   key={i}
                   onClick={() => setSelectedModule(m)}
-                  className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group cursor-pointer"
+                  className="glass-panel p-10 rounded-[48px] border border-white/5 hover:border-gold-primary/30 transition-all duration-500 group cursor-pointer relative overflow-hidden gold-glow"
                 >
-                  <div className={`w-16 h-16 ${m.color} rounded-2xl flex items-center justify-center text-white mb-8 shadow-lg shadow-gray-100 group-hover:scale-110 transition-transform`}>
-                    <Icon size={28} />
+                  <div className="absolute inset-0 bg-gold-primary opacity-0 group-hover:opacity-[0.02] transition-opacity" />
+
+                  <div className={`w-20 h-20 ${m.color} rounded-3xl flex items-center justify-center text-white mb-10 shadow-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 relative z-10 metallic-border`}>
+                    <Icon size={32} />
                   </div>
-                  <h3 className="text-2xl font-black text-gray-900 mb-4">{m.title}</h3>
-                  <p className="text-gray-500 font-medium leading-relaxed mb-6 line-clamp-2">{m.desc}</p>
-                  <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm group-hover:gap-4 transition-all uppercase tracking-widest text-[10px]">
-                    Saiba Mais <ArrowRight size={14} />
+                  <h3 className="text-2xl font-black text-white mb-4 uppercase tracking-tight italic group-hover:text-gold-primary transition-colors">{m.title}</h3>
+                  <p className="text-white/40 font-medium leading-relaxed mb-8 line-clamp-2 text-sm">{m.desc}</p>
+                  <div className="flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.3em] group-hover:gap-5 transition-all">
+                    Saber Mais <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               );
@@ -315,23 +327,26 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </section>
 
       {/* Market Preview */}
-      <section id="market" className="py-32 overflow-hidden bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-end justify-between gap-8 mb-16">
+      <section id="market" className="py-40 overflow-hidden bg-bg-deep relative">
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="flex flex-col md:flex-row items-end justify-between gap-10 mb-20">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest mb-4">
-                <Globe size={14} />
-                VENDA PLUS MARKET
+              <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 px-4 py-2 bg-gold-primary/10 rounded-full border border-gold-primary/20 italic">
+                <Globe size={14} className="animate-spin-slow" />
+                VENDA PLUS MARKET PROTOCOL
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter">Oportunidades em Tempo Real</h2>
+              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter italic uppercase">
+                Oportunidades em <span className="text-gold-gradient">Tempo Real</span>
+              </h2>
             </div>
 
-            <div className="w-full md:w-96 relative">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <div className="w-full md:w-96 relative group">
+              <div className="absolute inset-0 bg-gold-primary/20 blur-2xl opacity-0 group-focus-within:opacity-30 transition-opacity" />
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gold-primary/40 group-focus-within:text-gold-primary transition-colors" size={20} />
               <input
                 type="text"
-                placeholder="Pesquisar ofertas..."
-                className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-gray-50 focus:border-emerald-500 text-gray-900 font-bold transition-all shadow-sm"
+                placeholder="INVESTIGAR OFERTAS..."
+                className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/40 text-white font-black text-xs transition-all placeholder:text-white/10 outline-none uppercase tracking-widest"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -341,45 +356,48 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[1, 2, 3].map(i => (
-                <div key={i} className="bg-gray-50 rounded-[40px] h-96 animate-pulse" />
+                <div key={i} className="bg-white/[0.02] border border-white/5 rounded-[48px] h-96 animate-pulse" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {filtered.map(pub => (
-                <article key={pub.id} className="bg-white rounded-[32px] overflow-hidden group border border-gray-50 hover:border-emerald-100 transition-all shadow-sm hover:shadow-xl">
+                <article key={pub.id} className="glass-panel rounded-[40px] overflow-hidden group border border-white/5 hover:border-gold-primary/30 transition-all duration-700 shadow-2xl relative">
+                  <div className="absolute inset-0 bg-gold-primary opacity-0 group-hover:opacity-[0.01] transition-opacity" />
+
                   {pub.image && (
-                    <div className="aspect-[4/3] overflow-hidden">
-                      <img src={pub.image} alt={pub.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <div className="aspect-[5/4] overflow-hidden relative border-b border-white/5">
+                      <img src={pub.image} alt={pub.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 grayscale group-hover:grayscale-0" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-bg-deep to-transparent opacity-60" />
                     </div>
                   )}
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                        <Store size={14} className="text-gray-400" />
+                  <div className="p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 group-hover:text-gold-primary transition-colors">
+                        <Store size={18} className="text-white/20" />
                       </div>
-                      <span className="text-xs font-black text-gray-900 uppercase tracking-tighter truncate">{pub.company_name}</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-tighter truncate italic">{pub.company_name}</span>
                     </div>
-                    <h3 className="font-black text-gray-900 text-lg mb-2 leading-tight group-hover:text-emerald-600 transition-colors">{pub.title}</h3>
-                    <p className="text-gray-500 text-xs line-clamp-3 leading-relaxed mb-6">{pub.content}</p>
+                    <h3 className="font-black text-white text-xl mb-3 leading-tight uppercase tracking-tight group-hover:text-gold-primary transition-colors line-clamp-2">{pub.title}</h3>
+                    <p className="text-white/30 text-xs font-medium line-clamp-3 leading-relaxed mb-8">{pub.content}</p>
 
                     {pub.company_phone && (
                       <a
                         href={`https://wa.me/${pub.company_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Vi a vossa publicação "${pub.title}" no Venda Plus Market e gostaria de obter mais informações.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full py-3 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all"
+                        className="w-full py-4 bg-gold-primary/10 text-gold-primary rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-gold-primary hover:text-bg-deep transition-all border border-gold-primary/20 hover:border-gold-primary"
                       >
-                        <Smartphone size={14} />
-                        Pedir Informação
+                        <Smartphone size={16} />
+                        Protocolar Informação
                       </a>
                     )}
                   </div>
                 </article>
               ))}
               {filtered.length === 0 && (
-                <div className="col-span-full py-20 text-center text-gray-400 font-bold">
-                  Nenhuma publicação encontrada.
+                <div className="col-span-full py-32 text-center text-white/10 font-black uppercase tracking-[0.4em] italic text-xs border-2 border-dashed border-white/5 rounded-[48px]">
+                  Nenhuma publicação detectada nos radares.
                 </div>
               )}
             </div>
@@ -388,73 +406,78 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </section>
 
       {/* Vacancies Section */}
-      <section id="vagas" className="py-32 bg-gray-50/30">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest mb-4">
-              <Briefcase size={14} />
-              OPORTUNIDADES DE CARREIRA
+      <section id="vagas" className="py-40 bg-bg-deep relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(212,175,55,0.05)_0%,transparent_50%)]" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-24">
+            <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 italic">
+              <Briefcase size={16} />
+              OPORTUNIDADES ESTRATÉGICAS
             </div>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter">Vagas Disponíveis</h2>
-            <p className="text-gray-500 font-medium mt-4 max-w-xl mx-auto">
+            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter italic uppercase">Vagas <span className="text-gold-gradient">Disponíveis</span></h2>
+            <p className="text-white/40 font-black text-xs uppercase tracking-[0.3em] mt-6 max-w-xl mx-auto italic">
               Junte-se às melhores empresas que utilizam a nossa tecnologia. Encontre a sua próxima oportunidade aqui.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {vagas.map((vaga) => (
-              <div key={vaga.id} className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
-                <div className="flex justify-between items-start mb-6">
+              <div key={vaga.id} className="glass-panel p-10 rounded-[48px] border border-white/5 hover:border-gold-primary/30 transition-all duration-500 group relative gold-glow">
+                <div className="flex justify-between items-start mb-8">
                   <div>
-                    <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
-                      {vaga.tipo_contrato || 'Tempo Inteiro'}
+                    <span className="inline-block px-4 py-1.5 bg-gold-primary/10 text-gold-primary text-[9px] font-black uppercase tracking-[0.2em] rounded-full mb-4 border border-gold-primary/20">
+                      {vaga.tipo_contrato || 'Protocolo Standard'}
                     </span>
-                    <h3 className="text-2xl font-black text-gray-900 leading-tight group-hover:text-emerald-600 transition-colors">
+                    <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tight group-hover:text-gold-primary transition-colors italic">
                       {vaga.titulo}
                     </h3>
-                    <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-tighter italic">
-                      {vaga.companies?.name || 'Venda Plus Partner'}
+                    <p className="text-[10px] font-black text-white/20 mt-2 uppercase tracking-[0.2em] italic">
+                      {vaga.companies?.name || 'Venda Plus Hub Partner'}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400">
-                    <Briefcase size={24} />
+                  <div className="w-16 h-16 bg-white/5 border border-white/5 rounded-3xl flex items-center justify-center text-white/20 group-hover:text-gold-primary group-hover:bg-gold-primary/10 transition-all duration-500">
+                    <Briefcase size={32} />
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-8">
-                  <div className="flex items-center gap-3 text-sm text-gray-500 font-medium">
-                    <Globe size={16} className="text-emerald-500" />
-                    <span>{vaga.localizacao || 'Angola'}</span>
+                <div className="grid grid-cols-2 gap-6 mb-10">
+                  <div className="flex items-center gap-4 text-[10px] text-white/40 font-black uppercase tracking-widest">
+                    <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-gold-primary">
+                      <Globe size={16} />
+                    </div>
+                    <span>{vaga.localizacao || 'Angola Hub'}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-500 font-medium">
-                    <Zap size={16} className="text-emerald-500" />
-                    <span>{vaga.nivel_experiencia || 'Experiência Relevante'}</span>
+                  <div className="flex items-center gap-4 text-[10px] text-white/40 font-black uppercase tracking-widest">
+                    <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-gold-primary">
+                      <Zap size={16} />
+                    </div>
+                    <span>{vaga.nivel_experiencia || 'Expert Level'}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-6 border-t border-gray-50">
-                  <div className="text-lg font-black text-gray-900">
-                    {vaga.salario || 'Salário Negociável'}
+                <div className="flex items-center justify-between pt-8 border-t border-white/5">
+                  <div className="text-xl font-black text-white tracking-tighter italic uppercase group-hover:text-gold-gradient transition-all">
+                    {vaga.salario || 'Sob Consulta'}
                   </div>
                   <button
                     onClick={() => {
                       const msg = `Olá! Gostaria de me candidatar à vaga de "${vaga.titulo}" que vi no Venda Plus.`;
                       window.open(`https://wa.me/244923000000?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
-                    className="px-6 py-3 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-gray-200"
+                    className="px-8 py-4 bg-gold-primary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white transition-all shadow-2xl active:scale-95 italic"
                   >
-                    Candidatar-se
+                    PROTOCOLAR CANDIDATURA
                   </button>
                 </div>
               </div>
             ))}
 
             {vagas.length === 0 && (
-              <div className="col-span-full py-20 text-center bg-white rounded-[40px] border border-dashed border-gray-200">
-                <div className="w-16 h-16 bg-gray-50 rounded-3xl flex items-center justify-center text-gray-300 mx-auto mb-4">
-                  <Briefcase size={28} />
+              <div className="col-span-full py-32 text-center bg-white/[0.01] rounded-[60px] border-2 border-dashed border-white/5">
+                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center text-white/10 mx-auto mb-6">
+                  <Briefcase size={32} />
                 </div>
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Sem vagas ativas no momento</p>
+                <p className="text-white/10 font-black uppercase tracking-[0.4em] text-xs italic">Nenhuma vaga ativa detectada no momento</p>
               </div>
             )}
           </div>
@@ -462,42 +485,51 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </section>
 
       {/* Pricing Section */}
-      <section id="precos" className="py-32 bg-slate-900 text-white overflow-hidden relative">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
+      <section id="precos" className="py-40 bg-bg-deep text-white overflow-hidden relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(212,175,55,0.05)_0%,transparent_70%)]" />
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4">Planos Escaláveis</h2>
-            <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">
+          <div className="text-center mb-24">
+            <h2 className="text-5xl md:text-6xl font-black tracking-tighter mb-6 italic uppercase">Algoritmos de <span className="text-gold-gradient">Custo</span></h2>
+            <p className="text-white/40 font-black text-xs uppercase tracking-[0.3em] max-w-2xl mx-auto italic">
               Escolha o plano que melhor se adapta ao tamanho do seu negócio hoje, e cresça connosco amanhã.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {plans.slice(0, 3).map((plan, i) => {
               const publicFeatures = Array.isArray(plan.public_features) ? plan.public_features : [];
               return (
-                <div key={i} className={`p-10 rounded-[40px] border-2 transition-all duration-500 ${plan.is_featured ? 'bg-indigo-600 border-indigo-500 shadow-2xl shadow-indigo-500/20 scale-105' : 'bg-slate-800/50 border-slate-700 hover:border-slate-500'
+                <div key={i} className={`p-10 rounded-[56px] border transition-all duration-700 relative overflow-hidden group gold-glow ${plan.is_featured ? 'bg-gold-primary border-gold-primary shadow-[0_0_50px_rgba(212,175,55,0.2)] scale-105 z-20' : 'glass-panel border-white/5 hover:border-gold-primary/30 z-10'
                   }`}>
-                  <h3 className="text-2xl font-black mb-1">{plan.name}</h3>
-                  <p className="text-xs font-bold text-slate-400 mb-6 line-clamp-2 italic">{plan.description}</p>
-                  <div className="flex items-baseline gap-1 mb-8">
-                    <span className="text-5xl font-black">{plan.price_monthly.toLocaleString()}</span>
-                    <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Kz/mês</span>
+                  {plan.is_featured && (
+                    <div className="absolute top-0 right-0 px-6 py-2 bg-bg-deep text-gold-primary text-[8px] font-black uppercase tracking-[0.4em] rounded-bl-3xl italic">
+                      RECOMENDADO
+                    </div>
+                  )}
+
+                  <h3 className={`text-2xl font-black mb-2 italic uppercase tracking-tight ${plan.is_featured ? 'text-bg-deep' : 'text-white'}`}>{plan.name}</h3>
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-10 italic ${plan.is_featured ? 'text-bg-deep/60' : 'text-white/20'}`}>{plan.description}</p>
+
+                  <div className="flex items-baseline gap-2 mb-10">
+                    <span className={`text-6xl font-black tracking-tighter italic ${plan.is_featured ? 'text-bg-deep' : 'text-white'}`}>{plan.price_monthly.toLocaleString()}</span>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.3em] italic ${plan.is_featured ? 'text-bg-deep/40' : 'text-white/20'}`}>KZ / CICLO</span>
                   </div>
-                  <ul className="space-y-4 mb-10">
+
+                  <ul className="space-y-4 mb-12">
                     {publicFeatures.map((f: string, j: number) => (
-                      <li key={j} className="flex items-center gap-3 text-sm font-bold">
-                        <CheckCircle2 size={18} className={plan.is_featured ? 'text-indigo-200' : 'text-emerald-500'} />
+                      <li key={j} className={`flex items-center gap-4 text-xs font-black uppercase tracking-tighter ${plan.is_featured ? 'text-bg-deep/80' : 'text-white/60'}`}>
+                        <CheckCircle2 size={18} className={plan.is_featured ? 'text-bg-deep/40' : 'text-gold-primary'} />
                         {f}
                       </li>
                     ))}
                   </ul>
+
                   <button
                     onClick={onStartClick}
-                    className={`w-full py-5 rounded-2xl font-black transition-all ${plan.is_featured ? 'bg-white text-indigo-600 hover:bg-slate-50' : 'bg-slate-700 text-white hover:bg-slate-600'
+                    className={`w-full py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all italic active:scale-95 ${plan.is_featured ? 'bg-bg-deep text-white hover:bg-white hover:text-bg-deep' : 'bg-gold-primary text-bg-deep hover:bg-white hover:text-bg-deep'
                       }`}
                   >
-                    Começar Agora
+                    INICIAR PROTOCOLO
                   </button>
                 </div>
               );
@@ -507,44 +539,46 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </section>
 
       {/* Contact Section */}
-      <section id="contacto" className="py-32 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section id="contacto" className="py-40 bg-bg-deep relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-gold-primary/5 rounded-full blur-[120px]" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest mb-4">
-                <MessageSquare size={14} />
-                FALE CONNOSCO
+              <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-8 italic">
+                <MessageSquare size={16} />
+                FALE COM O HUB
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-6">
-                Precisa de uma informação ou <span className="text-emerald-600">fazer um pedido?</span>
+              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter mb-8 italic uppercase leading-tight">
+                Precisa de uma informação ou <span className="text-gold-gradient">activar um protocolo?</span>
               </h2>
-              <p className="text-gray-500 font-medium text-lg leading-relaxed mb-8">
+              <p className="text-white/40 font-black text-xs uppercase tracking-[0.2em] leading-relaxed mb-12 italic">
                 Envie a sua mensagem directamente para as empresas. O seu pedido será processado e respondido através do nosso blog corporativo.
               </p>
 
-              <div className="space-y-6">
-                <div className="flex items-center gap-4 p-6 bg-gray-50 rounded-[32px] border border-gray-100">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600">
-                    <ShieldCheck size={24} />
+              <div className="space-y-8">
+                <div className="glass-panel flex items-center gap-6 p-8 rounded-[40px] border border-white/5 hover:border-gold-primary/20 transition-all gold-glow">
+                  <div className="w-14 h-14 bg-gold-primary/10 rounded-2xl flex items-center justify-center text-gold-primary border border-gold-primary/20">
+                    <ShieldCheck size={28} />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-gray-900 uppercase tracking-widest">Segurança Total</p>
-                    <p className="text-xs text-gray-500 font-medium">Os seus dados são protegidos e enviados apenas à empresa destino.</p>
+                    <p className="text-xs font-black text-white uppercase tracking-[0.2em] italic mb-1">Criptografia de Dados</p>
+                    <p className="text-[10px] text-white/20 font-black uppercase tracking-widest italic">Protocolo de segurança Retail Premium V.2026.</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 p-6 bg-gray-50 rounded-[32px] border border-gray-100">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600">
-                    <Zap size={24} />
+                <div className="glass-panel flex items-center gap-6 p-8 rounded-[40px] border border-white/5 hover:border-gold-primary/20 transition-all gold-glow">
+                  <div className="w-14 h-14 bg-gold-primary/10 rounded-2xl flex items-center justify-center text-gold-primary border border-gold-primary/20">
+                    <Zap size={28} />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-gray-900 uppercase tracking-widest">Resposta Rápida</p>
-                    <p className="text-xs text-gray-500 font-medium">As empresas são notificadas instantaneamente do seu pedido.</p>
+                    <p className="text-xs font-black text-white uppercase tracking-[0.2em] italic mb-1">Processamento Síncrono</p>
+                    <p className="text-[10px] text-white/20 font-black uppercase tracking-widest italic">As empresas são notificadas instantaneamente do seu pedido.</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-50 p-8 md:p-12 rounded-[50px] border border-gray-100 shadow-sm">
+            <div className="glass-panel p-10 md:p-14 rounded-[60px] border border-white/5 shadow-2xl relative gold-glow">
+              <div className="absolute inset-0 bg-gold-primary opacity-[0.01]" />
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 const form = e.currentTarget;
@@ -561,46 +595,48 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 try {
                   const { error } = await supabase.from('public_inquiries').insert([data]);
                   if (error) throw error;
-                  alert('Mensagem enviada com sucesso! Verifique o Blog Corporativo para a resposta em breve.');
+                  alert('Protocolo enviado com sucesso! Verifique o Blog Corporativo.');
                   form.reset();
                 } catch (err) {
-                  console.error('Erro ao enviar mensagem:', err);
-                  alert('Erro ao enviar mensagem. Por favor, tente novamente.');
+                  console.error('Erro ao enviar protocolo:', err);
+                  alert('Erro no processamento. Tente novamente.');
                 }
-              }} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Seu Nome</label>
-                  <input name="nome" required type="text" className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold" placeholder="Ex: João Silva" />
+              }} className="space-y-8 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">IDENTIDADE</label>
+                    <input name="nome" required type="text" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all" placeholder="EX: AGENTE DELTA" />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">ENDEREÇO DIGITAL</label>
+                    <input name="email" required type="email" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all" placeholder="USER@PROTOCOL.COM" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Seu Email</label>
-                  <input name="email" required type="email" className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold" placeholder="joao@exemplo.com" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Empresa Destino</label>
-                  <select name="company_id" required className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold bg-white">
-                    <option value="">Selecione uma empresa...</option>
+                <div className="space-y-3">
+                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">DESTINO DO PROTOCOLO</label>
+                  <select name="company_id" required className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest outline-none transition-all cursor-pointer">
+                    <option value="" className="bg-bg-deep">SELECIONE O TARGET...</option>
                     {companies.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id} className="bg-bg-deep">{c.name.toUpperCase()}</option>
                     ))}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Assunto / Motivo</label>
-                  <select name="assunto" className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold bg-white">
-                    <option>Pedido de Informação</option>
-                    <option>Solicitar Orçamento</option>
-                    <option>Parceria Comercial</option>
-                    <option>Suporte Técnico</option>
-                    <option>Outros</option>
+                <div className="space-y-3">
+                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">MOTIVO DA CONEXÃO</label>
+                  <select name="assunto" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest outline-none transition-all cursor-pointer">
+                    <option className="bg-bg-deep">PEDIDO DE INFORMAÇÃO</option>
+                    <option className="bg-bg-deep">SOLICITAR ORÇAMENTO</option>
+                    <option className="bg-bg-deep">PARCERIA COMERCIAL</option>
+                    <option className="bg-bg-deep">SUPORTE TÉCNICO</option>
+                    <option className="bg-bg-deep">OUTROS</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Mensagem</label>
-                  <textarea name="mensagem" required rows={4} className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold" placeholder="Como podemos ajudar?" />
+                <div className="space-y-3">
+                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">MENSAGEM DE COMUNICAÇÃO</label>
+                  <textarea name="mensagem" required rows={4} className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all resize-none" placeholder="DESCREVA O OBJECTIVO..." />
                 </div>
-                <button type="submit" className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black text-lg hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200">
-                  Enviar Pedido Agora
+                <button type="submit" className="w-full py-6 bg-gold-primary text-bg-deep rounded-[32px] font-black text-sm uppercase tracking-[0.4em] hover:bg-white transition-all shadow-2xl active:scale-95 italic">
+                  TRANSMITIR PROTOCOLO AGORA
                 </button>
               </form>
             </div>
@@ -609,22 +645,22 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
+      <section className="py-20 relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-emerald-600 rounded-[50px] p-12 md:p-24 text-center text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+          <div className="bg-gold-primary rounded-[60px] p-16 md:p-32 text-center text-bg-deep relative overflow-hidden shadow-[0_0_80px_rgba(212,175,55,0.2)] metallic-border">
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white opacity-10 rounded-full -mr-60 -mt-60 blur-3xl animate-pulse" />
             <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-black tracking-tighter mb-8 leading-none">
-                Pronto para digitalizar o seu negócio?
+              <h2 className="text-5xl md:text-8xl font-black tracking-tighter mb-10 leading-[0.9] italic uppercase">
+                Pronto para digitalizar <br /> o seu negócio?
               </h2>
-              <p className="text-emerald-50 text-xl font-medium mb-12 max-w-2xl mx-auto">
-                Jorne-se à Venda Plus e tenha total controlo administrativo com as ferramentas mais modernas do mercado angolano.
+              <p className="text-bg-deep/60 text-xl font-black mb-16 max-w-2xl mx-auto uppercase tracking-tighter italic">
+                Junte-se à Venda Plus e tenha total controlo administrativo com as ferramentas mais modernas do mercado angolano.
               </p>
               <button
                 onClick={onStartClick}
-                className="px-12 py-6 bg-white text-emerald-600 rounded-[28px] font-black text-xl hover:bg-gray-50 transition-all shadow-2xl flex items-center justify-center gap-3 mx-auto"
+                className="px-16 py-8 bg-bg-deep text-white rounded-[32px] font-black text-xl uppercase tracking-[0.4em] hover:bg-white hover:text-bg-deep transition-all shadow-2xl flex items-center justify-center gap-4 mx-auto italic active:scale-95"
               >
-                Acesso à Gestão <ExternalLink size={24} />
+                ACESSO À GESTÃO <ExternalLink size={28} />
               </button>
             </div>
           </div>
@@ -632,73 +668,73 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       </section>
 
       {/* Footer */}
-      <footer className="bg-white py-20 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white">
-              <Store size={20} />
+      <footer className="bg-bg-deep py-24 border-t border-white/5 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
+          <div className="flex items-center gap-4 group cursor-pointer">
+            <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-2xl group-hover:scale-110 transition-transform">
+              <Store size={24} />
             </div>
-            <span className="text-xl font-black text-gray-900 tracking-tighter italic">VENDA <span className="text-emerald-600">PLUS</span></span>
+            <span className="text-2xl font-black text-white tracking-tighter italic uppercase">VENDA <span className="text-gold-gradient">PLUS</span></span>
           </div>
 
-          <div className="text-sm font-bold text-gray-400">
-            &copy; 2026 Venda Plus. Gestão Inteligente de Negócios.
+          <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] italic">
+            &copy; 2026 Venda Plus Hub. Gestão de Alta Performance.
           </div>
 
-          <div className="flex gap-8">
-            <a href="https://wa.me/244923000000?text=Termos" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Termos</a>
-            <a href="https://wa.me/244923000000?text=Privacidade" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Privacidade</a>
-            <a href="https://wa.me/244923000000?text=Contactos" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">Contactos</a>
+          <div className="flex gap-10">
+            <a href="https://wa.me/244923000000?text=Termos" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-white/40 hover:text-gold-primary uppercase tracking-[0.2em] transition-colors italic">Termos</a>
+            <a href="https://wa.me/244923000000?text=Privacidade" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-white/40 hover:text-gold-primary uppercase tracking-[0.2em] transition-colors italic">Privacidade</a>
+            <a href="https://wa.me/244923000000?text=Contactos" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-white/40 hover:text-gold-primary uppercase tracking-[0.2em] transition-colors italic">Contactos</a>
           </div>
         </div>
       </footer>
 
       {/* Module Detail Modal */}
       {selectedModule && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 text-left animate-in fade-in duration-300">
-          <div className="bg-white rounded-[40px] w-full max-w-2xl overflow-hidden shadow-2xl relative">
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-3xl flex items-center justify-center z-[100] p-4 text-left animate-in fade-in zoom-in duration-500">
+          <div className="glass-panel rounded-[60px] w-full max-w-3xl overflow-hidden shadow-[0_0_100px_rgba(212,175,55,0.15)] relative border border-white/5 metallic-border">
             <button
               onClick={() => setSelectedModule(null)}
-              className="absolute top-6 right-6 text-slate-400 hover:text-slate-900 transition-colors"
+              className="absolute top-10 right-10 text-white/20 hover:text-gold-primary transition-colors active:scale-90"
             >
-              <X size={32} />
+              <X size={40} />
             </button>
-            <div className="p-10 md:p-16">
-              <div className={`w-20 h-20 ${selectedModule.color} rounded-3xl flex items-center justify-center text-white mb-8 shadow-2xl shadow-gray-100`}>
-                {React.createElement(IconMap[selectedModule.icon] || ShoppingCart, { size: 40 })}
+            <div className="p-12 md:p-20">
+              <div className={`w-28 h-28 ${selectedModule.color} rounded-[40px] flex items-center justify-center text-white mb-10 shadow-2xl relative gold-glow-hover`}>
+                {React.createElement(IconMap[selectedModule.icon] || ShoppingCart, { size: 48 })}
               </div>
-              <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tighter">{selectedModule.title}</h2>
-              <p className="text-lg text-slate-500 font-medium leading-relaxed mb-10">
+              <h2 className="text-5xl font-black text-white mb-6 tracking-tighter uppercase italic italic">{selectedModule.title}</h2>
+              <p className="text-xl text-white/40 font-black uppercase tracking-tight leading-relaxed mb-12 italic">
                 {ModuleDetailedInfo[selectedModule.title]?.longDesc || selectedModule.desc}
               </p>
 
-              <div className="space-y-4 mb-12">
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4">Funcionalidades Chave</p>
+              <div className="space-y-6 mb-16">
+                <p className="text-[10px] font-black uppercase text-gold-primary tracking-[0.4em] mb-6 italic">Protocolos Chave</p>
                 {(ModuleDetailedInfo[selectedModule.title]?.features || []).map((feature: string, idx: number) => (
-                  <div key={idx} className="flex items-center gap-4 text-slate-700 font-bold">
-                    <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
+                  <div key={idx} className="flex items-center gap-6 text-white/60 font-black text-xs uppercase tracking-widest italic group">
+                    <CheckCircle2 size={24} className="text-gold-primary shrink-0 group-hover:scale-110 transition-transform" />
                     <span>{feature}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-6">
                 <button
                   onClick={() => {
                     setSelectedModule(null);
                     onStartClick();
                   }}
-                  className="flex-1 py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200"
+                  className="flex-1 py-6 bg-gold-primary text-bg-deep rounded-[32px] font-black text-sm uppercase tracking-[0.3em] hover:bg-white transition-all shadow-2xl italic active:scale-95"
                 >
-                  Ativar Módulo
+                  INICIAR MÓDULO
                 </button>
                 <a
                   href={`https://wa.me/244923000000?text=${encodeURIComponent(`Olá! Gostaria de mais informações sobre o módulo "${selectedModule.title}" do Venda Plus.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black text-lg hover:bg-slate-200 transition-all text-center flex items-center justify-center"
+                  className="flex-1 py-6 bg-white/5 text-white border border-white/10 rounded-[32px] font-black text-sm uppercase tracking-[0.3em] hover:bg-white/10 transition-all text-center flex items-center justify-center italic"
                 >
-                  Solicitar Informação
+                  INFO. PROTOCOLO
                 </a>
               </div>
             </div>
