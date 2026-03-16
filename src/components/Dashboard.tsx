@@ -52,7 +52,7 @@ export default function Dashboard() {
   if (!stats) return (
     <div className="flex flex-col items-center justify-center p-20 space-y-4">
       <div className="w-16 h-16 border-4 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin" />
-      <div className="text-gold-primary/60 font-black uppercase tracking-[0.3em] text-xs">Synchronizing Core Metrics...</div>
+      <div className="text-gold-primary/60 font-black uppercase tracking-[0.3em] text-xs">Sincronizando Métricas Base...</div>
     </div>
   );
 
@@ -112,9 +112,9 @@ export default function Dashboard() {
       <header className="flex flex-col gap-2 relative">
         <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-1 h-12 bg-gold-primary rounded-full shadow-[0_0_15px_rgba(212,175,55,0.5)]" />
         <h1 className="text-4xl font-black text-white tracking-tighter italic font-display">
-          COMMAND <span className="text-gold-gradient">CENTER</span>
+          CENTRO DE <span className="text-gold-gradient">COMANDO</span>
         </h1>
-        <p className="text-gold-primary/40 font-black text-[10px] uppercase tracking-[0.4em]">Enterprise Operational Awareness &bull; Welcome, {user?.name?.toUpperCase()}</p>
+        <p className="text-gold-primary/40 font-black text-[10px] uppercase tracking-[0.4em]">Gestão Operacional Empresarial &bull; Bem-vindo, {user?.name?.toUpperCase()}</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
@@ -145,8 +145,8 @@ export default function Dashboard() {
 
           <div className="flex justify-between items-center mb-10 relative z-10">
             <div>
-              <h3 className="text-lg font-black text-white tracking-tight uppercase">Performance Analytics</h3>
-              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mt-1">7-Day Transactional Volume</p>
+              <h3 className="text-lg font-black text-white tracking-tight uppercase">Análise de Desempenho</h3>
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mt-1">Volume Transacional (7 dias)</p>
             </div>
             <div className="flex gap-4">
               <div className="flex bg-white/5 rounded-2xl p-1 border border-white/5">
@@ -154,13 +154,13 @@ export default function Dashboard() {
                   onClick={() => setChartType('line')}
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${chartType === 'line' ? 'bg-gold-primary text-bg-deep' : 'text-white/40 hover:text-white'}`}
                 >
-                  Neural
+                  Linha
                 </button>
                 <button
                   onClick={() => setChartType('bar')}
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${chartType === 'bar' ? 'bg-gold-primary text-bg-deep' : 'text-white/40 hover:text-white'}`}
                 >
-                  Vector
+                  Barras
                 </button>
               </div>
             </div>
@@ -250,7 +250,7 @@ export default function Dashboard() {
         </div>
 
         <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden">
-          <h3 className="text-lg font-black text-white tracking-tight uppercase mb-8">Top Sector Performance</h3>
+          <h3 className="text-lg font-black text-white tracking-tight uppercase mb-8">Performance por Sector</h3>
           <div className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
@@ -275,14 +275,14 @@ export default function Dashboard() {
 
         <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-black text-white tracking-tight uppercase">Inventory Alerts</h3>
+            <h3 className="text-lg font-black text-white tracking-tight uppercase">Alertas de Stock</h3>
             <AlertTriangle size={20} className="text-gold-primary animate-pulse" />
           </div>
 
           <div className="space-y-4">
             {stats.lowStock === 0 ? (
               <div className="text-center py-12 text-white/10 font-black uppercase tracking-[0.2em] italic text-xs">
-                All systems nominal.
+                Todos os sistemas operacionais.
               </div>
             ) : (
               <div className="space-y-3">
@@ -291,27 +291,27 @@ export default function Dashboard() {
                     <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-gold-primary/20 transition-all group">
                       <div className="font-bold text-white text-sm tracking-tight">{product.name}</div>
                       <div className="text-[10px] font-black text-gold-primary bg-gold-primary/10 px-3 py-1.5 rounded-xl uppercase tracking-widest border border-gold-primary/10">
-                        {product.stock} Units left
+                        {product.stock} Unidades restantes
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-12 text-gold-primary/60 font-black uppercase tracking-widest text-xs">
-                    {stats.lowStock} SECTORS REQUIRE ATTENTION
+                    {stats.lowStock} SECTORES REQUEREM ATENÇÃO
                   </div>
                 )}
               </div>
             )}
 
             <button className="w-full py-4 mt-4 bg-white/5 text-gold-primary/60 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border border-white/5 hover:bg-gold-primary/10 hover:text-gold-primary transition-all">
-              Initialize Logistics Audit
+              Ver Inventário
             </button>
           </div>
         </div>
 
         <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-black text-white tracking-tight uppercase">High Risk Debtors</h3>
+            <h3 className="text-lg font-black text-white tracking-tight uppercase">Devedores de Alto Risco</h3>
             <DollarSign size={20} className="text-red-500" />
           </div>
 
@@ -325,7 +325,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <div className="font-black text-white text-sm tracking-tight">{debtor.name}</div>
-                      <div className="text-[8px] text-red-500 font-black uppercase tracking-[0.2em]">Risk Level: High</div>
+                      <div className="text-[8px] text-red-500 font-black uppercase tracking-[0.2em]">Nível de Risco: Alto</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -335,12 +335,12 @@ export default function Dashboard() {
               ))
             ) : (
               <div className="text-center py-12 text-white/10 font-black uppercase tracking-[0.2em] italic text-xs">
-                Zero liquidity risk detected.
+                Nenhum risco de liquidez detectado.
               </div>
             )}
 
             <button className="w-full py-4 mt-4 bg-white/5 text-red-400/60 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] border border-white/5 hover:bg-red-500/10 hover:text-red-400 transition-all">
-              Execute Financial Recovery
+              Gestão de Cobranças
             </button>
           </div>
         </div>

@@ -380,7 +380,7 @@ export default function App() {
               <span className="font-black text-2xl text-white tracking-tighter italic font-display leading-none">
                 VENDA <span className="text-gold-gradient">PLUS</span>
               </span>
-              <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gold-primary/40 mt-1">Enterprise Core</span>
+              <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gold-primary/40 mt-1">Núcleo Empresarial</span>
             </div>
           )}
         </div>
@@ -408,7 +408,7 @@ export default function App() {
                 <span className="text-[10px] font-black text-white uppercase tracking-tight truncate">{displayName}</span>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-gold-primary animate-pulse" />
-                  <span className="text-[7px] font-black text-gold-primary/40 uppercase tracking-[0.2em]">Validated Session</span>
+                  <span className="text-[7px] font-black text-gold-primary/40 uppercase tracking-[0.2em]">Sessão Validada</span>
                 </div>
               </div>
             </div>
@@ -421,7 +421,7 @@ export default function App() {
             className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-white/40 hover:bg-white/5 hover:text-gold-primary transition-all group"
           >
             <Smartphone size={18} className="group-hover:scale-110 transition-transform" />
-            {sidebarOpen && <span className="font-black text-[10px] uppercase tracking-widest">Market Portal</span>}
+            {sidebarOpen && <span className="font-black text-[10px] uppercase tracking-widest">Portal de Vendas</span>}
           </button>
           <button
             onClick={logout}
@@ -449,11 +449,11 @@ export default function App() {
             </button>
             <div className="flex flex-col">
               <div className="text-[10px] font-black uppercase tracking-[0.3em] text-gold-primary/40 leading-none mb-1.5">
-                Current Terminal
+                Terminal Actual
               </div>
               <div className="text-sm font-black text-white tracking-widest group cursor-pointer flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gold-primary animate-pulse shadow-[0_0_8px_rgba(212,175,55,1)]" />
-                {isMasterPortal ? 'SAAS GLOBAL COMMAND' : user?.company_name?.toUpperCase()}
+                {isMasterPortal ? 'COMANDO GLOBAL SAAS' : user?.company_name?.toUpperCase()}
                 <span className="text-gold-primary/60">&mdash; {user?.role?.toUpperCase()}</span>
               </div>
             </div>
@@ -475,7 +475,7 @@ export default function App() {
                 }}
                 className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white px-5 py-2.5 rounded-2xl font-black text-[9px] uppercase tracking-[0.2em] hover:shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all border border-indigo-500/30"
               >
-                <ArrowRight size={14} className="rotate-180" /> Global Override
+                <ArrowRight size={14} className="rotate-180" /> Sobreposição Global
               </button>
             )}
 

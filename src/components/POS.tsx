@@ -304,13 +304,13 @@ export default function POS() {
           onClick={() => setView('products')}
           className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${view === 'products' ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'text-white/40 border-transparent'}`}
         >
-          Sectors
+          Sectores
         </button>
         <button
           onClick={() => setView('cart')}
           className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all relative border ${view === 'cart' ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'text-white/40 border-transparent'}`}
         >
-          Payload
+          Carrinho
           {cart.length > 0 && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-bg-deep shadow-lg">
               {cart.length}
@@ -325,13 +325,13 @@ export default function POS() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 px-2 relative z-10">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
-              Sales <span className="text-gold-gradient">Terminal</span>
+              Terminal de <span className="text-gold-gradient">Vendas</span>
             </h1>
             <div className="flex items-center gap-3 mt-2">
               <div className={`w-2 h-2 rounded-full ${cashRegister ? 'bg-gold-primary shadow-[0_0_10px_#D4AF37]' : 'bg-red-500 shadow-[0_0_10px_#EF4444] animate-pulse'}`} />
               <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">
-                System {cashRegister ? 'Online' : 'Restricted'}
-                {cashRegister && <span className="text-gold-primary/30 ml-3">Session active since {new Date(cashRegister.opened_at).toLocaleTimeString()}</span>}
+                Sistema {cashRegister ? 'Online' : 'Restrito'}
+                {cashRegister && <span className="text-gold-primary/30 ml-3">Sessão activa desde {new Date(cashRegister.opened_at).toLocaleTimeString()}</span>}
               </span>
             </div>
           </div>
@@ -341,7 +341,7 @@ export default function POS() {
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gold-primary/40" size={18} />
               <input
                 type="text"
-                placeholder="SCAN OR SEARCH ASSETS (F1)..."
+                placeholder="PROCURAR PRODUTO (F1)..."
                 className="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 text-white text-xs font-black placeholder:text-white/10 outline-none transition-all uppercase tracking-widest"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -354,7 +354,7 @@ export default function POS() {
                 onClick={handleCloseRegister}
                 className="text-[10px] font-black uppercase tracking-[0.2em] text-red-400/60 hover:text-red-400 hover:bg-red-500/10 px-6 py-4 rounded-2xl border border-white/5 transition-all whitespace-nowrap"
               >
-                Terminate Session
+                Fechar Caixa
               </button>
             )}
           </div>
@@ -371,7 +371,7 @@ export default function POS() {
               >
                 {product.stock <= 0 && (
                   <div className="absolute inset-0 flex items-center justify-center z-20 bg-bg-deep/40 backdrop-blur-[2px]">
-                    <span className="bg-red-500 text-bg-deep text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full shadow-2xl rotate-[-12deg]">Depleted</span>
+                    <span className="bg-red-500 text-bg-deep text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full shadow-2xl rotate-[-12deg]">Esgotado</span>
                   </div>
                 )}
 
@@ -410,8 +410,8 @@ export default function POS() {
               <ShoppingCart size={22} className="animate-pulse" />
             </div>
             <div>
-              <h2 className="font-black text-white uppercase tracking-[0.1em] text-lg italic">Payload</h2>
-              <p className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em]">Queue Optimization Active</p>
+              <h2 className="font-black text-white uppercase tracking-[0.1em] text-lg italic">Carrinho</h2>
+              <p className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em]">Fila de Atendimento Activa</p>
             </div>
           </div>
         </div>
@@ -426,7 +426,7 @@ export default function POS() {
                   value={selectedCustomer || ''}
                   onChange={(e) => setSelectedCustomer(e.target.value ? Number(e.target.value) : null)}
                 >
-                  <option value="" className="bg-bg-deep text-white">Default Entity</option>
+                  <option value="" className="bg-bg-deep text-white">Consumidor Final</option>
                   {customers.map(c => (
                     <option key={c.id} value={c.id} className="bg-bg-deep text-white">{c.name}</option>
                   ))}
@@ -446,7 +446,7 @@ export default function POS() {
                 className="text-[9px] font-black uppercase tracking-[0.2em] bg-red-500/10 text-red-400 p-3 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center justify-center gap-3"
               >
                 <Wallet size={12} />
-                Outstanding Liabilities: {(customers.find(c => c.id === selectedCustomer)?.balance).toLocaleString()} {user?.currency}
+                Dívidas Pendentes: {(customers.find(c => c.id === selectedCustomer)?.balance).toLocaleString()} {user?.currency}
               </button>
             )}
           </div>
@@ -456,7 +456,7 @@ export default function POS() {
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center opacity-10">
               <ShoppingCart size={80} className="mb-6 text-gold-primary stroke-[1]" />
-              <p className="font-black uppercase tracking-[0.4em] text-xs">Terminal Standby</p>
+              <p className="font-black uppercase tracking-[0.4em] text-xs">Aguardando Itens</p>
             </div>
           ) : (
             cart.map(item => (
@@ -482,7 +482,7 @@ export default function POS() {
                       >+</button>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-gold-primary/40 uppercase tracking-widest leading-none mb-1">Unit Price</span>
+                      <span className="text-[8px] font-black text-gold-primary/40 uppercase tracking-widest leading-none mb-1">Preço Unitário</span>
                       <span className="text-[10px] font-black text-white/40 tabular-nums">{item.sale_price.toLocaleString()} {user?.currency}</span>
                     </div>
                   </div>
@@ -494,7 +494,7 @@ export default function POS() {
                   <button
                     onClick={() => removeFromCart(item.id)}
                     className="text-white/10 hover:text-red-500 mt-2 p-1.5 hover:bg-red-500/10 rounded-lg transition-all"
-                    title="Remove Asset"
+                    title="Remover Item"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -507,21 +507,21 @@ export default function POS() {
         <div className="p-8 bg-bg-deep/80 backdrop-blur-xl border-t border-white/5 space-y-5">
           <div className="space-y-3 px-2">
             <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-white/30">
-              <span>Gross Assets</span>
+              <span>Subtotal Bruto</span>
               <span className="text-white/60">{subtotal.toLocaleString()} {user?.currency}</span>
             </div>
             <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-white/30">
-              <span>Tax Protocol ({taxRate}%)</span>
+              <span>Impostos ({taxRate}%)</span>
               <span className="text-white/60">{tax.toLocaleString()} {user?.currency}</span>
             </div>
             {discountAmount > 0 && (
               <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-gold-primary">
-                <span>Optimization Applied</span>
+                <span>Desconto Aplicado</span>
                 <span className="text-gold-primary">- {discountAmount.toLocaleString()} {user?.currency}</span>
               </div>
             )}
             <div className="flex justify-between pt-4 border-t border-white/5">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-primary self-center">Final Net Total</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-primary self-center">Total Líquido</span>
               <div className="text-right">
                 <span className="text-4xl font-black text-white tracking-tighter italic leading-none">{total.toLocaleString()}</span>
                 <span className="text-[10px] font-black text-gold-primary/40 block mt-1 tracking-widest uppercase">{user?.currency}</span>
@@ -531,7 +531,7 @@ export default function POS() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="glass-panel p-4 rounded-2xl border border-white/10 focus-within:border-gold-primary/40 transition-all">
-              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Optimization (%)</label>
+              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Desconto (%)</label>
               <input
                 type="number"
                 min="0"
@@ -546,9 +546,9 @@ export default function POS() {
               onClick={() => setIsProForma(!isProForma)}
               className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-center ${isProForma ? 'bg-gold-primary/10 border-gold-primary/40 shadow-[0_0_20px_rgba(212,175,55,0.1)]' : 'glass-panel border-white/10 hover:border-white/20'}`}
             >
-              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Protocol</label>
+              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Protocolo</label>
               <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isProForma ? 'text-gold-primary' : 'text-white/40'}`}>
-                {isProForma ? 'PRO-FORMA' : 'DIRECT SALE'}
+                {isProForma ? 'PRO-FORMA' : 'VENDA DIRECTA'}
               </span>
             </div>
           </div>
@@ -562,7 +562,7 @@ export default function POS() {
               className="w-4 h-4 rounded border-white/10 bg-white/5 text-gold-primary focus:ring-gold-primary/50"
             />
             <label htmlFor="autoPrint" className="text-[10px] font-black text-white/40 uppercase tracking-widest cursor-pointer flex items-center gap-3">
-              <Printer size={14} className="text-gold-primary/40" /> Automatic Hardcopy
+              <Printer size={14} className="text-gold-primary/40" /> Impressão Automática
             </label>
           </div>
 
@@ -572,7 +572,7 @@ export default function POS() {
             className="w-full mt-2 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep py-6 rounded-3xl font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:shadow-[0_0_40px_rgba(212,175,55,0.3)] disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-2xl"
           >
             <CreditCard size={20} />
-            PROCESS TRANSACTION
+            PROCESSAR VENDA
           </button>
         </div>
       </div>
@@ -588,13 +588,13 @@ export default function POS() {
               <div className="w-20 h-20 bg-gold-primary/10 text-gold-primary rounded-3xl flex items-center justify-center mx-auto mb-6 border border-gold-primary/20 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
                 <Wallet size={40} className="animate-pulse" />
               </div>
-              <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">Initialize <span className="text-gold-gradient">Vault</span></h3>
-              <p className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">Specify initial capital reserve to proceed</p>
+              <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">Abrir <span className="text-gold-gradient">Caixa</span></h3>
+              <p className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">Informe o valor inicial do caixa para continuar</p>
             </div>
 
             <div className="p-10 pt-0 space-y-8 relative z-10">
               <div className="glass-panel p-6 rounded-3xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">Operational Reserve Allocation</label>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">Valor de Abertura</label>
                 <div className="relative">
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 font-black text-gold-primary/40 uppercase text-xs tracking-widest">{user?.currency}</span>
                   <input
