@@ -345,8 +345,8 @@ export default function Settings() {
                                 type="button"
                                 onClick={() => togglePermission(role, mod.key)}
                                 className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all ${isChecked
-                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
-                                    : 'bg-gray-100 text-gray-300 hover:bg-gray-200'
+                                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
+                                  : 'bg-gray-100 text-gray-300 hover:bg-gray-200'
                                   }`}
                               >
                                 {isChecked ? <Check size={18} strokeWidth={3} /> : <X size={16} />}
@@ -380,9 +380,11 @@ export default function Settings() {
               <div>
                 <h3 className="text-xl font-black text-gray-900 flex items-center gap-2 uppercase tracking-tight italic">
                   <Database className="text-emerald-600" size={24} />
-                  Diagnóstico do Sistema
+                  {dbState?.is_master_mode ? 'Diagnóstico Global do Sistema' : 'Diagnóstico da Empresa'}
                 </h3>
-                <p className="text-gray-500 text-sm font-medium">Informações técnicas e estado operacional da plataforma</p>
+                <p className="text-gray-500 text-sm font-medium">
+                  {dbState?.is_master_mode ? 'Visão completa de todas as instâncias e dados da plataforma' : 'Informações técnicas e estado operacional da sua conta'}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${dbState?.db_status === 'Online' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
@@ -397,12 +399,16 @@ export default function Settings() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">UTILIZADORES ACTIVOS</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">
+                  {dbState?.is_master_mode ? 'UTILIZADORES TOTAIS (SISTEMA)' : 'UTILIZADORES ACTIVOS'}
+                </p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-4xl font-black text-gray-900 italic">{dbState?.current_users || 0}</p>
-                  <p className="text-gray-400 font-black text-lg">/ {dbState?.user_limit || '---'}</p>
+                  {!dbState?.is_master_mode && <p className="text-gray-400 font-black text-lg">/ {dbState?.user_limit || '---'}</p>}
                 </div>
-                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">Limite do seu plano</p>
+                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">
+                  {dbState?.is_master_mode ? 'Contagem global em todas as empresas' : 'Limite do seu plano'}
+                </p>
               </div>
 
               <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
@@ -413,7 +419,7 @@ export default function Settings() {
 
               <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">ESTADO DO BANCO</p>
-                <p className="text-2xl font-black text-emerald-600 uppercase italic">OPERACIONAL</p>
+                <p className="text-2xl font-black text-emerald-600 uppercase italic">{dbState?.is_master_mode ? 'INFRAESTRUTURA OK' : 'OPERACIONAL'}</p>
                 <p className="text-[10px] text-gray-500 font-black uppercase mt-2">Supabase Cloud + Edge</p>
               </div>
             </div>

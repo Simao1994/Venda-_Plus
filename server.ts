@@ -469,34 +469,38 @@ async function startServer() {
   // System State & Export
   app.get("/api/system/state", authenticate, async (req: any, res) => {
     try {
+      const isMaster = req.user.role === 'master';
+
       // 1. Check DB Connectivity
-      const { data: dbCheck, error: dbError } = await supabase.from('companies').select('count', { count: 'exact', head: true }).limit(1);
+      const { error: dbError } = await supabase.from('companies').select('id', { count: 'exact', head: true }).limit(1);
 
-      // 2. Get User Count & Limit
-      const { count: currentUsers } = await supabase
-        .from("users")
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', req.user.company_id);
+      // 2. User Statistics
+      let userQuery = supabase.from("users").select('*', { count: 'exact', head: true });
+      if (!isMaster) userQuery = userQuery.eq('company_id', req.user.company_id);
+      const { count: currentUsers } = await userQuery;
 
-      const { data: subscription } = await supabase
-        .from("saas_subscriptions")
-        .select("*, saas_plans(user_limit)")
-        .eq("company_id", req.user.company_id)
-        .eq("status", "active")
-        .single();
+      let userLimit = 1;
+      if (!isMaster) {
+        const { data: subscription } = await supabase
+          .from("saas_subscriptions")
+          .select("*, saas_plans(user_limit)")
+          .eq("company_id", req.user.company_id)
+          .eq("status", "active")
+          .single();
+        userLimit = subscription?.saas_plans?.user_limit || 1;
+      }
 
-      const userLimit = subscription?.saas_plans?.user_limit || 1;
-
-      // 3. Table Counts
-      const tables = ['products', 'customers', 'sales', 'expenses', 'users', 'medicamentos', 'branches', 'suppliers'];
+      // 3. Table Statistics
+      const tables = ['products', 'customers', 'sales', 'expenses', 'users', 'medicamentos', 'branches', 'suppliers', 'companies'];
       const tableCounts: any = {};
 
       for (const table of tables) {
-        const { count, error } = await supabase
-          .from(table)
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', req.user.company_id);
+        let query = supabase.from(table).select('*', { count: 'exact', head: true });
+        if (!isMaster && table !== 'companies') {
+          query = query.eq('company_id', req.user.company_id);
+        }
 
+        const { count, error } = await query;
         if (!error) tableCounts[table] = count;
       }
 
@@ -504,11 +508,13 @@ async function startServer() {
         db_status: dbError ? 'Offline' : 'Online',
         system_status: 'Operacional',
         current_users: currentUsers || 0,
-        user_limit: userLimit,
+        user_limit: isMaster ? 'Limitado por Infraestrutura' : userLimit,
         total_tables: tables.length,
-        table_stats: tableCounts
+        table_stats: tableCounts,
+        is_master_mode: isMaster
       });
     } catch (err: any) {
+      console.error('Erro no diagnóstico:', err.message);
       res.status(500).json({ error: "Falha ao obter estado do sistema" });
     }
   });
@@ -1738,6 +1744,40 @@ async function startServer() {
   });
 
   // --- MÓDULO RECURSOS HUMANOS APIs ---
+
+  // Partners Locations & Hours API
+  app.get("/api/public/partners", async (req, res) => {
+    const { data: partners, error } = await supabase
+      .from("branches")
+      .select(`
+        *,
+        companies (
+          name,
+          logo,
+          category,
+          phone,
+          email
+        )
+      `)
+      .eq("is_public", true);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const formatted = partners?.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      address: p.address,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      working_hours: p.working_hours,
+      company_name: p.companies?.name,
+      company_logo: p.companies?.logo,
+      category: p.companies?.category,
+      phone: p.companies?.phone || p.phone
+    }));
+
+    res.json(formatted || []);
+  });
 
   // Publications APIs
   app.get("/api/public/publications", async (req, res) => {

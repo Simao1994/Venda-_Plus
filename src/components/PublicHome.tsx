@@ -57,6 +57,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
     landing_stats: [],
     landing_modules: []
   });
+  const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedModule, setSelectedModule] = useState<any>(null);
@@ -171,6 +172,16 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
     }
   };
 
+  const fetchPartners = async () => {
+    try {
+      const res = await fetch('/api/public/partners');
+      const data = await res.json();
+      setPartners(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao buscar parceiros:', error);
+    }
+  };
+
   const fetchInitialData = async () => {
     setLoading(true);
     await Promise.all([
@@ -178,6 +189,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       fetchVagas(),
       fetchPlans(),
       fetchCompanies(),
+      fetchPartners(),
       fetchConfig()
     ]);
     setLoading(false);
@@ -222,7 +234,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               onClick={onLoginClick}
               className="px-8 py-3 bg-white/5 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-primary hover:text-bg-deep transition-all border border-white/10 hover:border-gold-primary shadow-2xl"
             >
-              Acesso à Gestão
+              Acesso Restrito
             </button>
           </div>
         </div>
@@ -538,6 +550,110 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Partners Section */}
+      <section id="parceiros" className="py-40 bg-bg-deep relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(212,175,55,0.05)_0%,transparent_50%)]" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-24">
+            <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 px-4 py-2 bg-gold-primary/10 rounded-full border border-gold-primary/20 italic">
+              <Globe size={14} className="animate-pulse" />
+              REDE DE EXCELÊNCIA RETAIL
+            </div>
+            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight italic uppercase pb-2">Nossos <span className="text-gold-gradient">Parceiros</span></h2>
+            <p className="text-white/40 font-black text-xs uppercase tracking-[0.3em] mt-6 max-w-xl mx-auto italic">
+              Localize os supermercados e farmácias mais próximos de si e verifique os horários de operação em tempo real.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="lg:col-span-1 space-y-6 max-h-[700px] overflow-y-auto pr-4 custom-scrollbar">
+              {partners.map((partner) => {
+                const now = new Date();
+                const dia = now.toLocaleDateString('pt-PT', { weekday: 'short' }).toLowerCase().replace('.', '');
+                const hours = partner.working_hours?.[dia] || partner.working_hours?.['seg'];
+                let isOpen = false;
+                if (hours && hours !== 'Fechado') {
+                  const [start, end] = hours.split('-').map((h: string) => h.trim());
+                  const [sH, sM] = start.split(':').map(Number);
+                  const [eH, eM] = end.split(':').map(Number);
+                  const currentMin = now.getHours() * 60 + now.getMinutes();
+                  const startMin = sH * 60 + sM;
+                  const endMin = eH * 60 + eM;
+                  isOpen = currentMin >= startMin && currentMin < endMin;
+                }
+
+                return (
+                  <div key={partner.id} className="glass-panel p-8 rounded-[40px] border border-white/5 hover:border-gold-primary/30 transition-all duration-500 group gold-glow cursor-pointer">
+                    <div className="flex items-start gap-5 mb-6">
+                      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 overflow-hidden flex items-center justify-center group-hover:bg-gold-primary/10 transition-all">
+                        {partner.company_logo ? (
+                          <img src={partner.company_logo} alt={partner.company_name} className="w-full h-full object-contain p-2" />
+                        ) : (
+                          <Store size={24} className="text-white/20 group-hover:text-gold-primary" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-[8px] font-black text-gold-primary uppercase tracking-[0.2em] mb-1 block italic">{partner.category || 'RETAIL'}</span>
+                        <h3 className="text-xl font-black text-white uppercase group-hover:text-gold-primary transition-colors italic">{partner.company_name}</h3>
+                        <p className="text-[10px] text-white/40 font-black uppercase tracking-wider">{partner.name}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 mb-8">
+                      <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-white/40">
+                        <Clock size={14} className="text-gold-primary" />
+                        <span className={isOpen ? 'text-emerald-500' : 'text-rose-500'}>
+                          {isOpen ? 'ABERTO AGORA' : 'FECHADO'}
+                        </span>
+                        <span className="text-white/20">•</span>
+                        <span>{hours || '08:00 - 20:00'}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-white/40 italic">
+                        <Globe size={14} className="text-gold-primary" />
+                        <span className="truncate">{partner.address || 'Localização Central'}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => window.open(`https://www.google.com/maps?q=${partner.latitude},${partner.longitude}`, '_blank')}
+                      className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] text-white/60 hover:bg-gold-primary hover:text-bg-deep transition-all italic flex items-center justify-center gap-3"
+                    >
+                      ABRIR NO GOOGLE MAPS <ArrowRight size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+
+              {partners.length === 0 && (
+                <div className="p-10 text-center bg-white/[0.01] rounded-[40px] border border-dashed border-white/10">
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] italic">A processar rede de parceiros...</p>
+                </div>
+              )}
+            </div>
+
+            <div className="lg:col-span-2 relative h-[500px] lg:h-full rounded-[60px] overflow-hidden border border-white/5 shadow-2xl gold-glow group">
+              <iframe
+                title="Google Maps Partners"
+                width="100%"
+                height="100%"
+                className="grayscale contrast-[1.2] invert opacity-40 group-hover:opacity-60 transition-opacity duration-1000"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126153.22055620925!2d13.176865261523437!3d-8.85108429999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1a51f1519460d367%3A0x2bfc2974b97d1950!2sLuanda%2C%20Angola!5e0!3m2!1spt!2sao!4v1710620000000!5m2!1spt!2sao"
+              ></iframe>
+              <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-bg-deep via-transparent to-transparent" />
+              <div className="absolute bottom-10 left-10 p-8 glass-panel border border-white/5 rounded-[40px] max-w-sm metallic-border">
+                <h4 className="text-lg font-black text-gold-primary uppercase tracking-tight italic mb-2">HUB DE LOCALIZAÇÃO</h4>
+                <p className="text-[10px] text-white/40 font-black uppercase tracking-widest leading-relaxed italic">
+                  Utilize o radar acima para identificar os centros logísticos e pontos de venda activos. Clique nos marcadores para detalhes de rota.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
