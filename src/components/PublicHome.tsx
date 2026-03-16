@@ -249,12 +249,12 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               Protocolo Retail Premium V.2026
             </div>
 
-            <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-10 max-w-2xl italic uppercase">
+            <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-8 max-w-2xl uppercase">
               A inteligência por trás do seu <br />
               <span className="text-gold-gradient">supermercado.</span>
             </h1>
 
-            <p className="text-xl text-white/40 font-black leading-relaxed mb-14 max-w-xl uppercase tracking-tight">
+            <p className="text-lg text-white/50 font-medium leading-relaxed mb-12 max-w-2xl tracking-wide">
               Venda Plus Retail Cloud: Uma plataforma completa para gestão de inventário, PDV de alta performance e fidelização de clientes em tempo real.
             </p>
 
