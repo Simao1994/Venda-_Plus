@@ -37,12 +37,12 @@ function DigitalClock() {
     <div className="flex items-center gap-4 px-4 py-2 bg-white/[0.03] rounded-2xl border border-white/5 shadow-inner transition-all hover:bg-white/[0.05]">
       <div className="flex items-center gap-2 text-gold-primary">
         <Clock size={16} />
-        <span className="text-xs font-black tracking-tighter uppercase italic tabular-nums">{time.toLocaleTimeString('pt-PT')}</span>
+        <span className="text-xs font-black tracking-tight uppercase italic tabular-nums pb-0.5">{time.toLocaleTimeString('pt-PT')}</span>
       </div>
       <div className="w-px h-4 bg-white/10" />
       <div className="flex items-center gap-2 text-white/40">
         <Calendar size={16} />
-        <span className="text-xs font-black tracking-tighter uppercase italic">{time.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+        <span className="text-xs font-black tracking-tight uppercase italic pb-0.5">{time.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
       </div>
     </div>
   );
@@ -198,7 +198,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
             <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-[0_0_20px_rgba(212,175,55,0.3)] group-hover:shadow-[0_0_30px_rgba(212,175,55,0.5)] transition-all">
               <Store size={24} />
             </div>
-            <span className="text-2xl font-black text-white tracking-tighter italic uppercase">VENDA <span className="text-gold-gradient">PLUS</span></span>
+            <span className="text-2xl font-black text-white tracking-tight italic uppercase pr-1">VENDA <span className="text-gold-gradient">PLUS</span></span>
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -249,7 +249,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               Protocolo Retail Premium V.2026
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-8 max-w-2xl uppercase">
+            <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight mb-8 max-w-2xl uppercase">
               A inteligência por trás do seu <br />
               <span className="text-gold-gradient">supermercado.</span>
             </h1>
@@ -277,8 +277,8 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               <div className="absolute top-0 left-0 w-20 h-px bg-gold-primary/40" />
               {config.landing_stats.map((stat: any, i: number) => (
                 <div key={i}>
-                  <p className="text-4xl font-black text-white tracking-tighter tabular-nums mb-1 italic">{stat.value}</p>
-                  <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">{stat.label}</p>
+                  <p className="text-4xl font-black text-white tracking-tight tabular-nums mb-1 italic pb-1">{stat.value}</p>
+                  <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -292,7 +292,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="text-center mb-24">
-            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter mb-6 uppercase italic">
+            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-6 uppercase italic">
               Módulos <span className="text-gold-gradient">Inteligentes</span>
             </h2>
             <p className="text-white/40 font-black text-xs uppercase tracking-[0.4em] max-w-2xl mx-auto italic">
@@ -314,7 +314,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                   <div className={`w-20 h-20 ${m.color} rounded-3xl flex items-center justify-center text-white mb-10 shadow-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 relative z-10 metallic-border`}>
                     <Icon size={32} />
                   </div>
-                  <h3 className="text-2xl font-black text-white mb-4 uppercase tracking-tight italic group-hover:text-gold-primary transition-colors">{m.title}</h3>
+                  <h3 className="text-2xl font-black text-white mb-4 uppercase tracking-normal italic group-hover:text-gold-primary transition-colors">{m.title}</h3>
                   <p className="text-white/40 font-medium leading-relaxed mb-8 line-clamp-2 text-sm">{m.desc}</p>
                   <div className="flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.3em] group-hover:gap-5 transition-all">
                     Saber Mais <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -335,7 +335,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 <Globe size={14} className="animate-spin-slow" />
                 VENDA PLUS MARKET PROTOCOL
               </div>
-              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter italic uppercase">
+              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight italic uppercase">
                 Oportunidades em <span className="text-gold-gradient">Tempo Real</span>
               </h2>
             </div>
@@ -376,7 +376,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                       <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 group-hover:text-gold-primary transition-colors">
                         <Store size={18} className="text-white/20" />
                       </div>
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-tighter truncate italic">{pub.company_name}</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-tight truncate italic">{pub.company_name}</span>
                     </div>
                     <h3 className="font-black text-white text-xl mb-3 leading-tight uppercase tracking-tight group-hover:text-gold-primary transition-colors line-clamp-2">{pub.title}</h3>
                     <p className="text-white/30 text-xs font-medium line-clamp-3 leading-relaxed mb-8">{pub.content}</p>
@@ -414,7 +414,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               <Briefcase size={16} />
               OPORTUNIDADES ESTRATÉGICAS
             </div>
-            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter italic uppercase">Vagas <span className="text-gold-gradient">Disponíveis</span></h2>
+            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight italic uppercase pb-2">Vagas <span className="text-gold-gradient">Disponíveis</span></h2>
             <p className="text-white/40 font-black text-xs uppercase tracking-[0.3em] mt-6 max-w-xl mx-auto italic">
               Junte-se às melhores empresas que utilizam a nossa tecnologia. Encontre a sua próxima oportunidade aqui.
             </p>
@@ -456,7 +456,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 </div>
 
                 <div className="flex items-center justify-between pt-8 border-t border-white/5">
-                  <div className="text-xl font-black text-white tracking-tighter italic uppercase group-hover:text-gold-gradient transition-all">
+                  <div className="text-xl font-black text-white tracking-tight italic uppercase group-hover:text-gold-gradient transition-all pb-1">
                     {vaga.salario || 'Sob Consulta'}
                   </div>
                   <button
@@ -489,7 +489,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(212,175,55,0.05)_0%,transparent_70%)]" />
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="text-center mb-24">
-            <h2 className="text-5xl md:text-6xl font-black tracking-tighter mb-6 italic uppercase">Algoritmos de <span className="text-gold-gradient">Custo</span></h2>
+            <h2 className="text-5xl md:text-6xl font-black tracking-tight mb-6 italic uppercase pb-2">Algoritmos de <span className="text-gold-gradient">Custo</span></h2>
             <p className="text-white/40 font-black text-xs uppercase tracking-[0.3em] max-w-2xl mx-auto italic">
               Escolha o plano que melhor se adapta ao tamanho do seu negócio hoje, e cresça connosco amanhã.
             </p>
@@ -511,13 +511,13 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                   <p className={`text-[10px] font-black uppercase tracking-widest mb-10 italic ${plan.is_featured ? 'text-bg-deep/60' : 'text-white/20'}`}>{plan.description}</p>
 
                   <div className="flex items-baseline gap-2 mb-10">
-                    <span className={`text-6xl font-black tracking-tighter italic ${plan.is_featured ? 'text-bg-deep' : 'text-white'}`}>{plan.price_monthly.toLocaleString()}</span>
+                    <span className={`text-6xl font-black tracking-tight italic pb-2 ${plan.is_featured ? 'text-bg-deep' : 'text-white'}`}>{plan.price_monthly.toLocaleString()}</span>
                     <span className={`text-[10px] font-black uppercase tracking-[0.3em] italic ${plan.is_featured ? 'text-bg-deep/40' : 'text-white/20'}`}>KZ / CICLO</span>
                   </div>
 
                   <ul className="space-y-4 mb-12">
                     {publicFeatures.map((f: string, j: number) => (
-                      <li key={j} className={`flex items-center gap-4 text-xs font-black uppercase tracking-tighter ${plan.is_featured ? 'text-bg-deep/80' : 'text-white/60'}`}>
+                      <li key={j} className={`flex items-center gap-4 text-xs font-black uppercase tracking-tight ${plan.is_featured ? 'text-bg-deep/80' : 'text-white/60'}`}>
                         <CheckCircle2 size={18} className={plan.is_featured ? 'text-bg-deep/40' : 'text-gold-primary'} />
                         {f}
                       </li>
@@ -548,7 +548,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 <MessageSquare size={16} />
                 FALE COM O HUB
               </div>
-              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter mb-8 italic uppercase leading-tight">
+              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-8 italic uppercase leading-tight pb-2">
                 Precisa de uma informação ou <span className="text-gold-gradient">activar um protocolo?</span>
               </h2>
               <p className="text-white/40 font-black text-xs uppercase tracking-[0.2em] leading-relaxed mb-12 italic">
@@ -650,10 +650,10 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           <div className="bg-gold-primary rounded-[60px] p-16 md:p-32 text-center text-bg-deep relative overflow-hidden shadow-[0_0_80px_rgba(212,175,55,0.2)] metallic-border">
             <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white opacity-10 rounded-full -mr-60 -mt-60 blur-3xl animate-pulse" />
             <div className="relative z-10">
-              <h2 className="text-5xl md:text-8xl font-black tracking-tighter mb-10 leading-[0.9] italic uppercase">
+              <h2 className="text-5xl md:text-8xl font-black tracking-tight mb-10 leading-tight italic uppercase pb-4">
                 Pronto para digitalizar <br /> o seu negócio?
               </h2>
-              <p className="text-bg-deep/60 text-xl font-black mb-16 max-w-2xl mx-auto uppercase tracking-tighter italic">
+              <p className="text-bg-deep/60 text-xl font-black mb-16 max-w-2xl mx-auto uppercase tracking-normal italic pb-2">
                 Junte-se à Venda Plus e tenha total controlo administrativo com as ferramentas mais modernas do mercado angolano.
               </p>
               <button
@@ -674,7 +674,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
             <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-2xl group-hover:scale-110 transition-transform">
               <Store size={24} />
             </div>
-            <span className="text-2xl font-black text-white tracking-tighter italic uppercase">VENDA <span className="text-gold-gradient">PLUS</span></span>
+            <span className="text-2xl font-black text-white tracking-tight italic uppercase pr-1">VENDA <span className="text-gold-gradient">PLUS</span></span>
           </div>
 
           <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] italic">
@@ -703,7 +703,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               <div className={`w-28 h-28 ${selectedModule.color} rounded-[40px] flex items-center justify-center text-white mb-10 shadow-2xl relative gold-glow-hover`}>
                 {React.createElement(IconMap[selectedModule.icon] || ShoppingCart, { size: 48 })}
               </div>
-              <h2 className="text-5xl font-black text-white mb-6 tracking-tighter uppercase italic italic">{selectedModule.title}</h2>
+              <h2 className="text-5xl font-black text-white mb-6 tracking-normal uppercase italic italic pb-2">{selectedModule.title}</h2>
               <p className="text-xl text-white/40 font-black uppercase tracking-tight leading-relaxed mb-12 italic">
                 {ModuleDetailedInfo[selectedModule.title]?.longDesc || selectedModule.desc}
               </p>
