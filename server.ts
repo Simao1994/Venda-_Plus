@@ -490,18 +490,43 @@ async function startServer() {
         userLimit = subscription?.saas_plans?.user_limit || 1;
       }
 
-      // 3. Table Statistics
-      const tables = ['products', 'customers', 'sales', 'expenses', 'users', 'medicamentos', 'branches', 'suppliers', 'companies'];
+      // 3. Dynamic Table Discovery
+      const { data: tableMeta, error: metaError } = await supabase.rpc('query_sql', {
+        sql_query: `
+          SELECT 
+            t.table_name,
+            EXISTS (
+              SELECT 1 FROM information_schema.columns c 
+              WHERE c.table_name = t.table_name 
+              AND c.table_schema = t.table_schema 
+              AND c.column_name = 'company_id'
+            ) as has_company_id
+          FROM information_schema.tables t
+          WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+          ORDER BY t.table_name
+        `
+      });
+
+      if (metaError) throw metaError;
+
+      const tablesList = tableMeta as any[];
       const tableCounts: any = {};
 
-      for (const table of tables) {
-        let query = supabase.from(table).select('*', { count: 'exact', head: true });
-        if (!isMaster && table !== 'companies') {
+      for (const table of tablesList) {
+        let query = supabase.from(table.table_name).select('*', { count: 'exact', head: true });
+
+        // Filter by company_id if not master and the table has the column
+        if (!isMaster && table.has_company_id) {
           query = query.eq('company_id', req.user.company_id);
         }
 
+        // Skip tables without company_id for standard users (except companies info)
+        if (!isMaster && !table.has_company_id && table.table_name !== 'companies') {
+          continue;
+        }
+
         const { count, error } = await query;
-        if (!error) tableCounts[table] = count;
+        if (!error) tableCounts[table.table_name] = count;
       }
 
       res.json({
@@ -509,7 +534,7 @@ async function startServer() {
         system_status: 'Operacional',
         current_users: currentUsers || 0,
         user_limit: isMaster ? 'Limitado por Infraestrutura' : userLimit,
-        total_tables: tables.length,
+        total_tables: Object.keys(tableCounts).length,
         table_stats: tableCounts,
         is_master_mode: isMaster
       });
