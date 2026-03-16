@@ -60,6 +60,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedModule, setSelectedModule] = useState<any>(null);
+  const [showIntro, setShowIntro] = useState(false);
 
   const ModuleDetailedInfo: any = {
     'Vendas & Facturação': {
@@ -194,7 +195,10 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 bg-bg-deep/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3 group cursor-pointer">
+          <div
+            onClick={() => setShowIntro(true)}
+            className="flex items-center gap-3 group cursor-pointer"
+          >
             <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-[0_0_20px_rgba(212,175,55,0.3)] group-hover:shadow-[0_0_30px_rgba(212,175,55,0.5)] transition-all">
               <Store size={24} />
             </div>
@@ -548,7 +552,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 <MessageSquare size={16} />
                 FALE COM O HUB
               </div>
-              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-8 italic uppercase leading-tight pb-2">
+              <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-8 italic uppercase leading-tight pb-1">
                 Precisa de uma informação ou <span className="text-gold-gradient">activar um protocolo?</span>
               </h2>
               <p className="text-white/40 font-black text-xs uppercase tracking-[0.2em] leading-relaxed mb-12 italic">
@@ -670,7 +674,10 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
       {/* Footer */}
       <footer className="bg-bg-deep py-24 border-t border-white/5 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
-          <div className="flex items-center gap-4 group cursor-pointer">
+          <div
+            onClick={() => setShowIntro(true)}
+            className="flex items-center gap-4 group cursor-pointer"
+          >
             <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-2xl group-hover:scale-110 transition-transform">
               <Store size={24} />
             </div>
@@ -736,6 +743,97 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 >
                   INFO. PROTOCOLO
                 </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Software Introduction Modal */}
+      {showIntro && (
+        <div className="fixed inset-0 bg-bg-deep/90 backdrop-blur-3xl flex items-center justify-center z-[110] p-4 text-left animate-in fade-in zoom-in duration-500">
+          <div className="glass-panel rounded-[60px] w-full max-w-4xl overflow-hidden shadow-[0_0_120px_rgba(212,175,55,0.2)] relative border border-white/5 metallic-border">
+            <button
+              onClick={() => setShowIntro(false)}
+              className="absolute top-10 right-10 text-white/20 hover:text-gold-primary transition-colors active:scale-90 z-20"
+            >
+              <X size={40} />
+            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="p-12 md:p-16 border-b md:border-b-0 md:border-r border-white/5 bg-white/[0.01]">
+                <div className="w-20 h-20 bg-gold-primary rounded-[32px] flex items-center justify-center text-bg-deep mb-8 shadow-2xl group-hover:scale-110 transition-transform">
+                  <Store size={40} />
+                </div>
+                <h2 className="text-4xl font-black text-white mb-6 tracking-tight uppercase italic">VENDA <span className="text-gold-gradient">PLUS</span></h2>
+                <p className="text-white/40 font-black text-xs uppercase tracking-[0.2em] leading-relaxed italic mb-10">
+                  O ecossistema definitivo para gestão empresarial em Angola.
+                </p>
+
+                <div className="space-y-6">
+                  <div className="flex items-start gap-4 p-5 bg-white/[0.03] rounded-3xl border border-white/5">
+                    <div className="mt-1 text-gold-primary"><Zap size={20} /></div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-wider mb-1">Performance Síncrona</p>
+                      <p className="text-[10px] text-white/20 font-medium leading-relaxed">Arquitectura de baixa latência para operações críticas em tempo real.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 p-5 bg-white/[0.03] rounded-3xl border border-white/5">
+                    <div className="mt-1 text-gold-primary"><ShieldCheck size={20} /></div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-wider mb-1">Segurança Militar</p>
+                      <p className="text-[10px] text-white/20 font-medium leading-relaxed">Criptografia de ponta a ponta e redundância de dados multi-região.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-12 md:p-16 space-y-10">
+                <div>
+                  <h3 className="text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-8 italic">PROPÓSITO DO PROTOCOLO</h3>
+                  <div className="space-y-8">
+                    <div className="group">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary group-hover:bg-gold-primary group-hover:text-bg-deep transition-all">
+                          <ShoppingCart size={16} />
+                        </div>
+                        <p className="text-sm font-black text-white uppercase tracking-widest italic">Vendas & Facturação</p>
+                      </div>
+                      <p className="text-[11px] text-white/40 font-medium leading-relaxed ml-12">PDV de alta performance, gestão de inventário inteligente e controlo total de tesouraria.</p>
+                    </div>
+
+                    <div className="group">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary group-hover:bg-gold-primary group-hover:text-bg-deep transition-all">
+                          <Package size={16} />
+                        </div>
+                        <p className="text-sm font-black text-white uppercase tracking-widest italic">Gestão Farmacêutica</p>
+                      </div>
+                      <p className="text-[11px] text-white/40 font-medium leading-relaxed ml-12">Controlo rigoroso de lotes, datas de validade e conformidade normativa do sector.</p>
+                    </div>
+
+                    <div className="group">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary group-hover:bg-gold-primary group-hover:text-bg-deep transition-all">
+                          <Users size={16} />
+                        </div>
+                        <p className="text-sm font-black text-white uppercase tracking-widest italic">Recursos Humanos</p>
+                      </div>
+                      <p className="text-[11px] text-white/40 font-medium leading-relaxed ml-12">Gestão de talentos, processamento de salários e monitorização de performance automatizada.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <button
+                    onClick={() => {
+                      setShowIntro(false);
+                      onStartClick();
+                    }}
+                    className="w-full py-5 bg-gold-primary text-bg-deep rounded-[24px] font-black text-xs uppercase tracking-[0.3em] hover:bg-white transition-all shadow-2xl italic active:scale-95"
+                  >
+                    ACTIVAR SISTEMA AGORA
+                  </button>
+                </div>
               </div>
             </div>
           </div>
