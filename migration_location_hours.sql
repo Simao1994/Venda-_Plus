@@ -20,8 +20,8 @@ ALTER TABLE branches ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;
 -- 3. Seed some sample data for the first branch if it exists
 -- Assuming branch 1 is the main branch of the first company
 UPDATE branches SET 
-  latitude = -8.8368, 
-  longitude = 13.2343, 
+  latitude = -12.5763, 
+  longitude = 13.4055, 
   is_public = TRUE,
   working_hours = '{
     "seg": "08:00-22:00",

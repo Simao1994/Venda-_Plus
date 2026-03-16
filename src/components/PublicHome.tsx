@@ -644,7 +644,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 style={{ border: 0 }}
                 loading="lazy"
                 allowFullScreen
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126153.22055620925!2d13.176865261523437!3d-8.85108429999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1a51f1519460d367%3A0x2bfc2974b97d1950!2sLuanda%2C%20Angola!5e0!3m2!1spt!2sao!4v1710620000000!5m2!1spt!2sao"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d124545.98925501865!2d13.33649983906249!3d-12.5762638!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1bb37e7354972e21%3A0x892a012a64016a5!2sBenguela!5e0!3m2!1spt!2sao!4v1710625000000!5m2!1spt!2sao"
               ></iframe>
               <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-bg-deep via-transparent to-transparent" />
               <div className="absolute bottom-10 left-10 p-8 glass-panel border border-white/5 rounded-[40px] max-w-sm metallic-border">
