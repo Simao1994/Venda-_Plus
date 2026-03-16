@@ -13,6 +13,7 @@ interface BlogPageProps {
 }
 
 const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'posts' | 'inbox'>('posts');
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingItem, setEditingItem] = useState<BlogPost | null>(null);
@@ -20,6 +21,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
   const [saving, setSaving] = useState(false);
 
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [inquiries, setInquiries] = useState<any[]>([]);
 
   // File upload state
   const [headerFile, setHeaderFile] = useState<File | null>(null);
@@ -33,10 +35,15 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('blog_posts')
-        .select('*')
-        .order('data_publicacao', { ascending: false });
+        .select('*');
+
+      if (appUser && appUser.role !== 'master') {
+        query = query.eq('company_id', appUser.company_id);
+      }
+
+      const { data, error } = await query.order('data_publicacao', { ascending: false });
 
       if (error) throw error;
 
@@ -64,9 +71,35 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
     }
   };
 
+  const fetchInquiries = async () => {
+    try {
+      let query = supabase
+        .from('public_inquiries')
+        .select('*');
+
+      if (appUser && appUser.role !== 'master') {
+        query = query.eq('company_id', appUser.company_id);
+      }
+
+      const { data, error } = await query.order('data_envio', { ascending: false });
+
+      if (error) throw error;
+      setInquiries(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar mensagens:', err);
+    }
+  };
+
   useEffect(() => {
     fetchPosts();
+    fetchInquiries();
   }, []);
+
+  useEffect(() => {
+    if (activeSubTab === 'inbox') {
+      fetchInquiries();
+    }
+  }, [activeSubTab]);
 
   const filtered = useMemo(() =>
     posts.filter(p => p.titulo.toLowerCase().includes(searchTerm.toLowerCase())),
@@ -191,157 +224,224 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
           <h1 className="text-4xl font-black text-zinc-900 tracking-tight uppercase">Blog & Notícias</h1>
           <p className="text-zinc-500 font-medium mt-1">Gestão de artigos oficiais e comunicados do grupo Amazing.</p>
         </div>
-        <button
-          onClick={() => { setEditingItem(null); setShowModal(true); }}
-          className="px-8 py-4 bg-zinc-900 text-white rounded-2xl flex items-center gap-3 font-black shadow-xl hover:bg-zinc-800 transition-all active:scale-95"
-        >
-          <Plus size={20} /> ESCREVER ARTIGO
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveSubTab('posts')}
+            className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeSubTab === 'posts' ? 'bg-yellow-500 text-zinc-900 shadow-lg shadow-yellow-200' : 'text-zinc-400 hover:bg-zinc-100'}`}
+          >
+            Artigos Publicados
+          </button>
+          <button
+            onClick={() => setActiveSubTab('inbox')}
+            className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeSubTab === 'inbox' ? 'bg-yellow-500 text-zinc-900 shadow-lg shadow-yellow-200' : 'text-zinc-400 hover:bg-zinc-100'} flex items-center gap-2`}
+          >
+            Mensagens Recebidas
+            {inquiries.filter(i => i.status === 'pendente').length > 0 && (
+              <span className="w-5 h-5 bg-zinc-900 text-white rounded-full flex items-center justify-center text-[10px]">
+                {inquiries.filter(i => i.status === 'pendente').length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => { setEditingItem(null); setShowModal(true); }}
+            className="ml-4 px-8 py-4 bg-zinc-900 text-white rounded-2xl flex items-center gap-3 font-black shadow-xl hover:bg-zinc-800 transition-all active:scale-95"
+          >
+            <Plus size={20} /> ESCREVER ARTIGO
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white p-2 rounded-[2rem] shadow-sm border border-sky-100">
-        <Input
-          placeholder="Pesquisar por título ou palavra-chave..."
-          icon={<Search size={20} className="text-zinc-400" />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-transparent border-none py-4 text-lg font-semibold"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {loading ? (
-          <div className="col-span-full py-32 text-center space-y-4">
-            <RefreshCw className="mx-auto w-12 h-12 text-yellow-500 animate-spin" />
-            <p className="text-zinc-400 font-black uppercase tracking-[0.3em] text-xs animate-pulse">A carregar artigos...</p>
+      {activeSubTab === 'posts' && (
+        <>
+          <div className="bg-white p-2 rounded-[2rem] shadow-sm border border-sky-100">
+            <Input
+              placeholder="Pesquisar por título ou palavra-chave..."
+              icon={<Search size={20} className="text-zinc-400" />}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-transparent border-none py-4 text-lg font-semibold"
+            />
           </div>
-        ) : filtered.length > 0 ? (
-          filtered.map(post => (
-            <div key={post.id} className="bg-white rounded-[3rem] overflow-hidden border border-sky-100 shadow-sm hover:shadow-2xl transition-all group flex flex-col md:flex-row">
-              <div className="md:w-1/3 aspect-video md:aspect-auto overflow-hidden relative bg-zinc-900">
-                {post.video_url ? (() => {
-                  const url = post.video_url;
-                  // Detectar YouTube
-                  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                  // Detectar Vimeo
-                  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
 
-                  if (ytMatch) {
-                    return (
-                      <iframe
-                        src={`https://www.youtube.com/embed/${ytMatch[1]}?rel=0`}
-                        className="w-full h-full min-h-[180px]"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        title={post.titulo}
-                      />
-                    );
-                  } else if (vimeoMatch) {
-                    return (
-                      <iframe
-                        src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
-                        className="w-full h-full min-h-[180px]"
-                        allow="autoplay; fullscreen; picture-in-picture"
-                        allowFullScreen
-                        title={post.titulo}
-                      />
-                    );
-                  } else {
-                    // Vídeo directo (ficheiro mp4, webm, etc. do Supabase)
-                    return (
-                      <video
-                        src={url}
-                        controls
-                        className="w-full h-full object-cover"
-                        preload="metadata"
-                        poster={post.imagem_url || undefined}
-                      />
-                    );
-                  }
-                })() : (
-                  <>
-                    <img
-                      src={post.imagem_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800'}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in"
-                      alt={post.titulo}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const url = post.imagem_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
-                        setViewingImage(url);
-                      }}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
-                      }}
-                    />
-                    <div className="absolute top-4 left-4 flex gap-2">
-                      <span className="px-3 py-1 bg-yellow-500 text-zinc-900 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg">
-                        {post.categoria}
-                      </span>
-                      {!post.is_publico && (
-                        <span className="px-3 py-1 bg-zinc-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg flex items-center gap-1">
-                          <Lock size={10} /> Interno
-                        </span>
-                      )}
-                    </div>
-                    <div className="absolute bottom-4 right-4">
-                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-xl text-zinc-900">
-                        {post.tipo === 'video' ? <Play size={18} fill="currentColor" /> : post.tipo === 'galeria' ? <ImageIcon size={18} /> : <Newspaper size={18} />}
-                      </div>
-                    </div>
-                  </>
-                )}
-                {/* Badges para posts com vídeo */}
-                {post.video_url && (
-                  <div className="absolute top-4 left-4 flex gap-2 pointer-events-none">
-                    <span className="px-3 py-1 bg-yellow-500 text-zinc-900 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg">
-                      {post.categoria}
-                    </span>
-                    {!post.is_publico && (
-                      <span className="px-3 py-1 bg-zinc-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg flex items-center gap-1">
-                        <Lock size={10} /> Interno
-                      </span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {loading ? (
+              <div className="col-span-full py-32 text-center space-y-4">
+                <RefreshCw className="mx-auto w-12 h-12 text-yellow-500 animate-spin" />
+                <p className="text-zinc-400 font-black uppercase tracking-[0.3em] text-xs animate-pulse">A carregar artigos...</p>
+              </div>
+            ) : filtered.length > 0 ? (
+              filtered.map(post => (
+                <div key={post.id} className="bg-white rounded-[3rem] overflow-hidden border border-sky-100 shadow-sm hover:shadow-2xl transition-all group flex flex-col md:flex-row">
+                  <div className="md:w-1/3 aspect-video md:aspect-auto overflow-hidden relative bg-zinc-900">
+                    {post.video_url ? (() => {
+                      const url = post.video_url;
+                      const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                      const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+
+                      if (ytMatch) {
+                        return <iframe src={`https://www.youtube.com/embed/${ytMatch[1]}?rel=0`} className="w-full h-full min-h-[180px]" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title={post.titulo} />;
+                      } else if (vimeoMatch) {
+                        return <iframe src={`https://player.vimeo.com/video/${vimeoMatch[1]}`} className="w-full h-full min-h-[180px]" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen title={post.titulo} />;
+                      } else {
+                        return <video src={url} controls className="w-full h-full object-cover" preload="metadata" poster={post.imagem_url || undefined} />;
+                      }
+                    })() : (
+                      <>
+                        <img
+                          src={post.imagem_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800'}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in"
+                          alt={post.titulo}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingImage(post.imagem_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800');
+                          }}
+                        />
+                        <div className="absolute top-4 left-4 flex gap-2">
+                          <span className="px-3 py-1 bg-yellow-500 text-zinc-900 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg">{post.categoria}</span>
+                          {!post.is_publico && <span className="px-3 py-1 bg-zinc-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg flex items-center gap-1"><Lock size={10} /> Interno</span>}
+                        </div>
+                      </>
                     )}
                   </div>
-                )}
-              </div>
-
-              <div className="md:w-2/3 p-8 flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-xl font-black text-zinc-900 leading-tight group-hover:text-yellow-600 transition-colors uppercase tracking-tight">{post.titulo}</h3>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingItem(post); setShowModal(true); }} className="p-2 text-zinc-300 hover:text-yellow-600 transition-colors"><Edit size={16} /></button>
-                      <button onClick={() => handleDelete(post.id, post.titulo)} className="p-2 text-zinc-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                  <div className="md:w-2/3 p-8 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-xl font-black text-zinc-900 leading-tight group-hover:text-yellow-600 transition-colors uppercase tracking-tight">{post.titulo}</h3>
+                        <div className="flex gap-2">
+                          <button onClick={() => { setEditingItem(post); setShowModal(true); }} className="p-2 text-zinc-300 hover:text-yellow-600 transition-colors"><Edit size={16} /></button>
+                          <button onClick={() => handleDelete(post.id, post.titulo)} className="p-2 text-zinc-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                        </div>
+                      </div>
+                      <p className="text-zinc-500 text-sm line-clamp-2 font-medium mb-6">{post.conteudo}</p>
                     </div>
-                  </div>
-                  <p className="text-zinc-500 text-sm line-clamp-2 font-medium mb-6">
-                    {post.conteudo}
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-zinc-50 flex items-center justify-between text-zinc-400">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
-                      <UserIcon size={12} className="text-yellow-500" /> {post.autor}
+                    <div className="pt-4 border-t border-zinc-50 flex items-center justify-between text-zinc-400">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"><UserIcon size={12} className="text-yellow-500" /> {post.autor}</div>
+                        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"><Calendar size={12} className="text-yellow-500" /> {new Date(post.data).toLocaleDateString()}</div>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"><Eye size={12} className="text-yellow-500" /> {post.visualizacoes}</div>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
-                      <Calendar size={12} className="text-yellow-500" /> {new Date(post.data).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
-                    <Eye size={12} className="text-yellow-500" /> {post.visualizacoes}
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-sky-100">
+                <Newspaper size={64} className="mx-auto text-sky-100 mb-4" />
+                <p className="text-zinc-400 font-bold italic text-lg">Nenhum artigo encontrado no blog.</p>
               </div>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-sky-100">
-            <Newspaper size={64} className="mx-auto text-sky-100 mb-4" />
-            <p className="text-zinc-400 font-bold italic text-lg">Nenhum artigo encontrado no blog.</p>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {activeSubTab === 'inbox' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-black text-zinc-900 uppercase">Gestão de Mensagens</h2>
+            <button
+              onClick={() => fetchInquiries()}
+              disabled={loading}
+              className="p-3 bg-zinc-100 rounded-2xl hover:bg-yellow-500 hover:text-zinc-900 transition-all active:scale-95"
+              title="Actualizar Mensagens"
+            >
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+          {inquiries.length > 0 ? (
+            inquiries.map(inquiry => (
+              <div key={inquiry.id} className="bg-white rounded-[2.5rem] p-8 border border-sky-100 shadow-sm hover:shadow-xl transition-all">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-400 font-black">
+                      {inquiry.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-zinc-900 text-lg leading-tight">{inquiry.nome}</h4>
+                      <div className="flex items-center gap-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">
+                        <Send size={12} className="text-yellow-500" /> {inquiry.email}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${inquiry.status === 'pendente' ? 'bg-yellow-50 text-yellow-600' :
+                    inquiry.status === 'respondida' ? 'bg-emerald-50 text-emerald-600' : 'bg-zinc-50 text-zinc-400'
+                    }`}>
+                    {inquiry.status}
+                  </span>
+                </div>
+
+                <div className="p-6 bg-zinc-50 rounded-[2rem] border border-zinc-100 mb-6">
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 italic">Assunto: {inquiry.assunto}</p>
+                  <p className="text-zinc-700 font-medium leading-relaxed">{inquiry.mensagem}</p>
+                </div>
+
+                {inquiry.resposta && (
+                  <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-100 mb-6 relative">
+                    <div className="absolute -top-3 left-6 px-3 py-1 bg-emerald-600 text-white text-[8px] font-black uppercase tracking-widest rounded-full">Resposta</div>
+                    <p className="text-emerald-800 font-bold leading-relaxed">{inquiry.resposta}</p>
+                    <div className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-2">
+                      Respondido em: {new Date(inquiry.data_resposta).toLocaleString()}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between border-t border-zinc-50 pt-6">
+                  <div className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
+                    Recebido em: {new Date(inquiry.data_envio).toLocaleString()}
+                  </div>
+                  <div className="flex gap-2">
+                    {inquiry.status === 'pendente' && (
+                      <button
+                        onClick={async () => {
+                          const resp = prompt(`Responder a ${inquiry.nome}:`);
+                          if (resp) {
+                            setSaving(true);
+                            try {
+                              const { error } = await supabase
+                                .from('public_inquiries')
+                                .update({
+                                  resposta: resp,
+                                  status: 'respondida',
+                                  data_resposta: new Date().toISOString()
+                                })
+                                .eq('id', inquiry.id);
+                              if (error) throw error;
+                              fetchInquiries();
+                            } catch (err) {
+                              console.error('Erro ao responder:', err);
+                            } finally {
+                              setSaving(false);
+                            }
+                          }
+                        }}
+                        className="px-6 py-2.5 bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-yellow-500 hover:text-zinc-900 transition-all"
+                      >
+                        Responder
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        if (confirm('Eliminar esta mensagem?')) {
+                          const { error } = await supabase.from('public_inquiries').delete().eq('id', inquiry.id);
+                          if (!error) fetchInquiries();
+                        }
+                      }}
+                      className="p-2.5 text-zinc-300 hover:text-red-500 transition-all rounded-xl"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-sky-100">
+              <Send size={48} className="mx-auto text-sky-100 mb-4" />
+              <p className="text-zinc-400 font-bold">Nenhuma mensagem recebida.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
@@ -402,7 +502,6 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
                 </label>
               </div>
 
-              {/* IMAGEM DE CAPA - HYBRID */}
               <div className="space-y-3">
                 <label className="block text-sm font-black text-zinc-700 uppercase tracking-widest">Imagem de Capa</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -418,7 +517,6 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
                 </div>
               </div>
 
-              {/* VÍDEO - HYBRID */}
               <div className="space-y-3">
                 <label className="block text-sm font-black text-zinc-700 uppercase tracking-widest">Vídeo / Reportagem</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -485,7 +583,6 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
         </div>
       )}
 
-      {/* MODAL PARA VER IMAGEM GRANDE - ULTRA ROBUST */}
       {viewingImage && (
         <div
           className="fixed inset-0 z-[500] flex items-center justify-center bg-black/95 p-4"
@@ -512,10 +609,6 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
             src={viewingImage}
             className="max-w-full max-h-[85vh] rounded-3xl shadow-2xl object-contain border-4 border-white/10"
             alt="Preview"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
-            }}
           />
         </div>
       )}

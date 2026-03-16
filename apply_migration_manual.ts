@@ -15,7 +15,7 @@ if (!supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function applyMigration() {
-  const migrationPath = path.join(process.cwd(), 'migration_permissions.sql');
+  const migrationPath = path.join(process.cwd(), 'fix_blog_inquiries.sql');
   const sql = fs.readFileSync(migrationPath, 'utf8');
 
   console.log('Applying migration...');

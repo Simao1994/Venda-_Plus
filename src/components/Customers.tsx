@@ -59,94 +59,98 @@ export default function Customers() {
     }
   };
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.nif?.includes(search) ||
     c.phone?.includes(search)
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-8 space-y-10 relative">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-          <p className="text-gray-500 text-sm">Gerencie os seus clientes e saldos devedores</p>
+          <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+            Client <span className="text-gold-gradient">Registry</span>
+          </h1>
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">Customer relationship & balance synchronization</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100"
+          className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl"
         >
-          <Plus size={20} />
-          Novo Cliente
+          <Plus size={18} />
+          Initialize Entity
         </button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+      <div className="relative z-10">
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gold-primary/40" size={20} />
         <input
           type="text"
-          placeholder="Pesquisar por nome, NIF ou telefone..."
-          className="w-full pl-10 pr-4 py-3 rounded-xl border-none shadow-sm focus:ring-2 focus:ring-emerald-500"
+          placeholder="IDENTIFY ENTITY OR CONTACT VECTOR..."
+          className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 text-white text-[10px] font-black placeholder:text-white/10 outline-none transition-all uppercase tracking-widest shadow-xl"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative z-10">
         {filteredCustomers.map(customer => (
-          <div key={customer.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
-                <User size={24} />
+          <div key={customer.id} className="glass-panel p-8 rounded-[32px] border border-white/5 hover:border-gold-primary/30 transition-all group relative overflow-hidden text-left">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gold-primary/[0.03] rounded-full blur-3xl pointer-events-none group-hover:bg-gold-primary/[0.06] transition-all" />
+
+            <div className="flex justify-between items-start mb-6">
+              <div className="w-14 h-14 bg-white/5 text-white/20 rounded-2xl flex items-center justify-center border border-white/5 group-hover:text-gold-primary/40 group-hover:border-gold-primary/20 transition-all">
+                <User size={28} />
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Saldo Devedor</p>
-                <p className={`text-xl font-bold ${customer.balance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                  {customer.balance.toLocaleString()} {user?.currency}
+                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">Unsettled Vector</p>
+                <p className={`text-xl font-black italic tracking-tighter ${customer.balance > 0 ? 'text-red-400' : 'text-gold-primary'}`}>
+                  {customer.balance.toLocaleString()} <span className="text-[10px] not-italic opacity-40 uppercase tracking-widest ml-1">{user?.currency}</span>
                 </p>
               </div>
             </div>
-            
-            <h3 className="text-lg font-bold text-gray-900 mb-4">{customer.name}</h3>
-            
-            <div className="space-y-3 text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                <CreditCard size={16} className="text-gray-400" />
-                <span>NIF: {customer.nif || 'N/A'}</span>
+
+            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-6 group-hover:text-gold-primary transition-colors">{customer.name}</h3>
+
+            <div className="space-y-4 text-[10px] font-black text-white/40 uppercase tracking-widest">
+              <div className="flex items-center gap-3">
+                <CreditCard size={16} className="text-gold-primary/30" />
+                <span>NIF: <span className="text-white/60">{customer.nif || 'NULL'}</span></span>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone size={16} className="text-gray-400" />
-                <span>{customer.phone || 'N/A'}</span>
+              <div className="flex items-center gap-3">
+                <Phone size={16} className="text-gold-primary/30" />
+                <span className="text-white/60">{customer.phone || 'NO LINK'}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Mail size={16} className="text-gray-400" />
-                <span>{customer.email || 'N/A'}</span>
+              <div className="flex items-center gap-3">
+                <Mail size={16} className="text-gold-primary/30" />
+                <span className="text-white/60 lowercase tracking-normal">{customer.email || 'unset@vector.io'}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-gray-400" />
-                <span className="line-clamp-1">{customer.address || 'N/A'}</span>
+              <div className="flex items-center gap-3">
+                <MapPin size={16} className="text-gold-primary/30" />
+                <span className="line-clamp-1 text-white/60 italic lowercase tracking-normal">{customer.address || 'location undefined'}</span>
               </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t flex flex-col gap-2">
-              <div className="flex gap-2">
-                <button className="flex-1 bg-gray-50 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
-                  Editar
+            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-3">
+              <div className="flex gap-3">
+                <button className="flex-1 bg-white/5 text-white/40 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white/60 transition-all border border-white/5">
+                  Edit
                 </button>
-                <button 
+                <button
                   onClick={() => setSelectedCustomerForHistory(customer)}
-                  className="flex-1 bg-emerald-50 text-emerald-700 py-2 rounded-lg text-sm font-medium hover:bg-emerald-100 transition-colors"
+                  className="flex-1 bg-gold-primary/5 text-gold-primary/60 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gold-primary/10 hover:text-gold-primary transition-all border border-gold-primary/10"
                 >
-                  Ver Histórico
+                  History
                 </button>
               </div>
               {customer.balance > 0 && (
-                <button 
+                <button
                   onClick={() => setSelectedCustomerForPayment(customer)}
-                  className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all flex items-center justify-center gap-2"
                 >
                   <CreditCard size={16} />
-                  Registar Pagamento
+                  Settle Balance
                 </button>
               )}
             </div>
@@ -155,8 +159,8 @@ export default function Customers() {
       </div>
 
       {selectedCustomerForPayment && (
-        <PaymentModal 
-          customer={selectedCustomerForPayment} 
+        <PaymentModal
+          customer={selectedCustomerForPayment}
           onClose={() => setSelectedCustomerForPayment(null)}
           onSuccess={() => {
             setSelectedCustomerForPayment(null);
@@ -166,81 +170,108 @@ export default function Customers() {
       )}
 
       {selectedCustomerForHistory && (
-        <CustomerDetailsModal 
-          customer={selectedCustomerForHistory} 
+        <CustomerDetailsModal
+          customer={selectedCustomerForHistory}
           onClose={() => setSelectedCustomerForHistory(null)}
         />
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b flex justify-between items-center">
-              <h3 className="text-xl font-bold">Novo Cliente</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">×</button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
+          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+
+            <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02] flex justify-between items-center">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-                <input
-                  required
-                  type="text"
-                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
+                <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-left">Entity <span className="text-gold-gradient">Initialization</span></h3>
+                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-left mt-2">Initialize new relationship vector</p>
               </div>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40">
+                <Plus size={24} className="rotate-45" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-10 space-y-6">
+              <div>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Subject Denomination</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <input
+                    required
+                    type="text"
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                    placeholder="FULL IDENTIFIER..."
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">NIF</label>
-                  <input
-                    type="text"
-                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                    value={formData.nif}
-                    onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
-                  />
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Fiscal ID (NIF)</label>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      placeholder="999 999 999"
+                      value={formData.nif}
+                      onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Comms Link</label>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      placeholder="+244..."
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Digital Vector (Email)</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
                   <input
-                    type="text"
-                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    type="email"
+                    className="w-full bg-transparent border-none outline-none font-black text-white lowercase tracking-normal"
+                    placeholder="entity@network.io"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Physical Location</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <textarea
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight resize-none"
+                    rows={2}
+                    placeholder="LOCATE SUBJECT..."
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                <textarea
-                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  rows={3}
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
-              </div>
-              <div className="pt-4 flex gap-3">
+
+              <div className="pt-6 flex gap-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2 border rounded-xl font-medium hover:bg-gray-50"
+                  className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
                 >
-                  Cancelar
+                  Terminate
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700"
+                  className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all"
                 >
-                  Guardar Cliente
+                  Confirm Asset
                 </button>
               </div>
             </form>
@@ -275,142 +306,145 @@ function CustomerDetailsModal({ customer, onClose }: { customer: Customer, onClo
   const displayHistory = activeTab === 'all' ? history : pendingSales;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-gray-100">
+    <div className="fixed inset-0 bg-bg-deep/90 backdrop-blur-2xl flex items-center justify-center z-[120] p-4 text-left">
+      <div className="glass-panel rounded-[40px] w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-white/10 relative">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+
         {/* Header */}
-        <div className="p-8 border-b flex justify-between items-start bg-gradient-to-r from-gray-50 to-white">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center">
-                <User size={24} />
+        <div className="p-10 border-b border-white/5 flex justify-between items-start bg-gold-primary/[0.02]">
+          <div className="text-left">
+            <div className="flex items-center gap-5 mb-4 justify-start">
+              <div className="w-16 h-16 bg-white/5 text-gold-primary rounded-[20px] flex items-center justify-center border border-gold-primary/20 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+                <User size={32} />
               </div>
-              <div>
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{customer.name}</h3>
-                <p className="text-sm text-gray-500 font-medium">NIF: {customer.nif || 'Não atribuído'}</p>
+              <div className="text-left">
+                <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">{customer.name}</h3>
+                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mt-1 text-left">NIF: {customer.nif || 'CLASSIFIED'}</p>
               </div>
             </div>
-            <div className="flex gap-4 mt-4">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest">
-                <Phone size={14} />
-                {customer.phone || '---'}
+            <div className="flex gap-6 justify-start">
+              <div className="flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-widest">
+                <Phone size={14} className="text-gold-primary/40" />
+                {customer.phone || 'NO LINK'}
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest">
-                <Mail size={14} />
-                {customer.email || '---'}
+              <div className="flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-widest lowercase">
+                <Mail size={14} className="text-gold-primary/40" />
+                {customer.email || 'unset@vector.io'}
               </div>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition-colors"
+          <button
+            onClick={onClose}
+            className="p-3 hover:bg-white/5 rounded-full transition-colors text-white/40"
           >
-            <Plus size={24} className="rotate-45" />
+            <Plus size={28} className="rotate-45" />
           </button>
         </div>
 
         {/* Financial Summary Cards */}
-        <div className="grid grid-cols-2 gap-4 p-8 bg-gray-50/50">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Saldo Total Devedor</p>
-            <p className={`text-3xl font-black ${customer.balance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {customer.balance.toLocaleString()} <span className="text-sm font-bold opacity-50">{user?.currency}</span>
+        <div className="grid grid-cols-2 gap-6 p-10 bg-white/[0.01]">
+          <div className="glass-panel p-8 rounded-[28px] border border-white/5 relative overflow-hidden group text-left">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/[0.03] rounded-full blur-2xl" />
+            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-3 text-left">Liability Magnitude</p>
+            <p className={`text-4xl font-black italic tracking-tighter text-left ${customer.balance > 0 ? 'text-red-400' : 'text-gold-primary'}`}>
+              {customer.balance.toLocaleString()} <span className="text-xs not-italic opacity-30 ml-1 uppercase">{user?.currency}</span>
             </p>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Vendas Pendentes</p>
-            <p className="text-3xl font-black text-gray-900">
-              {pendingSales.length} <span className="text-sm font-bold opacity-30">FATURAS</span>
+          <div className="glass-panel p-8 rounded-[28px] border border-white/5 relative overflow-hidden group text-left">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gold-primary/[0.03] rounded-full blur-2xl" />
+            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-3 text-left">Unresolved Vectors</p>
+            <p className="text-4xl font-black text-white italic tracking-tighter text-left">
+              {pendingSales.length} <span className="text-xs not-italic opacity-30 ml-1 uppercase tracking-widest">Nodes</span>
             </p>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="px-8 border-b flex gap-8 bg-white justify-between items-center">
-          <div className="flex gap-8">
-            <button 
+        <div className="px-10 border-b border-white/5 flex gap-10 bg-transparent justify-between items-center">
+          <div className="flex gap-10">
+            <button
               onClick={() => setActiveTab('pending')}
-              className={`py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'pending' ? 'text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`py-6 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === 'pending' ? 'text-red-400' : 'text-white/20 hover:text-white/40'}`}
             >
-              Vendas Pendentes
-              {activeTab === 'pending' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 rounded-t-full" />}
+              Pending Flux
+              {activeTab === 'pending' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.5)]" />}
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('all')}
-              className={`py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'all' ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`py-6 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${activeTab === 'all' ? 'text-gold-primary' : 'text-white/20 hover:text-white/40'}`}
             >
-              Histórico Completo
-              {activeTab === 'all' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-t-full" />}
+              All Sequences
+              {activeTab === 'all' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gold-primary shadow-[0_0_10px_rgba(212,175,55,0.5)]" />}
             </button>
           </div>
-          <input
-            type="text"
-            placeholder="Pesquisar fatura..."
-            className="text-xs border-none bg-gray-50 rounded-lg px-3 py-1 focus:ring-0"
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
+            <input
+              type="text"
+              placeholder="SCAN LOGS..."
+              className="bg-white/5 border border-white/5 rounded-xl px-10 py-2 text-[9px] font-black uppercase tracking-widest text-white outline-none focus:border-gold-primary/20 transition-all"
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
-        
+
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-4 bg-white">
+        <div className="flex-1 overflow-y-auto p-10 space-y-5 bg-transparent">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Sincronizando dados...</p>
+              <div className="w-12 h-12 border-2 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin mb-6"></div>
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Synchronizing data stream...</p>
             </div>
           ) : displayHistory.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Search size={32} className="text-gray-200" />
-              </div>
-              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Nenhum registo encontrado</p>
+            <div className="text-center py-20 opacity-20">
+              <Search size={48} className="mx-auto mb-6 text-white" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em]">No registry entries detected</p>
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="space-y-4 text-left">
               {displayHistory.filter(item => item.reference.toLowerCase().includes(search.toLowerCase())).map((item, idx) => (
-                <div 
-                  key={idx} 
-                  className={`group p-5 rounded-2xl border transition-all hover:border-gray-300 ${
-                    item.type === 'payment' 
-                      ? 'bg-emerald-50/30 border-emerald-100/50' 
-                      : 'bg-white border-gray-100 shadow-sm'
-                  }`}
+                <div
+                  key={idx}
+                  className={`group p-6 rounded-[24px] border transition-all hover:bg-white/[0.02] ${item.type === 'payment'
+                    ? 'bg-gold-primary/[0.02] border-gold-primary/10'
+                    : 'bg-white/[0.01] border-white/5'
+                    }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        item.type === 'payment' ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {item.type === 'payment' ? <CreditCard size={18} /> : <Package size={18} />}
+                  <div className="flex justify-between items-center text-left">
+                    <div className="flex items-center gap-5">
+                      <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center border ${item.type === 'payment' ? 'bg-gold-primary/10 border-gold-primary/20 text-gold-primary' : 'bg-white/5 border-white/10 text-white/40'
+                        }`}>
+                        {item.type === 'payment' ? <CreditCard size={20} /> : <Package size={20} />}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                            item.type === 'payment' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-white'
-                          }`}>
-                            {item.type === 'payment' ? 'Pagamento' : 'Venda'}
+                      <div className="text-left">
+                        <div className="flex items-center gap-3 mb-1 justify-start">
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${item.type === 'payment' ? 'bg-gold-primary/20 border-gold-primary/30 text-gold-primary' : 'bg-white/10 border-white/20 text-white/60'
+                            }`}>
+                            {item.type === 'payment' ? 'Settle' : 'Invoice'}
                           </span>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                          <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">
                             {new Date(item.created_at).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="font-bold text-gray-900 tracking-tight">{item.reference}</p>
+                        <p className="font-black text-white uppercase tracking-tight text-sm text-left">{item.reference}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`text-lg font-black tracking-tight ${item.type === 'payment' ? 'text-emerald-600' : 'text-gray-900'}`}>
-                        {item.type === 'payment' ? '-' : ''}{item.amount.toLocaleString()} <span className="text-xs font-bold opacity-40">{user?.currency}</span>
+                      <p className={`text-xl font-black italic tracking-tighter ${item.type === 'payment' ? 'text-gold-primary' : 'text-white'}`}>
+                        {item.type === 'payment' ? '-' : ''}{item.amount.toLocaleString()} <span className="text-[10px] not-italic opacity-30 ml-1">{user?.currency}</span>
                       </p>
                       {item.type === 'sale' && (
-                        <div className="flex flex-col items-end mt-1">
+                        <div className="flex flex-col items-end mt-2">
                           {item.status === 'pending' ? (
-                            <>
-                              <span className="text-[9px] font-black text-red-600 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-full mb-1">Pendente</span>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase">
-                                Em falta: <span className="text-red-600">{(item.amount - item.amount_paid).toLocaleString()}</span>
-                              </p>
-                            </>
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                              <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Pending</span>
+                            </div>
                           ) : (
-                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full">Liquidada</span>
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gold-primary" />
+                              <span className="text-[9px] font-black text-gold-primary uppercase tracking-widest">Liquidated</span>
+                            </div>
                           )}
                         </div>
                       )}
@@ -421,20 +455,20 @@ function CustomerDetailsModal({ customer, onClose }: { customer: Customer, onClo
             </div>
           )}
         </div>
-        
+
         {/* Footer */}
-        <div className="p-8 border-t bg-gray-50 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className={customer.balance > 0 ? 'text-red-500' : 'text-emerald-500'} />
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-              {customer.balance > 0 ? 'Existem pagamentos em atraso' : 'Conta corrente regularizada'}
+        <div className="p-10 border-t border-white/5 bg-gold-primary/[0.01] flex justify-between items-center overflow-hidden">
+          <div className="flex items-center gap-3 justify-start">
+            <div className={`w-2 h-2 rounded-full shrink-0 ${customer.balance > 0 ? 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.5)]' : 'bg-gold-primary shadow-[0_0_10px_rgba(212,175,55,0.5)]'}`} />
+            <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] whitespace-nowrap">
+              {customer.balance > 0 ? 'Anomaly detected: Outstanding liability' : 'Registry synchronized: Neutral state'}
             </p>
           </div>
-          <button 
-            onClick={onClose} 
-            className="px-8 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl active:scale-95"
+          <button
+            onClick={onClose}
+            className="px-10 py-4 bg-white/5 hover:bg-white/10 text-white/60 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
           >
-            Fechar
+            Terminal Close
           </button>
         </div>
       </div>

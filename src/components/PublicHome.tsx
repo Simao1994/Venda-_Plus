@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import {
   Store,
   Search,
@@ -20,7 +21,8 @@ import {
   Settings,
   X,
   Clock,
-  Calendar
+  Calendar,
+  MessageSquare
 } from 'lucide-react';
 
 function DigitalClock() {
@@ -48,7 +50,9 @@ function DigitalClock() {
 
 export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClick: () => void, onStartClick: () => void }) {
   const [publications, setPublications] = useState<any[]>([]);
+  const [vagas, setVagas] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [config, setConfig] = useState<any>({
     landing_stats: [],
     landing_modules: []
@@ -126,6 +130,23 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
     }
   };
 
+  const fetchVagas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('rh_vagas')
+        .select(`
+          *,
+          companies (name)
+        `)
+        .eq('status', 'ativa')
+        .order('data_publicacao', { ascending: false });
+
+      if (!error) setVagas(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar vagas:', error);
+    }
+  };
+
   const fetchConfig = async () => {
     try {
       const res = await fetch('/api/system/config');
@@ -136,11 +157,26 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .in('status', ['active', 'pending'])
+        .order('name');
+      if (!error) setCompanies(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar empresas:', error);
+    }
+  };
+
   const fetchInitialData = async () => {
     setLoading(true);
     await Promise.all([
       fetchPublications(),
+      fetchVagas(),
       fetchPlans(),
+      fetchCompanies(),
       fetchConfig()
     ]);
     setLoading(false);
@@ -168,6 +204,8 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           <div className="hidden md:flex items-center gap-10">
             <a href="#solucoes" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Soluções</a>
             <a href="#market" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Market</a>
+            <a href="#vagas" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Vagas</a>
+            <a href="#contacto" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Contacto</a>
             <a href="#precos" className="text-sm font-bold text-gray-600 hover:text-emerald-600 transition-colors">Preços</a>
           </div>
 
@@ -349,6 +387,80 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
         </div>
       </section>
 
+      {/* Vacancies Section */}
+      <section id="vagas" className="py-32 bg-gray-50/30">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest mb-4">
+              <Briefcase size={14} />
+              OPORTUNIDADES DE CARREIRA
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter">Vagas Disponíveis</h2>
+            <p className="text-gray-500 font-medium mt-4 max-w-xl mx-auto">
+              Junte-se às melhores empresas que utilizam a nossa tecnologia. Encontre a sua próxima oportunidade aqui.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {vagas.map((vaga) => (
+              <div key={vaga.id} className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+                      {vaga.tipo_contrato || 'Tempo Inteiro'}
+                    </span>
+                    <h3 className="text-2xl font-black text-gray-900 leading-tight group-hover:text-emerald-600 transition-colors">
+                      {vaga.titulo}
+                    </h3>
+                    <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-tighter italic">
+                      {vaga.companies?.name || 'Venda Plus Partner'}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400">
+                    <Briefcase size={24} />
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-center gap-3 text-sm text-gray-500 font-medium">
+                    <Globe size={16} className="text-emerald-500" />
+                    <span>{vaga.localizacao || 'Angola'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-500 font-medium">
+                    <Zap size={16} className="text-emerald-500" />
+                    <span>{vaga.nivel_experiencia || 'Experiência Relevante'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                  <div className="text-lg font-black text-gray-900">
+                    {vaga.salario || 'Salário Negociável'}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const msg = `Olá! Gostaria de me candidatar à vaga de "${vaga.titulo}" que vi no Venda Plus.`;
+                      window.open(`https://wa.me/244923000000?text=${encodeURIComponent(msg)}`, '_blank');
+                    }}
+                    className="px-6 py-3 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-gray-200"
+                  >
+                    Candidatar-se
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {vagas.length === 0 && (
+              <div className="col-span-full py-20 text-center bg-white rounded-[40px] border border-dashed border-gray-200">
+                <div className="w-16 h-16 bg-gray-50 rounded-3xl flex items-center justify-center text-gray-300 mx-auto mb-4">
+                  <Briefcase size={28} />
+                </div>
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Sem vagas ativas no momento</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Pricing Section */}
       <section id="precos" className="py-32 bg-slate-900 text-white overflow-hidden relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
@@ -390,6 +502,108 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contacto" className="py-32 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 text-emerald-600 font-black text-xs uppercase tracking-widest mb-4">
+                <MessageSquare size={14} />
+                FALE CONNOSCO
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-6">
+                Precisa de uma informação ou <span className="text-emerald-600">fazer um pedido?</span>
+              </h2>
+              <p className="text-gray-500 font-medium text-lg leading-relaxed mb-8">
+                Envie a sua mensagem directamente para as empresas. O seu pedido será processado e respondido através do nosso blog corporativo.
+              </p>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-4 p-6 bg-gray-50 rounded-[32px] border border-gray-100">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-gray-900 uppercase tracking-widest">Segurança Total</p>
+                    <p className="text-xs text-gray-500 font-medium">Os seus dados são protegidos e enviados apenas à empresa destino.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 p-6 bg-gray-50 rounded-[32px] border border-gray-100">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <Zap size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-gray-900 uppercase tracking-widest">Resposta Rápida</p>
+                    <p className="text-xs text-gray-500 font-medium">As empresas são notificadas instantaneamente do seu pedido.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-8 md:p-12 rounded-[50px] border border-gray-100 shadow-sm">
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const formData = new FormData(form);
+
+                const data = {
+                  company_id: parseInt(formData.get('company_id') as string),
+                  nome: formData.get('nome') as string,
+                  email: formData.get('email') as string,
+                  assunto: formData.get('assunto') as string,
+                  mensagem: formData.get('mensagem') as string
+                };
+
+                try {
+                  const { error } = await supabase.from('public_inquiries').insert([data]);
+                  if (error) throw error;
+                  alert('Mensagem enviada com sucesso! Verifique o Blog Corporativo para a resposta em breve.');
+                  form.reset();
+                } catch (err) {
+                  console.error('Erro ao enviar mensagem:', err);
+                  alert('Erro ao enviar mensagem. Por favor, tente novamente.');
+                }
+              }} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Seu Nome</label>
+                  <input name="nome" required type="text" className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold" placeholder="Ex: João Silva" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Seu Email</label>
+                  <input name="email" required type="email" className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold" placeholder="joao@exemplo.com" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Empresa Destino</label>
+                  <select name="company_id" required className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold bg-white">
+                    <option value="">Selecione uma empresa...</option>
+                    {companies.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Assunto / Motivo</label>
+                  <select name="assunto" className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold bg-white">
+                    <option>Pedido de Informação</option>
+                    <option>Solicitar Orçamento</option>
+                    <option>Parceria Comercial</option>
+                    <option>Suporte Técnico</option>
+                    <option>Outros</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Mensagem</label>
+                  <textarea name="mensagem" required rows={4} className="w-full px-6 py-4 rounded-2xl border-2 border-gray-100 focus:border-emerald-500 transition-all font-bold" placeholder="Como podemos ajudar?" />
+                </div>
+                <button type="submit" className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black text-lg hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200">
+                  Enviar Pedido Agora
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </section>

@@ -104,121 +104,128 @@ export default function Products() {
 
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-8 space-y-10 relative">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de Produtos</h1>
-          <p className="text-gray-500">Controle o seu inventário e preços.</p>
+          <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+            Asset <span className="text-gold-gradient">Inventory</span>
+          </h1>
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">Core resource management & valuation</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-4">
           <button
             onClick={() => handlePrint()}
-            className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-gray-50 shadow-sm"
+            className="flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60 border border-white/5 bg-white/5 hover:bg-white/10 transition-all shadow-xl"
           >
-            <Printer size={20} />
-            Imprimir
+            <Printer size={18} className="text-gold-primary/60" />
+            Hardcopy
           </button>
           <button
             onClick={() => setShowEntryModal(true)}
-            className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-gray-50 shadow-sm"
+            className="flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60 border border-white/5 bg-white/5 hover:bg-white/10 transition-all shadow-xl"
           >
-            <History size={20} />
-            Lançar Entrada
+            <History size={18} className="text-gold-primary/60" />
+            Vector Shift
           </button>
           <button
             onClick={() => {
               fetchData();
               setShowModal(true);
             }}
-            className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-200"
+            className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl"
           >
-
-            <Plus size={20} />
-            Novo Produto
+            <Plus size={18} />
+            Initialize Asset
           </button>
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <button
-          onClick={() => setActiveSubTab('list')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeSubTab === 'list' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
-        >
-          Lista de Produtos
-        </button>
-        <button
-          onClick={() => setActiveSubTab('history')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeSubTab === 'history' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
-        >
-          Movimentações
-        </button>
+      <div className="flex gap-4 relative z-10">
+        {[
+          { id: 'list', label: 'Primary Registry' },
+          { id: 'history', label: 'Flux Logs' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveSubTab(tab.id as any)}
+            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${activeSubTab === tab.id
+              ? 'bg-gold-primary/10 text-gold-primary border-gold-primary/30 shadow-[0_0_20px_rgba(212,175,55,0.1)]'
+              : 'text-white/40 border-transparent hover:text-white/60'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {activeSubTab === 'list' ? (
-        <div ref={printRef} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden print:shadow-none print:border-none">
-          <div className="p-4 border-b bg-gray-50 flex gap-4 print:hidden">
+        <div ref={printRef} className="glass-panel rounded-3xl border border-white/5 overflow-hidden shadow-2xl relative z-10 print:shadow-none print:border-none print:bg-white">
+          <div className="p-6 border-b border-white/5 bg-white/[0.02] flex flex-col md:flex-row gap-6 print:hidden">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gold-primary/40" size={18} />
               <input
                 type="text"
-                placeholder="Pesquisar produtos..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="SCAN OR FILTER REGISTRY..."
+                className="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 text-white text-[10px] font-black placeholder:text-white/10 outline-none transition-all uppercase tracking-widest"
               />
             </div>
-            <button className="px-4 py-2 border rounded-lg flex items-center gap-2 hover:bg-white text-sm font-bold text-gray-600">
-              <Filter size={18} />
-              Filtros
+            <button className="px-6 py-4 glass-panel border border-white/5 rounded-2xl flex items-center gap-3 hover:bg-white/5 text-[10px] font-black text-white/40 uppercase tracking-widest transition-all">
+              <Filter size={18} className="text-gold-primary/40" />
+              Optimization
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <thead className="bg-white/[0.02] text-gold-primary/40 text-[9px] uppercase tracking-[0.3em] border-b border-white/5 font-black">
                 <tr>
-                  <th className="px-6 py-4 font-medium">Produto</th>
-                  <th className="px-6 py-4 font-medium">Categoria</th>
-                  <th className="px-6 py-4 font-medium text-right">Preço Venda</th>
-                  <th className="px-6 py-4 font-medium text-center">Stock</th>
-                  <th className="px-6 py-4 font-medium text-center">Status</th>
-                  <th className="px-6 py-4 font-medium text-right print:hidden">Acções</th>
+                  <th className="px-8 py-5">Asset Identification</th>
+                  <th className="px-8 py-5">Sector</th>
+                  <th className="px-8 py-5 text-right">Valuation</th>
+                  <th className="px-8 py-5 text-center">Reserve</th>
+                  <th className="px-8 py-5 text-center">Status</th>
+                  <th className="px-8 py-5 text-right print:hidden">Control</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-white/5">
                 {products.map(product => (
-                  <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                          <Package size={20} />
+                  <tr key={product.id} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-white/20 group-hover:text-gold-primary/40 transition-colors border border-white/5">
+                          <Package size={22} />
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">{product.name}</div>
-                          <div className="text-xs text-gray-500">{product.barcode}</div>
+                          <div className="font-black text-white uppercase tracking-tight group-hover:text-gold-primary transition-colors text-xs">{product.name}</div>
+                          <div className="text-[10px] font-medium text-white/20 uppercase tracking-widest mt-1">{product.barcode}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{product.category_name || 'Sem categoria'}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">
-                      {product.sale_price.toLocaleString()} {user?.currency}
+                    <td className="px-8 py-6">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{product.category_name || 'UNCLTIFIED'}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-center">
-                      <div className="font-mono text-gray-600">
-                        {product.stock} {product.unit}
+                    <td className="px-8 py-6 text-right">
+                      <div className="font-black text-white italic tracking-tighter text-sm">
+                        {product.sale_price.toLocaleString()} <span className="text-[9px] text-gold-primary/40 not-italic ml-1 tracking-widest uppercase">{user?.currency}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-8 py-6 text-center">
+                      <div className="font-black text-white/60 text-xs tracking-tighter">
+                        {product.stock} <span className="text-[9px] font-black text-white/20 uppercase tracking-widest italic ml-1">{product.unit}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6 text-center">
                       {product.stock <= product.min_stock ? (
-                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-[10px] font-bold uppercase print:border print:border-gray-300">Baixo Stock</span>
+                        <span className="px-4 py-2 bg-red-500/10 text-red-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]">Low Reserve</span>
                       ) : (
-                        <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold uppercase print:border print:border-gray-300">Disponível</span>
+                        <span className="px-4 py-2 bg-gold-primary/10 text-gold-primary rounded-full text-[9px] font-black uppercase tracking-widest border border-gold-primary/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]">Operational</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right print:hidden">
-                      <div className="flex justify-end gap-2">
-                        <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <td className="px-8 py-6 text-right print:hidden">
+                      <div className="flex justify-end gap-3 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all">
+                        <button className="p-3 text-white/40 hover:text-gold-primary bg-white/5 hover:bg-gold-primary/10 rounded-xl transition-all border border-transparent hover:border-gold-primary/30">
                           <Edit2 size={16} />
                         </button>
-                        <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <button className="p-3 text-white/40 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/30">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -230,31 +237,33 @@ export default function Products() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="glass-panel rounded-3xl border border-white/5 overflow-hidden shadow-2xl relative z-10">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <thead className="bg-white/[0.02] text-gold-primary/40 text-[9px] uppercase tracking-[0.3em] border-b border-white/5 font-black">
                 <tr>
-                  <th className="px-6 py-4 font-medium">Data</th>
-                  <th className="px-6 py-4 font-medium">Produto</th>
-                  <th className="px-6 py-4 font-medium text-center">Tipo</th>
-                  <th className="px-6 py-4 font-medium text-right">Qtde</th>
-                  <th className="px-6 py-4 font-medium">Motivo</th>
+                  <th className="px-8 py-5">Time Vector</th>
+                  <th className="px-8 py-5">Asset Identification</th>
+                  <th className="px-8 py-5 text-center">Protocol</th>
+                  <th className="px-8 py-5 text-right">Quantity Delta</th>
+                  <th className="px-8 py-5">Reasoning</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-white/5">
                 {movements.map((mov, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-xs text-gray-500">{new Date(mov.created_at).toLocaleString()}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">{mov.product_name}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${mov.type === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                        {mov.type === 'in' ? <ArrowDownLeft size={12} className="inline mr-1" /> : <ArrowUpRight size={12} className="inline mr-1" />}
-                        {mov.type === 'in' ? 'Entrada' : 'Saída'}
+                  <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-8 py-6 text-[10px] font-black text-white/20 uppercase tracking-widest">{new Date(mov.created_at).toLocaleString()}</td>
+                    <td className="px-8 py-6">
+                      <div className="font-black text-white uppercase tracking-tight group-hover:text-gold-primary transition-colors text-xs">{mov.product_name}</div>
+                    </td>
+                    <td className="px-8 py-6 text-center">
+                      <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.2em] border shadow-sm ${mov.type === 'in' ? 'bg-gold-primary/10 text-gold-primary border-gold-primary/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                        {mov.type === 'in' ? <ArrowDownLeft size={12} className="inline mr-2" /> : <ArrowUpRight size={12} className="inline mr-2" />}
+                        {mov.type === 'in' ? 'Absorption' : 'Extraction'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right font-bold text-gray-900">{mov.quantity}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{mov.reason}</td>
+                    <td className="px-8 py-6 text-right font-black text-white italic text-sm">{mov.quantity}</td>
+                    <td className="px-8 py-6 text-[10px] font-medium text-white/40 uppercase tracking-widest">{mov.reason}</td>
                   </tr>
                 ))}
               </tbody>
@@ -265,75 +274,89 @@ export default function Products() {
 
       {/* Entry Modal */}
       {showEntryModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-xl font-black text-gray-900">Lançar Movimento de Stock</h3>
-              <button onClick={() => setShowEntryModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-2xl">&times;</button>
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
+          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+
+            <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02]">
+              <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-center">Protocol <span className="text-gold-gradient">Shift</span></h3>
+              <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-center mt-2">Initialize resource vector adjustment</p>
             </div>
-            <form onSubmit={handleManualEntry} className="p-6 space-y-4">
+
+            <form onSubmit={handleManualEntry} className="p-10 space-y-6">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Produto</label>
-                <select
-                  required
-                  className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-gray-900 appearance-none"
-                  value={entryData.product_id}
-                  onChange={e => setFormData({ ...entryData, product_id: e.target.value })}
-                >
-                  <option value="">Selecione um produto</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Quantidade</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-gray-900"
-                    placeholder="0.00"
-                    value={entryData.quantity}
-                    onChange={e => setEntryData({ ...entryData, quantity: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tipo</label>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Target Asset</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
                   <select
-                    className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-gray-900 appearance-none"
-                    value={entryData.type}
-                    onChange={e => setEntryData({ ...entryData, type: e.target.value as any })}
+                    required
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight appearance-none"
+                    value={entryData.product_id}
+                    onChange={e => setEntryData({ ...entryData, product_id: e.target.value })}
                   >
-                    <option value="in">Entrada (+)</option>
-                    <option value="out">Saída (-)</option>
+                    <option value="" className="bg-bg-deep">Select Target</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id} className="bg-bg-deep">{p.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Motivo / Observação</label>
-                <input
-                  type="text"
-                  className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-gray-900"
-                  placeholder="Ex: Reposição, Ajuste, Quebra..."
-                  value={entryData.reason}
-                  onChange={e => setEntryData({ ...entryData, reason: e.target.value })}
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Magnitude</label>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      className="w-full bg-transparent border-none outline-none font-black text-white italic tracking-tighter"
+                      placeholder="0.00"
+                      value={entryData.quantity}
+                      onChange={e => setEntryData({ ...entryData, quantity: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Vector Type</label>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <select
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight appearance-none"
+                      value={entryData.type}
+                      onChange={e => setEntryData({ ...entryData, type: e.target.value as any })}
+                    >
+                      <option value="in" className="bg-bg-deep">Absorption (+)</option>
+                      <option value="out" className="bg-bg-deep">Extraction (-)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div className="pt-6 flex gap-3">
+
+              <div>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Reasoning Protocol</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <input
+                    type="text"
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                    placeholder="Log observation parameter"
+                    value={entryData.reason}
+                    onChange={e => setEntryData({ ...entryData, reason: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-6 flex gap-4">
                 <button
                   type="button"
                   onClick={() => setShowEntryModal(false)}
-                  className="flex-1 py-4 border border-gray-100 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+                  className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
                 >
-                  Cancelar
+                  Terminate
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-4 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95"
+                  className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all"
                 >
-                  Confirmar Lançamento
+                  Apply Flux
                 </button>
               </div>
             </form>
@@ -343,118 +366,147 @@ export default function Products() {
 
       {/* Add Product Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
-            <div className="p-6 border-b flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-900">Cadastrar Novo Produto</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">&times;</button>
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
+          <div className="glass-panel rounded-[40px] w-full max-w-2xl overflow-hidden shadow-2xl border border-white/10 relative">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+
+            <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02] flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-left">Asset <span className="text-gold-gradient">Initialization</span></h3>
+                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-left mt-2">Create new resource node in primary registry</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40">
+                <Plus size={24} className="rotate-45" />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 grid grid-cols-2 gap-4">
+
+            <form onSubmit={handleSubmit} className="p-10 grid grid-cols-1 md:grid-cols-2 gap-6">
               {error && (
-                <div className="col-span-2 p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100">
+                <div className="col-span-1 md:col-span-2 p-5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest">
                   {error}
                 </div>
               )}
-              <div className="col-span-2">
 
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras</label>
-                <div className="flex gap-2">
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Asset Denomination</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
                   <input
                     type="text"
-                    className="flex-1 rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
-                    value={formData.barcode}
-                    onChange={e => setFormData({ ...formData, barcode: e.target.value })}
+                    required
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="IDENTIFY RESOURCE..."
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Registry ID (Barcode)</label>
+                <div className="flex gap-2">
+                  <div className="flex-1 glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      value={formData.barcode}
+                      onChange={e => setFormData({ ...formData, barcode: e.target.value })}
+                      placeholder="SCANNER INPUT..."
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       const randomBarcode = Math.floor(Math.random() * 9000000000000 + 1000000000000).toString();
                       setFormData({ ...formData, barcode: randomBarcode });
                     }}
-                    className="px-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all font-bold text-xs uppercase"
-                    title="Gerar automaticamente"
+                    className="px-4 bg-white/5 text-gold-primary rounded-2xl hover:bg-gold-primary/10 transition-all font-black text-[9px] uppercase border border-white/5"
                   >
-                    Gerar
+                    Auto
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                <select
-                  className="w-full rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={formData.category_id}
-                  onChange={e => setFormData({ ...formData, category_id: e.target.value })}
-                >
-                  <option value="">Seleccionar Categoria</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Sector Classification</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                  <select
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight appearance-none"
+                    value={formData.category_id}
+                    onChange={e => setFormData({ ...formData, category_id: e.target.value })}
+                  >
+                    <option value="" className="bg-bg-deep">Unclassified</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id} className="bg-bg-deep">{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Compra</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="w-full rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={formData.cost_price}
-                  onChange={e => setFormData({ ...formData, cost_price: e.target.value })}
-                />
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Acquisition Value</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full bg-transparent border-none outline-none font-black text-white italic tracking-tighter"
+                    value={formData.cost_price}
+                    onChange={e => setFormData({ ...formData, cost_price: e.target.value })}
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  className="w-full rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={formData.sale_price}
-                  onChange={e => setFormData({ ...formData, sale_price: e.target.value })}
-                />
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Market Valuation</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    className="w-full bg-transparent border-none outline-none font-black text-white italic tracking-tighter"
+                    value={formData.sale_price}
+                    onChange={e => setFormData({ ...formData, sale_price: e.target.value })}
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stock Inicial</label>
-                <input
-                  type="number"
-                  required
-                  className="w-full rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={formData.stock}
-                  onChange={e => setFormData({ ...formData, stock: e.target.value })}
-                />
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Initial Reserve</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                  <input
+                    type="number"
+                    required
+                    className="w-full bg-transparent border-none outline-none font-black text-white italic tracking-tighter"
+                    value={formData.stock}
+                    onChange={e => setFormData({ ...formData, stock: e.target.value })}
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo</label>
-                <input
-                  type="number"
-                  className="w-full rounded-lg border-gray-200 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={formData.min_stock}
-                  onChange={e => setFormData({ ...formData, min_stock: e.target.value })}
-                />
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Warning Threshold</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                  <input
+                    type="number"
+                    className="w-full bg-transparent border-none outline-none font-black text-white italic tracking-tighter"
+                    value={formData.min_stock}
+                    onChange={e => setFormData({ ...formData, min_stock: e.target.value })}
+                  />
+                </div>
               </div>
-              <div className="col-span-2 flex justify-end gap-3 mt-6">
+
+              <div className="col-span-1 md:col-span-2 flex justify-end gap-4 mt-8">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-6 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-8 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
                 >
-                  Cancelar
+                  Terminate
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700"
+                  className="px-10 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all"
                 >
-                  Salvar Produto
+                  Inject Asset
                 </button>
               </div>
             </form>

@@ -36,7 +36,9 @@ import {
   CalendarCheck,
   FileSpreadsheet,
   LayoutDashboard,
-  FileText
+  FileText,
+  Target,
+  IdCard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -48,6 +50,8 @@ import Payroll from './Payroll';
 import Accounting from './Accounting';
 import BankAccountsTab from './BankAccountsTab';
 import VagasAdminTab from './VagasAdminTab';
+import PerformanceTab from './PerformanceTab';
+import PassesTab from './PassesTab';
 
 export default function HRModule() {
   const { user } = useAuth();
@@ -59,6 +63,8 @@ export default function HRModule() {
     { id: 'departments', label: 'Departamentos', icon: Building2, roles: ['admin', 'manager', 'master'] },
     { id: 'attendance', label: 'Presenças', icon: CalendarCheck, roles: ['admin', 'manager', 'master'] },
     { id: 'payroll', label: 'Folha Salarial', icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'] },
+    { id: 'performance', label: 'Performance', icon: Target, roles: ['admin', 'manager', 'master'] },
+    { id: 'passes', label: 'Passes PVC', icon: IdCard, roles: ['admin', 'manager', 'master'] },
     { id: 'accounting', label: 'Contabilidade', icon: FileText, roles: ['admin', 'manager', 'master'] },
     { id: 'bank', label: 'Contas Bancárias', icon: FileText, roles: ['admin', 'manager', 'master'] },
     { id: 'vagas', label: 'Vagas', icon: FileText, roles: ['admin', 'manager', 'master'] },
@@ -95,8 +101,10 @@ export default function HRModule() {
           {activeTab === 'departments' && <Departments />}
           {activeTab === 'attendance' && <Attendance />}
           {activeTab === 'payroll' && <Payroll />}
+          {activeTab === 'performance' && <PerformanceTab />}
+          {activeTab === 'passes' && <PassesTab />}
           {activeTab === 'accounting' && <Accounting user={user as any} />}
-          {activeTab === 'bank' && <BankAccountsTab user={user as any} funcionarioId="" />}
+          {activeTab === 'bank' && <BankAccountsTab user={user as any} funcionarioId={null} />}
           {activeTab === 'vagas' && <VagasAdminTab />}
         </ErrorBoundary>
       </div>

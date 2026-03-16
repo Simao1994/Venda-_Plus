@@ -297,22 +297,22 @@ export default function POS() {
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-gray-100 overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full bg-transparent overflow-hidden relative font-sans">
       {/* Mobile View Toggle */}
-      <div className="md:hidden flex bg-white border-b p-2">
+      <div className="md:hidden flex glass-panel border-b border-white/5 p-3 z-20">
         <button
           onClick={() => setView('products')}
-          className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${view === 'products' ? 'bg-emerald-600 text-white' : 'text-gray-500'}`}
+          className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${view === 'products' ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'text-white/40 border-transparent'}`}
         >
-          Produtos
+          Sectors
         </button>
         <button
           onClick={() => setView('cart')}
-          className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all relative ${view === 'cart' ? 'bg-emerald-600 text-white' : 'text-gray-500'}`}
+          className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all relative border ${view === 'cart' ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'text-white/40 border-transparent'}`}
         >
-          Carrinho
+          Payload
           {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-bg-deep shadow-lg">
               {cart.length}
             </span>
           )}
@@ -320,141 +320,181 @@ export default function POS() {
       </div>
 
       {/* Products Section */}
-      <div className={`${view === 'products' ? 'flex' : 'hidden'} md:flex flex-1 flex-col p-4 overflow-hidden`}>
+      <div className={`${view === 'products' ? 'flex' : 'hidden'} md:flex flex-1 flex-col p-8 overflow-hidden relative`}>
         {/* Header with Register Status */}
-        <div className="flex justify-between items-center mb-4 px-2">
-          <h1 className="text-2xl font-black text-emerald-600 tracking-tight">Venda Plus</h1>
-          <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${cashRegister ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-sm font-bold text-gray-700">
-              Caixa {cashRegister ? 'Aberto' : 'Fechado'}
-              {cashRegister && <span className="text-gray-400 font-normal ml-2">desde {new Date(cashRegister.opened_at).toLocaleTimeString()}</span>}
-            </span>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 px-2 relative z-10">
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+              Sales <span className="text-gold-gradient">Terminal</span>
+            </h1>
+            <div className="flex items-center gap-3 mt-2">
+              <div className={`w-2 h-2 rounded-full ${cashRegister ? 'bg-gold-primary shadow-[0_0_10px_#D4AF37]' : 'bg-red-500 shadow-[0_0_10px_#EF4444] animate-pulse'}`} />
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">
+                System {cashRegister ? 'Online' : 'Restricted'}
+                {cashRegister && <span className="text-gold-primary/30 ml-3">Session active since {new Date(cashRegister.opened_at).toLocaleTimeString()}</span>}
+              </span>
+            </div>
           </div>
-          {cashRegister && (
-            <button
-              onClick={handleCloseRegister}
-              className="text-xs font-black uppercase tracking-widest text-red-500 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors"
-            >
-              Fechar Caixa
-            </button>
-          )}
+
+          <div className="flex items-center gap-6">
+            <div className="relative w-full lg:w-96">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gold-primary/40" size={18} />
+              <input
+                type="text"
+                placeholder="SCAN OR SEARCH ASSETS (F1)..."
+                className="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 text-white text-xs font-black placeholder:text-white/10 outline-none transition-all uppercase tracking-widest"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {cashRegister && (
+              <button
+                onClick={handleCloseRegister}
+                className="text-[10px] font-black uppercase tracking-[0.2em] text-red-400/60 hover:text-red-400 hover:bg-red-500/10 px-6 py-4 rounded-2xl border border-white/5 transition-all whitespace-nowrap"
+              >
+                Terminate Session
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center justify-between mb-6 px-2">
-          <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest">Produtos</h2>
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Pesquisar produto (F1)..."
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border-none shadow-sm focus:ring-4 focus:ring-emerald-500/20 text-sm font-bold"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              autoFocus
-            />
-          </div>
-        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar pb-10 relative z-10">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+            {filteredProducts.map(product => (
+              <button
+                key={product.id}
+                onClick={() => addToCart(product)}
+                disabled={product.stock <= 0}
+                className={`glass-panel p-5 rounded-3xl border border-white/5 hover:border-gold-primary/40 transition-all text-left group relative gold-glow overflow-hidden ${product.stock <= 0 ? 'opacity-40 grayscale pointer-events-none' : ''}`}
+              >
+                {product.stock <= 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center z-20 bg-bg-deep/40 backdrop-blur-[2px]">
+                    <span className="bg-red-500 text-bg-deep text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full shadow-2xl rotate-[-12deg]">Depleted</span>
+                  </div>
+                )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 overflow-y-auto pb-4">
-          {filteredProducts.map(product => (
-            <button
-              key={product.id}
-              onClick={() => addToCart(product)}
-              disabled={product.stock <= 0}
-              className={`bg-white p-4 rounded-2xl shadow-sm hover:shadow-lg transition-all text-left group relative ${product.stock <= 0 ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:border-emerald-500 border border-transparent'}`}
-            >
-              {product.stock <= 0 && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <span className="bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg rotate-[-10deg]">Esgotado</span>
+                <div className="aspect-square bg-gradient-to-br from-white/[0.03] to-white/[0.01] rounded-2xl mb-4 flex items-center justify-center text-white/5 group-hover:text-gold-primary/20 transition-all border border-white/5 relative overflow-hidden">
+                  <Package size={40} className="relative z-10" />
+                  <div className="absolute inset-0 bg-gold-primary opacity-0 group-hover:opacity-[0.03] transition-opacity" />
                 </div>
-              )}
-              <div className="aspect-square bg-gray-50 rounded-xl mb-3 flex items-center justify-center text-gray-300 group-hover:text-emerald-500 transition-colors">
-                <Package size={32} />
-              </div>
-              <h3 className="font-bold text-gray-900 text-sm line-clamp-2 mb-1">{product.name}</h3>
-              <p className="text-emerald-600 font-black text-lg">{product.sale_price.toLocaleString()} {user?.currency}</p>
-              <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${product.stock <= 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                Stock: {product.stock}
-              </p>
-            </button>
-          ))}
+
+                <div className="space-y-1">
+                  <h3 className="font-black text-white text-xs line-clamp-2 uppercase tracking-tight group-hover:text-gold-primary transition-colors">{product.name}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-gold-gradient font-black text-lg tracking-tighter italic">{product.sale_price.toLocaleString()}</span>
+                    <span className="text-[10px] font-black text-gold-primary/40 uppercase">{user?.currency}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
+                  <div className={`text-[9px] font-black uppercase tracking-widest ${product.stock <= 5 ? 'text-red-400' : 'text-white/20'}`}>
+                    Stock: {product.stock}
+                  </div>
+                  <div className="w-5 h-5 rounded-full bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary opacity-0 group-hover:opacity-100 transition-all">
+                    <ShoppingCart size={10} />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Cart Section */}
-      <div className={`${view === 'cart' ? 'flex' : 'hidden'} md:flex w-full md:w-96 bg-white border-l flex-col shadow-xl`}>
-        <div className="p-4 border-bottom bg-gray-50 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="text-emerald-600" />
-            <h2 className="font-bold text-lg">Carrinho</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col items-end">
-              <div className="flex items-center gap-2">
-                <User size={16} className="text-gray-400" />
-                <div className="flex items-center gap-1">
-                  <select
-                    className="text-xs border-none bg-transparent focus:ring-0 font-medium text-gray-600 pr-0"
-                    value={selectedCustomer || ''}
-                    onChange={(e) => setSelectedCustomer(e.target.value ? Number(e.target.value) : null)}
-                  >
-                    <option value="">Consumidor Final</option>
-                    {customers.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => setShowAddCustomer(true)}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors text-emerald-600"
-                    title="Novo Cliente"
-                  >
-                    <UserPlus size={14} />
-                  </button>
-                </div>
-              </div>
-              {selectedCustomer && customers.find(c => c.id === selectedCustomer)?.balance > 0 && (
-                <button
-                  onClick={() => setShowDebtPayment(true)}
-                  className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded flex items-center gap-1 hover:bg-amber-200 transition-colors font-bold"
-                >
-                  <Wallet size={10} />
-                  Pagar Dívida ({(customers.find(c => c.id === selectedCustomer)?.balance).toLocaleString()} {user?.currency})
-                </button>
-              )}
+      <div className={`${view === 'cart' ? 'flex' : 'hidden'} md:flex w-full md:w-[420px] glass-panel border-l border-white/10 flex-col shadow-[0_0_80px_rgba(0,0,0,0.8)] relative z-30`}>
+        <div className="p-8 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+              <ShoppingCart size={22} className="animate-pulse" />
+            </div>
+            <div>
+              <h2 className="font-black text-white uppercase tracking-[0.1em] text-lg italic">Payload</h2>
+              <p className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em]">Queue Optimization Active</p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="p-6 bg-gold-primary/[0.03] border-b border-white/5">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 glass-panel p-4 rounded-2xl border border-white/10">
+              <User size={18} className="text-gold-primary/40" />
+              <div className="flex-1 flex items-center gap-2">
+                <select
+                  className="w-full text-[10px] font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 text-white/70 appearance-none cursor-pointer"
+                  value={selectedCustomer || ''}
+                  onChange={(e) => setSelectedCustomer(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="" className="bg-bg-deep text-white">Default Entity</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id} className="bg-bg-deep text-white">{c.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowAddCustomer(true)}
+                  className="w-8 h-8 rounded-xl bg-gold-primary/10 text-gold-primary flex items-center justify-center hover:bg-gold-primary/20 transition-all border border-gold-primary/20"
+                >
+                  <UserPlus size={14} />
+                </button>
+              </div>
+            </div>
+
+            {selectedCustomer && customers.find(c => c.id === selectedCustomer)?.balance > 0 && (
+              <button
+                onClick={() => setShowDebtPayment(true)}
+                className="text-[9px] font-black uppercase tracking-[0.2em] bg-red-500/10 text-red-400 p-3 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center justify-center gap-3"
+              >
+                <Wallet size={12} />
+                Outstanding Liabilities: {(customers.find(c => c.id === selectedCustomer)?.balance).toLocaleString()} {user?.currency}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
           {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
-              <ShoppingCart size={64} className="mb-4" />
-              <p>Carrinho vazio</p>
+            <div className="h-full flex flex-col items-center justify-center opacity-10">
+              <ShoppingCart size={80} className="mb-6 text-gold-primary stroke-[1]" />
+              <p className="font-black uppercase tracking-[0.4em] text-xs">Terminal Standby</p>
             </div>
           ) : (
             cart.map(item => (
-              <div key={item.id} className="flex gap-3 items-start border-b pb-3">
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-gray-900">{item.name}</h4>
-                  <div className="flex items-center gap-2 mt-2">
-                    <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="w-6 h-6 flex items-center justify-center rounded border hover:bg-gray-100"
-                    >-</button>
-                    <span className="text-sm font-mono w-8 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="w-6 h-6 flex items-center justify-center rounded border hover:bg-gray-100"
-                    >+</button>
-                    <span className="text-xs text-gray-400 ml-2">x {item.sale_price}</span>
+              <div key={item.id} className="flex gap-5 items-center p-5 rounded-[2rem] bg-white/[0.03] border border-white/10 hover:border-gold-primary/30 transition-all group relative overflow-hidden">
+                <div className="absolute inset-0 bg-gold-primary opacity-0 group-hover:opacity-[0.02] transition-opacity" />
+
+                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40 group-hover:text-gold-primary transition-all relative z-10 shadow-inner">
+                  <Package size={24} />
+                </div>
+
+                <div className="flex-1 min-w-0 relative z-10">
+                  <h4 className="text-[12px] font-black text-white uppercase tracking-tight line-clamp-1 mb-2 group-hover:text-gold-primary transition-colors">{item.name}</h4>
+                  <div className="flex items-center gap-4">
+                    <div className="flex bg-white/5 rounded-xl p-1 border border-white/10 shadow-lg">
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gold-primary hover:text-bg-deep text-white/40 transition-all font-black text-xs"
+                      >-</button>
+                      <span className="text-xs font-black text-gold-primary w-10 text-center self-center tabular-nums">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gold-primary hover:text-bg-deep text-white/40 transition-all font-black text-xs"
+                      >+</button>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-gold-primary/40 uppercase tracking-widest leading-none mb-1">Unit Price</span>
+                      <span className="text-[10px] font-black text-white/40 tabular-nums">{item.sale_price.toLocaleString()} {user?.currency}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold">{(item.sale_price * item.quantity).toLocaleString()}</p>
+
+                <div className="text-right relative z-10">
+                  <span className="text-[8px] font-black text-gold-primary/40 uppercase tracking-widest block mb-1">Subtotal</span>
+                  <p className="text-lg font-black text-white italic tracking-tighter tabular-nums">{(item.sale_price * item.quantity).toLocaleString()}</p>
                   <button
                     onClick={() => removeFromCart(item.id)}
-                    className="text-red-500 hover:text-red-700 mt-2"
+                    className="text-white/10 hover:text-red-500 mt-2 p-1.5 hover:bg-red-500/10 rounded-lg transition-all"
+                    title="Remove Asset"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -464,64 +504,75 @@ export default function POS() {
           )}
         </div>
 
-        <div className="p-4 bg-gray-50 border-t space-y-2">
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Subtotal</span>
-            <span>{subtotal.toLocaleString()} {user?.currency}</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>IVA ({taxRate}%)</span>
-            <span>{tax.toLocaleString()} {user?.currency}</span>
-          </div>
-          <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t">
-            <span>TOTAL</span>
-            <span>{total.toLocaleString()} {user?.currency}</span>
+        <div className="p-8 bg-bg-deep/80 backdrop-blur-xl border-t border-white/5 space-y-5">
+          <div className="space-y-3 px-2">
+            <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-white/30">
+              <span>Gross Assets</span>
+              <span className="text-white/60">{subtotal.toLocaleString()} {user?.currency}</span>
+            </div>
+            <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-white/30">
+              <span>Tax Protocol ({taxRate}%)</span>
+              <span className="text-white/60">{tax.toLocaleString()} {user?.currency}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-gold-primary">
+                <span>Optimization Applied</span>
+                <span className="text-gold-primary">- {discountAmount.toLocaleString()} {user?.currency}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-4 border-t border-white/5">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-primary self-center">Final Net Total</span>
+              <div className="text-right">
+                <span className="text-4xl font-black text-white tracking-tighter italic leading-none">{total.toLocaleString()}</span>
+                <span className="text-[10px] font-black text-gold-primary/40 block mt-1 tracking-widest uppercase">{user?.currency}</span>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            <div className="bg-white p-2 rounded-lg border border-gray-100">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Desconto (%)</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="glass-panel p-4 rounded-2xl border border-white/10 focus-within:border-gold-primary/40 transition-all">
+              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Optimization (%)</label>
               <input
                 type="number"
                 min="0"
                 max="100"
                 value={discountPercentage}
                 onChange={(e) => setDiscountPercentage(Number(e.target.value))}
-                className="w-full text-sm font-bold border-none p-0 focus:ring-0"
+                className="w-full text-lg font-black bg-transparent border-none p-0 focus:ring-0 text-white tracking-tighter"
                 placeholder="0"
               />
             </div>
             <div
               onClick={() => setIsProForma(!isProForma)}
-              className={`p-2 rounded-lg border cursor-pointer transition-all flex flex-col justify-center ${isProForma ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100'}`}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-center ${isProForma ? 'bg-gold-primary/10 border-gold-primary/40 shadow-[0_0_20px_rgba(212,175,55,0.1)]' : 'glass-panel border-white/10 hover:border-white/20'}`}
             >
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Pro-Forma</label>
-              <span className={`text-xs font-bold ${isProForma ? 'text-emerald-600' : 'text-gray-600'}`}>
-                {isProForma ? 'ACTIVADO' : 'DESACTIVADO'}
+              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Protocol</label>
+              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isProForma ? 'text-gold-primary' : 'text-white/40'}`}>
+                {isProForma ? 'PRO-FORMA' : 'DIRECT SALE'}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mb-2 p-2 bg-white rounded-lg border border-gray-100">
+          <div className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-2xl border border-white/5">
             <input
               type="checkbox"
               id="autoPrint"
               checked={autoPrint}
               onChange={(e) => setAutoPrint(e.target.checked)}
-              className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+              className="w-4 h-4 rounded border-white/10 bg-white/5 text-gold-primary focus:ring-gold-primary/50"
             />
-            <label htmlFor="autoPrint" className="text-xs font-bold text-gray-600 cursor-pointer flex items-center gap-1">
-              <Printer size={12} /> Impressão Automática
+            <label htmlFor="autoPrint" className="text-[10px] font-black text-white/40 uppercase tracking-widest cursor-pointer flex items-center gap-3">
+              <Printer size={14} className="text-gold-primary/40" /> Automatic Hardcopy
             </label>
           </div>
 
           <button
             disabled={cart.length === 0}
             onClick={() => setShowPayment(true)}
-            className="w-full mt-2 bg-emerald-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-200"
+            className="w-full mt-2 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep py-6 rounded-3xl font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:shadow-[0_0_40px_rgba(212,175,55,0.3)] disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-2xl"
           >
             <CreditCard size={20} />
-            PAGAR (F12)
+            PROCESS TRANSACTION
           </button>
         </div>
       </div>
@@ -529,25 +580,27 @@ export default function POS() {
       {/* Payment Modal */}
       {/* Open Register Modal */}
       {showOpenRegister && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-10 text-center bg-gray-50/50">
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <Wallet size={40} />
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
+          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold-primary to-transparent" />
+
+            <div className="p-10 text-center relative z-10">
+              <div className="w-20 h-20 bg-gold-primary/10 text-gold-primary rounded-3xl flex items-center justify-center mx-auto mb-6 border border-gold-primary/20 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+                <Wallet size={40} className="animate-pulse" />
               </div>
-              <h3 className="text-3xl font-black text-gray-900 tracking-tight">Abrir Caixa</h3>
-              <p className="text-gray-500 font-medium mt-2">Informe o valor inicial em dinheiro para começar as vendas.</p>
+              <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">Initialize <span className="text-gold-gradient">Vault</span></h3>
+              <p className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">Specify initial capital reserve to proceed</p>
             </div>
 
-            <div className="p-10 space-y-6">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Fundo de Maneio (Valor Inicial)</label>
+            <div className="p-10 pt-0 space-y-8 relative z-10">
+              <div className="glass-panel p-6 rounded-3xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">Operational Reserve Allocation</label>
                 <div className="relative">
-                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-400">{user?.currency}</span>
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 font-black text-gold-primary/40 uppercase text-xs tracking-widest">{user?.currency}</span>
                   <input
                     autoFocus
                     type="number"
-                    className="w-full pl-16 pr-6 py-6 bg-gray-50 border-none rounded-3xl focus:ring-4 focus:ring-emerald-500/10 outline-none font-black text-3xl text-gray-900"
+                    className="w-full text-center bg-transparent border-none outline-none font-black text-5xl text-white tracking-tighter italic"
                     value={initialCash}
                     onChange={(e) => setInitialCash(e.target.value)}
                   />
@@ -556,9 +609,9 @@ export default function POS() {
 
               <button
                 onClick={handleOpenRegister}
-                className="w-full py-6 bg-emerald-600 text-white rounded-3xl text-sm font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 active:scale-95"
+                className="w-full py-6 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-3xl text-[10px] font-black uppercase tracking-[0.4em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all active:scale-95 shadow-2xl"
               >
-                Confirmar Abertura
+                Establish Connection
               </button>
             </div>
           </div>
@@ -566,108 +619,116 @@ export default function POS() {
       )}
 
       {showPayment && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 bg-emerald-600 text-white">
-              <h3 className="text-xl font-bold">Finalizar Venda</h3>
-              <p className="opacity-80">Total a pagar: {total.toLocaleString()} {user?.currency}</p>
+        <div className="fixed inset-0 bg-bg-deep/60 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+
+            <div className="p-8 bg-gold-primary/5 border-b border-white/5 text-center">
+              <h3 className="text-xl font-black text-white italic uppercase tracking-widest">Finalize <span className="text-gold-gradient">Settlement</span></h3>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Required Assets:</span>
+                <span className="text-lg font-black text-gold-primary tracking-tighter italic">{total.toLocaleString()} {user?.currency}</span>
+              </div>
             </div>
-            <div className="p-6 space-y-6">
-              <div className="flex p-1 bg-gray-100 rounded-xl">
-                <button
-                  onClick={() => setPaymentMethod('cash')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${paymentMethod === 'cash' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500'}`}
-                >
-                  Dinheiro
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('multicaixa')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${paymentMethod === 'multicaixa' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500'}`}
-                >
-                  Multicaixa
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('credit')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${paymentMethod === 'credit' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500'}`}
-                >
-                  Venda a Crédito
-                </button>
+
+            <div className="p-8 space-y-8">
+              <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5">
+                {[
+                  { id: 'cash', label: 'Cash' },
+                  { id: 'multicaixa', label: 'Vector' },
+                  { id: 'credit', label: 'Credit' }
+                ].map(method => (
+                  <button
+                    key={method.id}
+                    onClick={() => setPaymentMethod(method.id as any)}
+                    className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border ${paymentMethod === method.id ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'text-white/40 border-transparent hover:text-white/60'}`}
+                  >
+                    {method.label}
+                  </button>
+                ))}
               </div>
 
               {(paymentMethod === 'cash' || paymentMethod === 'multicaixa') ? (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {paymentMethod === 'cash' ? 'Valor Entregue' : 'Valor Confirmado'}
+                <div className="space-y-6">
+                  <div className="glass-panel p-6 rounded-3xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <label className="block text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mb-4 text-center">
+                      {paymentMethod === 'cash' ? 'Asset Input (Liquid)' : 'Transaction Verification'}
                     </label>
-                    <input
-                      type="number"
-                      className="w-full text-3xl font-mono p-4 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0"
-                      value={amountPaid}
-                      onChange={(e) => setAmountPaid(e.target.value)}
-                      autoFocus
-                    />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        className="w-full text-center bg-transparent border-none outline-none font-black text-5xl text-white tracking-tighter italic"
+                        value={amountPaid}
+                        onChange={(e) => setAmountPaid(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
                   </div>
 
                   {paymentMethod === 'cash' && (
-                    <div className="bg-gray-50 p-4 rounded-xl flex justify-between items-center">
-                      <span className="text-gray-600 font-medium">Troco</span>
-                      <span className="text-3xl font-bold text-emerald-600">{change.toLocaleString()} {user?.currency}</span>
+                    <div className="bg-gold-primary/5 p-6 rounded-3xl border border-gold-primary/10 flex justify-between items-center group relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-gold-primary/[0.02] rounded-full -mr-8 -mt-8" />
+                      <div>
+                        <span className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em] block mb-1">Asset Return</span>
+                        <span className="text-3xl font-black text-gold-primary tracking-tighter italic">{change.toLocaleString()} {user?.currency}</span>
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary">
+                        <Wallet size={20} />
+                      </div>
                     </div>
                   )}
-                </>
+                </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                    <div className="flex items-center gap-3 text-amber-800 mb-2">
-                      <AlertTriangle size={20} />
-                      <span className="font-bold">Atenção</span>
+                  <div className="bg-red-500/5 p-6 rounded-3xl border border-red-500/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-12 h-full bg-gradient-to-l from-red-500/[0.03] to-transparent" />
+                    <div className="flex items-center gap-4 text-red-400 mb-4">
+                      <AlertTriangle size={20} className="animate-pulse" />
+                      <span className="font-black uppercase tracking-[0.2em] text-[10px]">Security Protocol: Credit Sale</span>
                     </div>
-                    <p className="text-sm text-amber-700">
-                      Esta venda será registada como dívida para o cliente:
-                      <strong className="block mt-1 text-amber-900">
-                        {customers.find(c => c.id === selectedCustomer)?.name || 'Nenhum cliente seleccionado'}
+                    <p className="text-xs text-white/40 font-medium leading-relaxed">
+                      This transaction will be logged as an outstanding liability for the following entity:
+                      <strong className="block mt-2 text-white font-black text-sm uppercase tracking-tight">
+                        {customers.find(c => c.id === selectedCustomer)?.name || 'NO ENTITY SPECIFIED'}
                       </strong>
                     </p>
                     {!selectedCustomer && (
-                      <p className="text-xs text-red-600 mt-2 font-bold uppercase">
-                        * É obrigatório seleccionar um cliente para vendas a crédito.
+                      <p className="text-[9px] text-red-500 mt-4 font-black uppercase tracking-[0.1em] flex items-center gap-2">
+                        <X size={10} /> Critical: Specify Entity to Proceed
                       </p>
                     )}
                   </div>
 
                   {selectedCustomer && customers.find(c => c.id === selectedCustomer)?.balance >= 5000 && (
-                    <div className="bg-red-50 p-4 rounded-xl border border-red-100 animate-pulse">
-                      <div className="flex items-center gap-3 text-red-800 mb-2">
-                        <AlertTriangle size={20} />
-                        <span className="font-black uppercase tracking-widest text-xs">Alerta de Dívida Elevada</span>
+                    <div className="bg-orange-500/5 p-6 rounded-3xl border border-orange-500/20">
+                      <div className="flex items-center gap-3 text-orange-400 mb-2">
+                        <AlertTriangle size={18} />
+                        <span className="font-black uppercase tracking-widest text-[9px]">Elevated Credit Risk</span>
                       </div>
-                      <p className="text-sm text-red-700 font-bold">
-                        Este cliente já possui um saldo devedor de:
-                        <span className="block text-xl font-black text-red-900 mt-1">
+                      <p className="text-xs text-white/40 font-medium">
+                        Current Outstanding Balance:
+                        <span className="block text-xl font-black text-orange-400 mt-2 tracking-tighter italic">
                           {customers.find(c => c.id === selectedCustomer)?.balance.toLocaleString()} {user?.currency}
                         </span>
-                      </p>
-                      <p className="text-[10px] text-red-600 mt-2 uppercase font-black">
-                        Recomenda-se a liquidação parcial antes de nova venda a crédito.
                       </p>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <button
                   onClick={() => setShowPayment(false)}
-                  className="flex-1 py-3 border rounded-xl font-medium hover:bg-gray-50"
+                  className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 hover:text-white/60 transition-all font-medium"
                 >
-                  Cancelar
+                  Abort
                 </button>
                 <button
                   onClick={handleCheckout}
-                  className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700"
+                  disabled={paymentMethod === 'credit' && !selectedCustomer}
+                  className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all disabled:opacity-20 disabled:grayscale"
                 >
-                  {isProForma ? 'Emitir Pro-Forma' : 'Confirmar Venda'}
+                  {isProForma ? 'Emit Pro-Forma' : 'Confirm settlement'}
                 </button>
               </div>
             </div>
@@ -675,64 +736,75 @@ export default function POS() {
         </div>
       )}
 
+      {/* Add Customer Modal */}
       {showAddCustomer && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
-            <div className="p-8 bg-emerald-600 text-white flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-black uppercase tracking-widest">Novo Cliente</h3>
-                <p className="opacity-70 text-xs font-bold mt-1">Registe o cliente para esta venda</p>
-              </div>
-              <button onClick={() => setShowAddCustomer(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <X size={24} />
-              </button>
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
+          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+
+            <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02]">
+              <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-center">Register <span className="text-gold-gradient">Entity</span></h3>
+              <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-center mt-2">Initialize new customer profile in core database</p>
             </div>
-            <div className="p-8 space-y-4">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nome Completo</label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={newCustomer.name}
-                  onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIF</label>
+
+            <div className="p-10 space-y-6 text-left">
+              <div className="grid grid-cols-1 gap-6">
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Entity Name</label>
                   <input
                     type="text"
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
-                    value={newCustomer.nif}
-                    onChange={e => setNewCustomer({ ...newCustomer, nif: e.target.value })}
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                    value={newCustomer.name}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                    placeholder="Enter identification"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Telefone</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Contact Link</label>
                   <input
                     type="text"
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
                     value={newCustomer.phone}
-                    onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                    placeholder="+244 000 000 000"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Endereço</label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={newCustomer.address}
-                  onChange={e => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                />
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Fiscal Code (NIF)</label>
+                  <input
+                    type="text"
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                    value={newCustomer.nif}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, nif: e.target.value })}
+                    placeholder="Vector identification"
+                  />
+                </div>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Address Vector</label>
+                  <input
+                    type="text"
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                    value={newCustomer.address}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                    placeholder="Location parameters"
+                  />
+                </div>
               </div>
 
-              <button
-                onClick={handleSaveNewCustomer}
-                className="w-full py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 mt-4"
-              >
-                Salvar e Seleccionar
-              </button>
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={() => setShowAddCustomer(false)}
+                  className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
+                >
+                  Terminate
+                </button>
+                <button
+                  onClick={handleSaveNewCustomer}
+                  className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all"
+                >
+                  Inject Data
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -883,27 +955,28 @@ export default function POS() {
 
       {/* Success Notification with Print Option */}
       {lastSale && (
-        <div className="fixed bottom-4 right-4 bg-white p-4 rounded-2xl shadow-2xl border border-emerald-100 animate-in slide-in-from-right">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
-              <Printer size={24} />
+        <div className="fixed bottom-10 right-10 z-[120]">
+          <div className="glass-panel p-6 rounded-[32px] border border-gold-primary/30 shadow-[0_0_50px_rgba(212,175,55,0.1)] flex items-center gap-6 animate-in slide-in-from-right duration-500 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gold-primary opacity-0 group-hover:opacity-[0.02] transition-opacity" />
+            <div className="w-16 h-16 bg-gold-primary/10 text-gold-primary rounded-2xl flex items-center justify-center border border-gold-primary/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+              <Printer size={32} className="group-hover:scale-110 transition-transform" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900">Venda Realizada!</h4>
-              <p className="text-sm text-gray-500">Fatura {lastSale.invoice_number}</p>
+              <h4 className="text-[10px] font-black text-gold-primary uppercase tracking-[0.4em] mb-1">Transaction Verified</h4>
+              <p className="text-white font-black text-sm italic uppercase tracking-tight">Voucher {lastSale.invoice_number}</p>
             </div>
-            <div className="flex gap-2 ml-4">
+            <div className="flex gap-3 ml-6">
               <button
                 onClick={handlePrint}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700"
+                className="px-6 py-3 bg-gold-primary text-bg-deep rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all"
               >
-                Imprimir
+                Hardcopy
               </button>
               <button
                 onClick={() => setLastSale(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-200"
+                className="px-6 py-3 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-white/60 transition-all border border-white/5"
               >
-                Fechar
+                Discard
               </button>
             </div>
           </div>

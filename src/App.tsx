@@ -21,7 +21,8 @@ import {
   ArrowRight,
   CreditCard,
   MessageSquare,
-  Truck
+  Truck,
+  User
 } from 'lucide-react';
 import { supabase } from "./lib/supabase";
 import Support from "./components/Support";
@@ -66,44 +67,58 @@ function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void,
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-bg-deep flex items-center justify-center p-4 relative font-sans overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gold-primary/5 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gold-primary/5 rounded-full blur-[120px]" />
+
       <button
         onClick={onBackToPublic}
-        className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 hover:text-gray-900 font-bold transition-colors"
+        className="absolute top-8 left-8 flex items-center gap-2 text-gold-primary/60 hover:text-gold-primary font-black text-xs uppercase tracking-widest transition-all z-20 group"
       >
-        <X size={20} />
+        <X size={18} className="group-hover:rotate-90 transition-transform" />
         Voltar para o Market
       </button>
-      <div className="bg-white p-10 rounded-[40px] shadow-2xl w-full max-w-md border border-gray-100 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600" />
+
+      <div className="glass-panel p-10 rounded-[40px] w-full max-w-md relative overflow-hidden gold-glow animate-in fade-in zoom-in duration-700">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/50 to-transparent" />
+
         <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-emerald-600 rounded-[24px] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-emerald-200">
+          <div className="w-20 h-20 bg-gradient-to-br from-gold-primary to-gold-secondary rounded-3xl flex items-center justify-center text-bg-deep mx-auto mb-6 shadow-[0_0_30px_rgba(212,175,55,0.3)]">
             <Store size={40} />
           </div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tighter italic">VENDA <span className="text-emerald-600">PLUS</span></h1>
-          <p className="text-gray-400 font-medium mt-2">Gestão Profissional e Escalável</p>
+          <h1 className="text-4xl font-black text-white tracking-tighter italic font-display">
+            VENDA <span className="text-gold-gradient">PLUS</span>
+          </h1>
+          <p className="text-gold-primary/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">High Tech Enterprise ERp</p>
         </div>
 
-        {error && <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm mb-8 text-center font-bold border border-red-100">{error}</div>}
+        {error && (
+          <div className="bg-red-500/10 text-red-400 p-4 rounded-2xl text-xs mb-8 text-center font-black uppercase tracking-widest border border-red-500/20 blur-none">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Email Corporativo</label>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gold-primary/60 ml-2">Email Corporativo</label>
             <input
               type="email"
               autoComplete="off"
-              className="w-full px-5 py-4 rounded-2xl border-2 border-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 font-bold transition-all text-gray-900"
+              className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-gold-primary focus:ring-4 focus:ring-gold-primary/10 font-bold transition-all text-white placeholder-white/20"
+              placeholder="admin@venda-plus.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Palavra-passe</label>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gold-primary/60 ml-2">Palavra-passe</label>
             <input
               type="password"
               autoComplete="off"
-              className="w-full px-5 py-4 rounded-2xl border-2 border-gray-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 font-bold transition-all text-gray-900"
+              className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-gold-primary focus:ring-4 focus:ring-gold-primary/10 font-bold transition-all text-white placeholder-white/20"
+              placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
@@ -113,23 +128,22 @@ function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void,
             <button
               type="button"
               onClick={() => setShowForgotModal(true)}
-              className="text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700"
+              className="text-[10px] font-black uppercase tracking-[0.2em] text-gold-primary/40 hover:text-gold-primary transition-colors"
             >
-              Esqueci a minha senha
+              Recuperar Acesso
             </button>
           </div>
           <button
             type="submit"
-            className="w-full bg-emerald-600 text-white py-5 rounded-[24px] font-black text-lg hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-200 mt-4 active:scale-95"
+            className="w-full py-5 rounded-3xl bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep font-black text-sm uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.4)] transition-all mt-4 active:scale-95"
           >
-            Entrar no Sistema
+            Entrar no Portal
           </button>
         </form>
 
-        <div className="mt-12 text-center text-[10px] font-black uppercase tracking-widest text-gray-300">
-          &copy; 2026 Venda Plus. Todos os direitos reservados.
+        <div className="mt-12 text-center text-[9px] font-black uppercase tracking-[0.3em] text-white/10">
+          &copy; 2026 VENDA PLUS SYSTEMS &bull; ALL RIGHTS RESERVED
         </div>
-
       </div>
 
       {showForgotModal && (
@@ -179,25 +193,59 @@ function SidebarItem({ icon: Icon, label, active, onClick }: any) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${active
-        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200'
-        : 'text-gray-500 hover:bg-gray-100'
+      className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all relative group overflow-hidden ${active
+        ? 'bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep shadow-[0_10px_20px_rgba(212,175,55,0.2)] scale-[1.02]'
+        : 'text-white/40 hover:bg-white/5 hover:text-gold-primary'
         }`}
     >
-      <Icon size={20} />
-      <span className="font-medium">{label}</span>
+      {active && (
+        <div className="absolute top-0 right-0 w-1 h-full bg-white/20" />
+      )}
+      <Icon size={20} className={active ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'} />
+      <span className={`font-black uppercase tracking-[0.15em] text-[10px] ${active ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>
+        {label}
+      </span>
     </button>
   );
 }
 
 export default function App() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, login, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('sales');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [view, setView] = useState<'public' | 'erp'>('public');
   const [isRegistering, setIsRegistering] = useState(false);
+  const displayName = user?.name || user?.email?.split('@')[0].split('.')[0].toUpperCase() || 'OPERATOR';
   const [licenseStatus, setLicenseStatus] = useState<{ active: boolean, message?: string }>({ active: true });
   const [features, setFeatures] = useState<string[]>([]);
+
+  useEffect(() => {
+    // 1. Check for access token in URL for automatic login
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    if (token) {
+      console.log('🔗 [Token Login] Detectado link de acesso exclusivo...');
+      fetch('/api/auth/token-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.token && data.user) {
+            console.log('✅ [Token Login] Sucesso! Redirecionando para o portal...');
+            login(data.token, data.user);
+            setView('erp');
+            // Clear URL parameter without reloading
+            window.history.replaceState({}, document.title, "/");
+          } else {
+            console.error('❌ [Token Login] Falha:', data.error);
+          }
+        })
+        .catch(err => console.error('❌ [Token Login] Erro:', err));
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -315,21 +363,29 @@ export default function App() {
   });
 
   const isMasterPortal = user?.role === 'master';
-  const themeClass = isMasterPortal ? 'from-slate-900 to-indigo-950' : 'bg-gray-50';
-  const accentColor = isMasterPortal ? 'indigo' : 'emerald';
 
   return (
-    <div className={`flex h-screen overflow-hidden flex-col md:flex-row ${themeClass}`}>
+    <div className="flex h-screen overflow-hidden flex-col md:flex-row bg-bg-deep font-sans">
       {/* Sidebar - Desktop Only */}
-      <aside className={`hidden md:flex ${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r transition-all duration-300 flex-col shadow-sm z-20`}>
-        <div className="p-6 flex items-center gap-3">
-          <div className={`w-10 h-10 bg-${accentColor}-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-md`}>
-            <Store size={24} />
+      <aside className={`${sidebarOpen ? 'w-72' : 'w-24'} hidden md:flex glass-panel border-r border-white/5 transition-all duration-500 flex-col z-20 relative overflow-hidden`}>
+        {/* Sidebar Background Glow */}
+        <div className="absolute top-[-20%] left-[-20%] w-[150%] h-[150%] bg-gold-primary/5 rounded-full blur-[100px] pointer-events-none" />
+
+        <div className="p-8 flex items-center gap-4 relative z-10">
+          <div className="w-12 h-12 bg-gradient-to-br from-gold-primary to-gold-secondary rounded-2xl flex items-center justify-center text-bg-deep shadow-[0_0_20px_rgba(212,175,55,0.2)] shrink-0">
+            <Store size={28} />
           </div>
-          {sidebarOpen && <span className="font-black text-xl text-gray-900 tracking-tighter italic">VENDA <span className={`text-${accentColor}-600`}>PLUS</span></span>}
+          {sidebarOpen && (
+            <div className="flex flex-col animate-in fade-in slide-in-from-left-4 duration-500">
+              <span className="font-black text-2xl text-white tracking-tighter italic font-display leading-none">
+                VENDA <span className="text-gold-gradient">PLUS</span>
+              </span>
+              <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gold-primary/40 mt-1">Enterprise Core</span>
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-4 space-y-3 overflow-y-auto relative z-10 py-4 custom-scrollbar">
           {filteredMenu.map(item => (
             <SidebarItem
               key={item.id}
@@ -341,66 +397,100 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="p-4 border-t space-y-2">
+        {/* User Identity Section */}
+        {sidebarOpen && (
+          <div className="px-6 py-5 border-t border-white/5 bg-gold-primary/[0.02] relative overflow-hidden">
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-10 h-10 rounded-[14px] bg-white/5 border border-gold-primary/20 flex items-center justify-center text-gold-primary shadow-[0_0_15px_rgba(212,175,55,0.1)] shrink-0">
+                <User size={20} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-black text-white uppercase tracking-tight truncate">{displayName}</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-gold-primary animate-pulse" />
+                  <span className="text-[7px] font-black text-gold-primary/40 uppercase tracking-[0.2em]">Validated Session</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="p-6 border-t border-white/5 space-y-3 relative z-10 bg-white/[0.02]">
           <button
             onClick={() => setView('public')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-100 transition-all"
+            className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-white/40 hover:bg-white/5 hover:text-gold-primary transition-all group"
           >
-            <Smartphone size={20} />
-            {sidebarOpen && <span className="font-medium">Ir para o Market</span>}
+            <Smartphone size={18} className="group-hover:scale-110 transition-transform" />
+            {sidebarOpen && <span className="font-black text-[10px] uppercase tracking-widest">Market Portal</span>}
           </button>
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all"
+            className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-red-500/60 hover:bg-red-500/10 hover:text-red-400 transition-all group"
           >
-            <LogOut size={20} />
-            {sidebarOpen && <span className="font-medium">Sair</span>}
+            <LogOut size={18} className="group-hover:translate-x-1 transition-transform" />
+            {sidebarOpen && <span className="font-black text-[10px] uppercase tracking-widest">Sair do Sistema</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
+      <main className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0 relative">
+        {/* Background Glows for Main Area */}
+        <div className="absolute top-[10%] right-[10%] w-[40%] h-[40%] bg-gold-primary/5 rounded-full blur-[150px] pointer-events-none" />
+
         {/* Header */}
-        <header className="h-16 bg-white border-b flex items-center justify-between px-6 shrink-0 z-10">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:block p-2 hover:bg-gray-100 rounded-lg text-gray-500">
+        <header className="h-20 glass-panel border-b border-white/5 flex items-center justify-between px-8 shrink-0 z-10 relative">
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="hidden md:flex p-2.5 hover:bg-gold-primary/10 rounded-xl text-gold-primary/60 hover:text-gold-primary transition-all border border-transparent hover:border-gold-primary/20"
+            >
               {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <div className="text-sm font-bold text-gray-900 md:font-medium md:text-gray-500">
-              {isMasterPortal ? 'SaaS Global Control' : user?.company_name} <span className="hidden sm:inline">- {user?.role.toUpperCase()}</span>
+            <div className="flex flex-col">
+              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-gold-primary/40 leading-none mb-1.5">
+                Current Terminal
+              </div>
+              <div className="text-sm font-black text-white tracking-widest group cursor-pointer flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-gold-primary animate-pulse shadow-[0_0_8px_rgba(212,175,55,1)]" />
+                {isMasterPortal ? 'SAAS GLOBAL COMMAND' : user?.company_name?.toUpperCase()}
+                <span className="text-gold-primary/60">&mdash; {user?.role?.toUpperCase()}</span>
+              </div>
             </div>
           </div>
-          {/* Master Return Button */}
-          {user?.email === 'simaopambo94@gmail.com' && user?.role !== 'master' && (
-            <button
-              onClick={() => {
-                const savedUser = JSON.parse(sessionStorage.getItem('erp_user') || '{}');
-                const masterUser = {
-                  ...savedUser,
-                  role: 'master',
-                  company_id: 1, // Global Master Company
-                  company_name: 'Venda Plus Global'
-                };
-                sessionStorage.setItem('erp_user', JSON.stringify(masterUser));
-                window.location.reload();
-              }}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
-            >
-              <ArrowRight size={14} className="rotate-180" /> Voltar ao Master
-            </button>
-          )}
 
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <div className="text-sm font-bold text-gray-900">{user?.name}</div>
-              <div className="text-xs text-gray-500">{user?.email}</div>
-            </div>
-            <button onClick={logout} className="md:hidden p-2 text-red-500">
-              <LogOut size={20} />
-            </button>
-            <div className="hidden sm:flex w-10 h-10 bg-gray-100 rounded-full items-center justify-center text-gray-500 border">
-              <Users size={20} />
+          <div className="flex items-center gap-6">
+            {user?.email === 'simaopambo94@gmail.com' && user?.role !== 'master' && (
+              <button
+                onClick={() => {
+                  const savedUser = JSON.parse(sessionStorage.getItem('erp_user') || '{}');
+                  const masterUser = {
+                    ...savedUser,
+                    role: 'master',
+                    company_id: 1,
+                    company_name: 'Venda Plus Global'
+                  };
+                  sessionStorage.setItem('erp_user', JSON.stringify(masterUser));
+                  window.location.reload();
+                }}
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white px-5 py-2.5 rounded-2xl font-black text-[9px] uppercase tracking-[0.2em] hover:shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all border border-indigo-500/30"
+              >
+                <ArrowRight size={14} className="rotate-180" /> Global Override
+              </button>
+            )}
+
+            <div className="flex items-center gap-4 pl-6 border-l border-white/5">
+              <div className="text-right flex flex-col items-end min-w-0">
+                <div className="text-[10px] font-black text-white uppercase tracking-wider leading-none mb-1 truncate max-w-[120px]">{displayName}</div>
+                <div className="text-[8px] font-bold text-gold-primary/40 tracking-widest uppercase hidden sm:block truncate max-w-[150px]">{user?.email}</div>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center text-gold-primary border border-white/10 shadow-lg relative group transition-all hover:border-gold-primary/40 shrink-0">
+                <Users size={20} className="sm:size-[24px]" />
+                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gold-primary rounded-full border-2 border-bg-deep shadow-[0_0_8px_rgba(212,175,55,1)]" />
+              </div>
+              <button onClick={logout} className="md:hidden p-2 text-red-500/60 hover:text-red-400 transition-colors">
+                <LogOut size={22} />
+              </button>
             </div>
           </div>
         </header>
@@ -423,25 +513,28 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation - Mobile Only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-2 flex justify-around items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-        {filteredMenu.map(item => (
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-t border-white/10 px-4 py-3 flex justify-around items-center z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        {filteredMenu.slice(0, 5).map(item => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={`flex flex-col items-center gap-1 p-2 transition-all ${activeTab === item.id ? 'text-emerald-600 scale-110' : 'text-gray-400'}`}
+            className={`flex flex-col items-center gap-1.5 p-2 transition-all relative ${activeTab === item.id ? 'text-gold-primary scale-110' : 'text-white/30'}`}
           >
+            {activeTab === item.id && (
+              <div className="absolute -top-1 w-1 h-1 bg-gold-primary rounded-full shadow-[0_0_8px_rgba(212,175,55,1)]" />
+            )}
             <item.icon size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
+            <span className="text-[8px] font-black uppercase tracking-widest">{item.label.split(' ')[0]}</span>
           </button>
         ))}
         <button
           onClick={() => setView('public')}
-          className="flex flex-col items-center gap-1 p-2 text-gray-400"
+          className="flex flex-col items-center gap-1.5 p-2 text-white/30"
         >
           <Store size={20} />
-          <span className="text-[10px] font-bold uppercase tracking-tighter">Market</span>
+          <span className="text-[8px] font-black uppercase tracking-widest">Portal</span>
         </button>
       </nav>
-    </div >
+    </div>
   );
 }

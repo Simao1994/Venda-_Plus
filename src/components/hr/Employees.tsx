@@ -67,6 +67,7 @@ export default function Employees() {
       const payload = {
         ...formData,
         company_id: user?.company_id,
+        department_id: formData.department_id || null,
         salary_base: Number(formData.salary_base) || 0,
         food_allowance: Number(formData.food_allowance) || 0,
         transport_allowance: Number(formData.transport_allowance) || 0,
@@ -252,8 +253,8 @@ export default function Employees() {
                   key={s.id}
                   onClick={() => setActiveSection(s.id)}
                   className={`flex items-center gap-2 px-4 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all -mb-px ${activeSection === s.id
-                      ? 'border-yellow-500 text-zinc-900'
-                      : 'border-transparent text-zinc-400 hover:text-zinc-600'
+                    ? 'border-yellow-500 text-zinc-900'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-600'
                     }`}
                 >
                   <s.icon size={13} /> {s.label}

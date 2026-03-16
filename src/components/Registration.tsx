@@ -62,8 +62,8 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
             });
             const data = await res.json();
             if (res.ok) {
-                const slug = formData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-                setTenantLink(`${window.location.origin}/?tenant=${slug}`);
+                const link = `${window.location.origin}/?token=${data.access_token}`;
+                setTenantLink(link);
                 setStep(3);
             } else {
                 setError(data.error || 'Erro ao processar registo. Tente novamente.');

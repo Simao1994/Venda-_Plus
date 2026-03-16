@@ -9,7 +9,8 @@ import {
     AlertCircle,
     TrendingUp,
     Search,
-    ArrowRight
+    ArrowRight,
+    Link
 } from 'lucide-react';
 import {
     BarChart,
@@ -35,6 +36,7 @@ interface Company {
     email: string;
     status: string;
     created_at: string;
+    access_token?: string;
     saas_subscriptions: any[];
 }
 
@@ -399,6 +401,24 @@ export default function MasterAdmin() {
                                                     </td>
                                                     <td className="py-5 px-8 text-xs font-bold text-slate-600">
                                                         {sub?.data_expiracao ? new Date(sub.data_expiracao).toLocaleDateString() : '---'}
+                                                    </td>
+                                                    <td className="py-5 px-8">
+                                                        {company.access_token ? (
+                                                            <button
+                                                                onClick={() => {
+                                                                    const link = `${window.location.origin}/?token=${company.access_token}`;
+                                                                    navigator.clipboard.writeText(link);
+                                                                    alert('Link de acesso copiado!');
+                                                                }}
+                                                                className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all border border-slate-100"
+                                                                title="Copiar Link de Acesso"
+                                                            >
+                                                                <Link size={14} />
+                                                                <span className="text-[10px] font-black uppercase tracking-tight">Copiar Link</span>
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tight italic">Sem token</span>
+                                                        )}
                                                     </td>
                                                     <td className="py-5 px-8">
                                                         <span className={`px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider ${company.status === 'active' ? 'bg-emerald-50 text-emerald-600' :

@@ -11,6 +11,7 @@ import { syncDatabaseSchema } from "./src/lib/database-sync";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-erp-key";
 import { runMigration } from "./src/lib/migrations-manager.ts";
+import crypto from "crypto";
 
 // Note: Database schema initialization is now handled via supabase_schema.sql
 // which should be run in the Supabase Dashboard SQL Editor.
@@ -203,6 +204,69 @@ async function startServer() {
     });
   });
 
+  app.post("/api/auth/token-login", async (req, res) => {
+    const { token: accessToken } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({ error: "Token de acesso é obrigatório." });
+    }
+
+    try {
+      // 1. Find company by access_token
+      const { data: company, error: cError } = await supabase
+        .from("companies")
+        .select("id, name, currency")
+        .eq("access_token", accessToken)
+        .single();
+
+      if (cError || !company) {
+        return res.status(401).json({ error: "Link de acesso inválido ou expirado." });
+      }
+
+      // 2. Find the primary admin for this company
+      const { data: user, error: uError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("company_id", company.id)
+        .eq("role", "admin")
+        .order('id', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (uError || !user) {
+        return res.status(404).json({ error: "Administrador não encontrado para esta empresa." });
+      }
+
+      // 3. Generate normal session token
+      const sessionToken = jwt.sign({
+        id: user.id,
+        company_id: user.company_id,
+        branch_id: user.branch_id,
+        role: user.role
+      }, JWT_SECRET);
+
+      console.log(`✅ Token login bem-sucedido para empresa: ${company.name}`);
+
+      res.json({
+        token: sessionToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          company_id: user.company_id,
+          company_name: company.name,
+          currency: company.currency,
+          branch_id: user.branch_id,
+          is_master: user.role === 'master'
+        }
+      });
+    } catch (err: any) {
+      console.error('❌ Erro no login por token:', err.message);
+      res.status(500).json({ error: "Erro interno no servidor." });
+    }
+  });
+
   // SaaS Public Routes
   app.get("/api/saas/plans", async (req, res) => {
     const { data, error } = await supabase.from("saas_plans").select("*");
@@ -218,7 +282,17 @@ async function startServer() {
 
     try {
       // 1. Create Company
-      const { data: company, error: cError } = await supabase.from("companies").insert([{ name, email, status: initialStatus }]).select("id").single();
+      const accessToken = crypto.randomBytes(24).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      const { data: company, error: cError } = await supabase
+        .from("companies")
+        .insert([{
+          name,
+          email,
+          status: initialStatus,
+          access_token: accessToken
+        }])
+        .select("id, access_token")
+        .single();
       if (cError) {
         console.error('❌ Erro ao criar empresa:', cError.message);
         return res.status(500).json({ error: `Erro na empresa: ${cError.message}` });
@@ -287,7 +361,11 @@ async function startServer() {
       }
 
       console.log(`✅ Registo SaaS concluído com sucesso para: ${email}`);
-      res.json({ success: true, company_id: company.id });
+      res.json({
+        success: true,
+        company_id: company.id,
+        access_token: company.access_token
+      });
     } catch (err: any) {
       console.error('❌ Erro inesperado no registo:', err.message);
       res.status(500).json({ error: "Erro interno do servidor durante o registo." });

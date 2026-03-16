@@ -129,7 +129,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
       try {
          // Se for definida como principal, tirar flag das outras. 
          // O trigger do lado do postgres seria ideal, mas fazemos aqui para garantir caso falte na db.
-         if (formData.principal) {
+         if (formData.principal && funcionarioId) {
             await supabase
                .from('rh_contas_bancarias')
                .update({ principal: false })
