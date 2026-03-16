@@ -197,12 +197,12 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div
             onClick={() => setShowIntro(true)}
-            className="flex items-center gap-3 group cursor-pointer"
+            className="flex items-center gap-2 group cursor-pointer -ml-2"
           >
             <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-[0_0_20px_rgba(212,175,55,0.3)] group-hover:shadow-[0_0_30px_rgba(212,175,55,0.5)] transition-all">
               <Store size={24} />
             </div>
-            <span className="text-2xl font-black text-white tracking-tight italic uppercase pr-1">VENDA <span className="text-gold-gradient">PLUS</span></span>
+            <span className="text-2xl font-black text-white tracking-normal italic uppercase pr-4">VENDA <span className="text-gold-gradient">PLUS</span></span>
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -552,7 +552,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 <MessageSquare size={16} />
                 FALE COM O HUB
               </div>
-              <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-8 italic uppercase leading-tight pb-1">
+              <h2 className="text-3xl md:text-5xl font-black text-white tracking-normal mb-8 italic uppercase leading-[1.3] pb-4 pr-6">
                 Precisa de uma informação ou <span className="text-gold-gradient">activar um protocolo?</span>
               </h2>
               <p className="text-white/40 font-black text-xs uppercase tracking-[0.2em] leading-relaxed mb-12 italic">
