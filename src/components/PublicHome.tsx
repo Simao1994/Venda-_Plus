@@ -250,7 +250,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-gold-primary/10 border border-gold-primary/20 rounded-full text-gold-primary text-[10px] font-black uppercase tracking-[0.3em] mb-10 backdrop-blur-xl shadow-[0_0_20px_rgba(212,175,55,0.1)]">
               <ShieldCheck size={16} />
-              Protocolo Retail Premium V.2026
+              SISTEMA DE GESTÃO PREMIUM V.2026
             </div>
 
             <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight mb-8 max-w-2xl uppercase">
@@ -337,7 +337,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 px-4 py-2 bg-gold-primary/10 rounded-full border border-gold-primary/20 italic">
                 <Globe size={14} className="animate-spin-slow" />
-                VENDA PLUS MARKET PROTOCOL
+                MERCADO EXTERNO VENDA PLUS
               </div>
               <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight italic uppercase">
                 Oportunidades em <span className="text-gold-gradient">Tempo Real</span>
@@ -430,7 +430,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 <div className="flex justify-between items-start mb-8">
                   <div>
                     <span className="inline-block px-4 py-1.5 bg-gold-primary/10 text-gold-primary text-[9px] font-black uppercase tracking-[0.2em] rounded-full mb-4 border border-gold-primary/20">
-                      {vaga.tipo_contrato || 'Protocolo Standard'}
+                      {vaga.tipo_contrato || 'Contrato Standard'}
                     </span>
                     <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tight group-hover:text-gold-primary transition-colors italic">
                       {vaga.titulo}
@@ -470,7 +470,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                     }}
                     className="px-8 py-4 bg-gold-primary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white transition-all shadow-2xl active:scale-95 italic"
                   >
-                    PROTOCOLAR CANDIDATURA
+                    CANDIDATAR AGORA
                   </button>
                 </div>
               </div>
@@ -493,7 +493,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(212,175,55,0.05)_0%,transparent_70%)]" />
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="text-center mb-24">
-            <h2 className="text-5xl md:text-6xl font-black tracking-tight mb-6 italic uppercase pb-2">Algoritmos de <span className="text-gold-gradient">Custo</span></h2>
+            <h2 className="text-5xl md:text-6xl font-black tracking-tight mb-6 italic uppercase pb-2">Nossos <span className="text-gold-gradient">Planos</span></h2>
             <p className="text-white/40 font-black text-xs uppercase tracking-[0.3em] max-w-2xl mx-auto italic">
               Escolha o plano que melhor se adapta ao tamanho do seu negócio hoje, e cresça connosco amanhã.
             </p>
@@ -516,7 +516,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
                   <div className="flex items-baseline gap-2 mb-10">
                     <span className={`text-6xl font-black tracking-tight italic pb-2 ${plan.is_featured ? 'text-bg-deep' : 'text-white'}`}>{plan.price_monthly.toLocaleString()}</span>
-                    <span className={`text-[10px] font-black uppercase tracking-[0.3em] italic ${plan.is_featured ? 'text-bg-deep/40' : 'text-white/20'}`}>KZ / CICLO</span>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.3em] italic ${plan.is_featured ? 'text-bg-deep/40' : 'text-white/20'}`}>KZ / MÊS</span>
                   </div>
 
                   <ul className="space-y-4 mb-12">
@@ -533,7 +533,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                     className={`w-full py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all italic active:scale-95 ${plan.is_featured ? 'bg-bg-deep text-white hover:bg-white hover:text-bg-deep' : 'bg-gold-primary text-bg-deep hover:bg-white hover:text-bg-deep'
                       }`}
                   >
-                    INICIAR PROTOCOLO
+                    COMEÇAR AGORA
                   </button>
                 </div>
               );
@@ -553,7 +553,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                 FALE COM O HUB
               </div>
               <h2 className="text-3xl md:text-5xl font-black text-white tracking-normal mb-8 italic uppercase leading-[1.3] pb-4 pr-6">
-                Precisa de uma informação ou <span className="text-gold-gradient">activar um protocolo?</span>
+                Alguma dúvida ou deseja <span className="text-gold-gradient">falar connosco?</span>
               </h2>
               <p className="text-white/40 font-black text-xs uppercase tracking-[0.2em] leading-relaxed mb-12 italic">
                 Envie a sua mensagem directamente para as empresas. O seu pedido será processado e respondido através do nosso blog corporativo.
@@ -608,25 +608,25 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               }} className="space-y-8 relative z-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                    <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">IDENTIDADE</label>
-                    <input name="nome" required type="text" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all" placeholder="EX: AGENTE DELTA" />
+                    <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">SEU NOME</label>
+                    <input name="nome" required type="text" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all" placeholder="DIZ-NOS O TEU NOME" />
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">ENDEREÇO DIGITAL</label>
-                    <input name="email" required type="email" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all" placeholder="USER@PROTOCOL.COM" />
+                    <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">SEU EMAIL</label>
+                    <input name="email" required type="email" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all" placeholder="SEU@EMAIL.COM" />
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">DESTINO DO PROTOCOLO</label>
+                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">SELECIONE A EMPRESA</label>
                   <select name="company_id" required className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest outline-none transition-all cursor-pointer">
-                    <option value="" className="bg-bg-deep">SELECIONE O TARGET...</option>
+                    <option value="" className="bg-bg-deep">ESCOLHA A EMPRESA...</option>
                     {companies.map(c => (
                       <option key={c.id} value={c.id} className="bg-bg-deep">{c.name.toUpperCase()}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">MOTIVO DA CONEXÃO</label>
+                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">ASSUNTO</label>
                   <select name="assunto" className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest outline-none transition-all cursor-pointer">
                     <option className="bg-bg-deep">PEDIDO DE INFORMAÇÃO</option>
                     <option className="bg-bg-deep">SOLICITAR ORÇAMENTO</option>
@@ -636,11 +636,11 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                   </select>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">MENSAGEM DE COMUNICAÇÃO</label>
-                  <textarea name="mensagem" required rows={4} className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all resize-none" placeholder="DESCREVA O OBJECTIVO..." />
+                  <label className="text-[9px] font-black uppercase text-gold-primary tracking-[0.3em] ml-2 italic">SUA MENSAGEM</label>
+                  <textarea name="mensagem" required rows={4} className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/40 focus:ring-4 focus:ring-gold-primary/10 text-white font-black text-xs uppercase tracking-widest placeholder:text-white/5 outline-none transition-all resize-none" placeholder="COMO PODEMOS AJUDAR?" />
                 </div>
                 <button type="submit" className="w-full py-6 bg-gold-primary text-bg-deep rounded-[32px] font-black text-sm uppercase tracking-[0.4em] hover:bg-white transition-all shadow-2xl active:scale-95 italic">
-                  TRANSMITIR PROTOCOLO AGORA
+                  ENVIAR MENSAGEM AGORA
                 </button>
               </form>
             </div>
@@ -741,7 +741,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
                   rel="noopener noreferrer"
                   className="flex-1 py-6 bg-white/5 text-white border border-white/10 rounded-[32px] font-black text-sm uppercase tracking-[0.3em] hover:bg-white/10 transition-all text-center flex items-center justify-center italic"
                 >
-                  INFO. PROTOCOLO
+                  MAIS INFORMAÇÕES
                 </a>
               </div>
             </div>
@@ -789,7 +789,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
               <div className="p-12 md:p-16 space-y-10">
                 <div>
-                  <h3 className="text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-8 italic">PROPÓSITO DO PROTOCOLO</h3>
+                  <h3 className="text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-8 italic">SOLUÇÕES INTEGRADAS</h3>
                   <div className="space-y-8">
                     <div className="group">
                       <div className="flex items-center gap-4 mb-3">
