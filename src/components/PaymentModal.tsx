@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useReactToPrint } from 'react-to-print';
+import { Printer } from 'lucide-react';
 
 interface Customer {
   id: number;
@@ -20,6 +22,13 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
   const [amount, setAmount] = useState<string>('0');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
   const [loading, setLoading] = useState(false);
+  const [lastPayment, setLastPayment] = useState<any>(null);
+  const receiptRef = React.useRef<HTMLDivElement>(null);
+
+  const handlePrintReceipt = useReactToPrint({
+    contentRef: receiptRef,
+    documentTitle: 'Recibo_Pagamento'
+  });
 
   useEffect(() => {
     fetchPendingSales();
@@ -57,7 +66,18 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
     });
 
     if (res.ok) {
-      onSuccess();
+      const data = await res.json();
+      setLastPayment({
+        ...data,
+        customer_name: customer.name,
+        amount: amountNum,
+        date: new Date().toLocaleDateString()
+      });
+      // Small delay to allow state update then print
+      setTimeout(() => {
+        handlePrintReceipt();
+        onSuccess();
+      }, 500);
     } else {
       const data = await res.json();
       alert(data.error || 'Erro ao processar pagamento');
@@ -152,6 +172,57 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Receipt Template (Hidden) */}
+      <div style={{ display: 'none' }}>
+        <div ref={receiptRef} className="receipt-container" style={{
+          width: '80mm',
+          padding: '2mm 4mm',
+          backgroundColor: 'white',
+          color: 'black',
+          fontFamily: "'Times New Roman', Times, serif",
+          fontSize: '12px'
+        }}>
+          <div className="text-center" style={{ textAlign: 'center', marginBottom: '8px' }}>
+            <h2 style={{ fontWeight: '900', fontSize: '14px', textTransform: 'uppercase', margin: '0' }}>{user?.company_name}</h2>
+            <p style={{ margin: '2px 0', fontSize: '10px' }}>NIF: {user?.nif || '---'}</p>
+            <p style={{ margin: '2px 0', fontSize: '10px' }}>RECIBO DE PAGAMENTO (RE)</p>
+          </div>
+          <div style={{ borderTop: '1px dashed black', borderBottom: '1px dashed black', padding: '4px 0', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Nº DOC:</span>
+              <span style={{ fontWeight: 'bold' }}>{lastPayment?.document_number}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>DATA/HORA:</span>
+              <span style={{ fontWeight: 'bold' }}>
+                {lastPayment?.created_at ?
+                  new Date(lastPayment.created_at).toLocaleString('pt-AO', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  }) : lastPayment?.date}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>CLIENTE:</span>
+              <span style={{ fontWeight: 'bold' }}>{lastPayment?.customer_name}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>NIF CLIENTE:</span>
+              <span style={{ fontWeight: 'bold' }}>{lastPayment?.customer_nif || '999999999'}</span>
+            </div>
+          </div>
+          <div style={{ marginBottom: '10px' }}>
+            <p style={{ margin: '0 0 5px 0' }}>Recebemos a quantia de:</p>
+            <p style={{ fontWeight: 'bold', fontSize: '14px', margin: '0' }}>{lastPayment?.amount?.toLocaleString()} {user?.currency}</p>
+            <p style={{ fontSize: '10px', marginTop: '5px' }}>Referente à liquidação da fatura associada à transação.</p>
+          </div>
+          <div style={{ borderTop: '1px dashed black', paddingTop: '5px', textAlign: 'center', fontSize: '10px' }}>
+            <p style={{ margin: '0', fontWeight: 'bold' }}>{lastPayment?.hash?.substring(0, 4)}-Processado por Programas Validados</p>
+            <p style={{ margin: '2px 0 0 0', opacity: 0.7 }}>Obrigado pela preferência!</p>
+          </div>
+        </div>
       </div>
     </div>
   );

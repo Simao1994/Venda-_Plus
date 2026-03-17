@@ -1622,8 +1622,13 @@ const HRPage: React.FC<HRPageProps> = ({ user }) => {
                      </div>
 
                      <div className="flex-1 overflow-auto p-8 print:p-0" id="payroll-sheet-print">
-                        <div className="mb-6 text-center">
-                           <h1 className="text-xl font-bold uppercase" style={{ fontFamily: 'Times New Roman' }}>Folha de Salário - {corporateInfo?.name || 'Amazing Corporation'}</h1>
+                        <div className="mb-6 flex flex-col items-center gap-2">
+                           {companyProfile?.logo && (
+                              <img src={companyProfile.logo} className="h-16 w-auto object-contain mb-2" alt="Logo" />
+                           )}
+                           <h1 className="text-xl font-bold uppercase" style={{ fontFamily: 'Times New Roman' }}>
+                              Folha de Salário - {companyProfile?.name || corporateInfo?.name || user?.company_name}
+                           </h1>
                            <p className="text-sm italic" style={{ fontFamily: 'Times New Roman' }}>Período: {currentMonthName} de {currentFiscalYear}</p>
                         </div>
 

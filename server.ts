@@ -13,11 +13,43 @@ const JWT_SECRET = process.env.JWT_SECRET || "super-secret-erp-key";
 import { runMigration } from "./src/lib/migrations-manager.ts";
 import crypto from "crypto";
 
+// --- HELPERS ---
+const generateHash = (data: string, prevHash: string = '') => {
+  // Using SHA256 for maximum data integrity and AGT compliance
+  // The hash chains the current document data with the previous one
+  return crypto.createHash('sha256').update(data + prevHash).digest('base64');
+};
+
+const escapeXml = (unsafe: string) => {
+  if (!unsafe) return '';
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
+};
+
 // Note: Database schema initialization is now handled via supabase_schema.sql
 // which should be run in the Supabase Dashboard SQL Editor.
 
+// --- AGT IMMUTABILITY GUARD ---
+// Mandatory Rule: Documents (Sales, Payments, Invoices) CANNOT be deleted or edited after issuance.
+// To reverse a document, a "Nota de Crédito" (NC) must be issued instead of modifying original data.
+const blockMutation = (req: any, res: any, next: any) => {
+  if (['PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return res.status(403).json({ error: "AGT Compliance: Documents are immutable and cannot be deleted or edited." });
+  }
+  next();
+};
+
 async function startServer() {
   console.log('🚀 Server starting...');
+
   // 0. Key Validation
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -36,6 +68,27 @@ async function startServer() {
       ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount REAL DEFAULT 0;
       ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_pro_forma BOOLEAN DEFAULT FALSE;
     `);
+
+    // AGT Compliance Columns Migration
+    await runMigration('add_agt_compliance_columns_20260317', `
+      -- Sales
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS hash TEXT;
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS prev_hash TEXT;
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT FALSE;
+      
+      -- Payments (Receipts)
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS document_number TEXT;
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS hash TEXT;
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS prev_hash TEXT;
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT FALSE;
+    `);
+
+    // AGT Compliance Columns Migration (using rpc for more complex alterations if needed, or just direct SQL)
+    await supabase.rpc('exec_sql', { sql: `ALTER TABLE sales ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
+    await supabase.rpc('exec_sql', { sql: `ALTER TABLE payments ADD COLUMN IF NOT EXISTS document_number TEXT, ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE` });
+    await supabase.rpc('exec_sql', { sql: `ALTER TABLE contabil_faturas ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS type_prefix TEXT, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
+    console.log('Compliance and Tax migrations applied.');
+
   }).catch(err => {
     console.error('❌ Database Schema Sync Failed:', err.message);
   });
@@ -75,6 +128,12 @@ async function startServer() {
   const app = express();
   app.use(cors());
   app.use(express.json());
+
+  // --- APPLY AGT IMMUTABILITY GUARDS ---
+  app.use("/api/sales", blockMutation);
+  app.use("/api/payments", blockMutation);
+  app.use("/api/documents", blockMutation);
+  app.use("/api/contabil_faturas", blockMutation);
 
   // Auth Middleware
   const authenticate = (req: any, res: any, next: any) => {
@@ -153,6 +212,29 @@ async function startServer() {
     next();
   };
 
+  // Activity Logger Helper
+  const logActivity = async (req: any, action: string, resource: string, description: string, metadata: any = {}) => {
+    try {
+      const companyId = req.user?.company_id;
+      const userId = req.user?.id;
+      const userName = req.user?.name || 'Sistema';
+      const ip = req.ip || req.headers['x-forwarded-for'] || '';
+
+      await supabase.from('activity_logs').insert({
+        company_id: companyId,
+        user_id: userId,
+        user_name: userName,
+        action,
+        resource,
+        description,
+        metadata,
+        ip_address: ip
+      });
+    } catch (err) {
+      console.error('❌ Failed to log activity:', err);
+    }
+  };
+
   // Auth Routes
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
@@ -178,6 +260,9 @@ async function startServer() {
     }
 
     console.log(`✅ Login bem-sucedido: ${email}`);
+
+    // Log login activity
+    await logActivity({ user, ip: req.ip }, 'LOGIN', 'AUTH', `Utilizador ${email} iniciou sessão.`);
 
     // @ts-ignore
     const companies = user.companies;
@@ -593,6 +678,10 @@ async function startServer() {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log user creation
+    await logActivity(req, 'CREATE', 'USER', `Utilizador ${name} (${email}) criado com perfil ${role}.`, { email, role });
+
     res.json(data);
   });
 
@@ -609,6 +698,10 @@ async function startServer() {
       .eq("company_id", req.user.company_id); // Security: ensure it's the same company
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log user deletion
+    await logActivity(req, 'DELETE', 'USER', `Utilizador ID ${req.params.id} removido.`, { user_id: req.params.id });
+
     res.json({ success: true });
   });
 
@@ -729,6 +822,10 @@ async function startServer() {
 
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log product creation
+    await logActivity(req, 'CREATE', 'PRODUCT', `Produto ${name} criado. Preço: ${sale_price} ${req.user.currency}. Stock inicial: ${stock}`, { name, sale_price, stock });
+
     res.json({ id: data.id });
   });
 
@@ -741,6 +838,10 @@ async function startServer() {
       .eq("company_id", req.user.company_id);
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log stock update
+    await logActivity(req, 'UPDATE', 'PRODUCT', `Stock do produto ID ${req.params.id} atualizado para ${stock}.`, { product_id: req.params.id, new_stock: stock });
+
     res.json({ success: true });
   });
 
@@ -803,6 +904,10 @@ async function startServer() {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log expense creation
+    await logActivity(req, 'CREATE', 'EXPENSE', `Despesa '${description}' registada no valor de ${amount} ${req.user.currency}.`, { description, amount });
+
     res.json({ id: data.id });
   });
 
@@ -818,16 +923,56 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.get("/api/expenses", authenticate, async (req: any, res) => {
+    const { start_date, end_date, status, search } = req.query;
+    let query = supabase
+      .from("expenses")
+      .select("*, suppliers(name)")
+      .eq("company_id", req.user.company_id);
+
+    if (start_date) query = query.gte("due_date", start_date);
+    if (end_date) query = query.lte("due_date", end_date);
+    if (status && status !== 'all') query = query.eq("status", status);
+    if (search) query = query.ilike("description", `%${search}%`);
+
+    const { data: expenses, error } = await query.order("due_date", { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const formatted = expenses?.map((e: any) => ({
+      ...e,
+      supplier_name: e.suppliers?.name
+    }));
+
+    res.json(formatted || []);
+  });
+
   // Accounts Receivable (Contas a Receber)
   app.get("/api/financial/receivable", authenticate, async (req: any, res) => {
-    const { data: pendingSales, error } = await supabase
+    const { start_date, end_date, status, search } = req.query;
+    let query = supabase
       .from("sales")
       .select("*, customers(name)")
-      .eq("company_id", req.user.company_id)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
+      .eq("company_id", req.user.company_id);
 
-    const formatted = pendingSales?.map((s: any) => ({
+    if (start_date) query = query.gte("created_at", start_date);
+    if (end_date) query = query.lte("created_at", `${end_date}T23:59:59`);
+
+    if (status === 'paid') {
+      query = query.eq("status", "paid");
+    } else if (status === 'pending') {
+      query = query.eq("status", "pending");
+    }
+
+    if (search) {
+      query = query.or(`invoice_number.ilike.%${search}%,customers.name.ilike.%${search}%`);
+    }
+
+    const { data: sales, error } = await query.order("created_at", { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const formatted = sales?.map((s: any) => ({
       ...s,
       customer_name: s.customers?.name
     }));
@@ -861,6 +1006,10 @@ async function startServer() {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log customer creation
+    await logActivity(req, 'CREATE', 'CUSTOMER', `Cliente '${name}' registado.`, { name, nif });
+
     res.json(data);
   });
 
@@ -876,46 +1025,6 @@ async function startServer() {
     res.json(sales || []);
   });
 
-  app.post("/api/payments", authenticate, async (req: any, res) => {
-    const { sale_id, amount, payment_method } = req.body;
-
-    // Record payment
-    const { error: payError } = await supabase
-      .from("payments")
-      .insert([{
-        company_id: req.user.company_id,
-        sale_id,
-        amount,
-        payment_method
-      }]);
-
-    if (payError) return res.status(500).json({ error: payError.message });
-
-    // Update sale
-    const { data: sale } = await supabase.from("sales").select("*").eq("id", sale_id).single();
-    if (!sale) return res.status(404).json({ error: "Venda não encontrada" });
-
-    const newAmountPaid = (sale.amount_paid || 0) + amount;
-    const newStatus = newAmountPaid >= sale.total ? 'paid' : 'pending';
-
-    await supabase
-      .from("sales")
-      .update({ amount_paid: newAmountPaid, status: newStatus })
-      .eq("id", sale_id);
-
-    // Update customer balance
-    if (sale.customer_id) {
-      const { data: customer } = await supabase.from("customers").select("balance").eq("id", sale.customer_id).single();
-      if (customer) {
-        await supabase
-          .from("customers")
-          .update({ balance: (customer.balance || 0) - amount })
-          .eq("id", sale.customer_id);
-      }
-    }
-
-    res.json({ sale_id, newAmountPaid, newStatus });
-  });
 
   app.get("/api/customers/:id/history", authenticate, async (req: any, res) => {
     const { data: sales, error: salesError } = await supabase
@@ -977,8 +1086,58 @@ async function startServer() {
   });
 
   app.post("/api/sales", authenticate, async (req: any, res) => {
-    const { items, customer_id, subtotal, tax, total, amount_paid, change, payment_method, discount, is_pro_forma } = req.body;
-    const invoice_number = is_pro_forma ? `PRO-${Date.now()}` : `FAC-${Date.now()}`;
+    const { items, customer_id, subtotal, tax, total, amount_paid, change, payment_method, discount, is_pro_forma, is_exempt, exemption_reason } = req.body;
+
+    // Determine Document Type and Fetch Billing Series
+    let docType = is_pro_forma ? 'PRO' : 'FAC';
+
+    // AGT: If not pro-forma and payment is immediate (not credit), it should be a Fatura-Recibo (FR)
+    if (!is_pro_forma && payment_method !== 'credit') {
+      docType = 'FR';
+    }
+    const { data: activeSeries, error: seriesError } = await supabase
+      .from("billing_series")
+      .select("*")
+      .eq("company_id", req.user.company_id)
+      .eq("doc_type", docType)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    let invoice_number;
+    if (activeSeries) {
+      const currentYear = new Date().getFullYear();
+      let nextNumber = (activeSeries.last_number || 0) + 1;
+
+      // Automatic Year Update & Counter Reset
+      // Detect if we entered a new year relative to the last update
+      const lastUpdateYear = activeSeries.updated_at ? new Date(activeSeries.updated_at).getFullYear() : currentYear;
+
+      if (lastUpdateYear < currentYear) {
+        console.log(`[Billing] Novo ano detectado (${currentYear}). Reiniciando contador da série ${activeSeries.series_name}`);
+        nextNumber = 1;
+      }
+
+      const paddedNumber = String(nextNumber).padStart(3, '0');
+      // Format: DOC-YEAR/NUMBER (Ex: FAC-2026/001)
+      invoice_number = `${activeSeries.doc_type}-${currentYear}/${paddedNumber}`;
+
+      // Update last_number in series
+      await supabase
+        .from("billing_series")
+        .update({
+          last_number: nextNumber,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", activeSeries.id);
+    } else {
+      // Fallback to timestamp if no active series found
+      invoice_number = is_pro_forma ? `PRO-${Date.now()}` : `FAC-${Date.now()}`;
+    }
+
+    // Log sale activity
+    await logActivity(req, 'CREATE', 'SALE', `${is_pro_forma ? 'Fatura Pro-forma' : 'Venda'} ${invoice_number} realizada. Total: ${total} ${req.user.currency}`, { invoice_number, total, is_pro_forma });
+
     const status = is_pro_forma ? 'pending' : (payment_method === 'credit' ? 'pending' : 'paid');
 
     let branchId = req.user.branch_id;
@@ -1018,6 +1177,18 @@ async function startServer() {
       .eq("status", "open")
       .maybeSingle();
 
+    // Fetch last sale hash for the company to chain the signature (AGT Compliance)
+    const { data: lastSaleForHash } = await supabase
+      .from("sales")
+      .select("hash")
+      .eq("company_id", req.user.company_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const prevHash = lastSaleForHash?.hash || '';
+    const currentHash = generateHash(`${invoice_number}|${total}|${new Date().toISOString()}`, prevHash);
+
     try {
       // 1. Create Sale
       const { data: saleData, error: saleError } = await supabase
@@ -1036,8 +1207,14 @@ async function startServer() {
           discount: discount || 0,
           is_pro_forma: !!is_pro_forma,
           payment_method: is_pro_forma ? 'credit' : payment_method,
+          is_exempt: is_exempt || false,
+          exemption_reason: is_exempt ? exemption_reason : null,
           status,
-          invoice_number
+          invoice_number,
+          // AGT Compliance fields
+          hash: currentHash,
+          prev_hash: prevHash,
+          is_certified: true
         }])
         .select("id")
         .single();
@@ -1080,10 +1257,262 @@ async function startServer() {
         }
       }
 
-      res.json({ id: saleId, invoice_number });
+      res.json({ id: saleId, invoice_number, hash: currentHash });
     } catch (err: any) {
       console.error('❌ Erro inesperado ao processar venda:', err);
       res.status(500).json({ error: err.message || "Erro ao processar venda" });
+    }
+  });
+
+  app.post("/api/sales/:id/cancel", authenticate, isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      // 1. Get Sale info
+      const { data: sale, error: saleErr } = await supabase
+        .from("sales")
+        .select("*, items:sale_items(*)")
+        .eq("id", id)
+        .eq("company_id", req.user.company_id)
+        .single();
+
+      if (saleErr || !sale) return res.status(404).json({ error: "Venda não encontrada" });
+      if (sale.status === 'cancelled') return res.status(400).json({ error: "Esta venda já foi anulada" });
+
+      // 2. Generate Nota de Crédito (NC) document
+      const { data: activeNCSeries } = await supabase
+        .from("billing_series")
+        .select("*")
+        .eq("company_id", req.user.company_id)
+        .eq("doc_type", "NC")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      let document_number;
+      if (activeNCSeries) {
+        const currentYear = new Date().getFullYear();
+        let nextNumber = (activeNCSeries.last_number || 0) + 1;
+        const lastUpdateYear = activeNCSeries.updated_at ? new Date(activeNCSeries.updated_at).getFullYear() : currentYear;
+        if (lastUpdateYear < currentYear) nextNumber = 1;
+
+        const paddedNumber = String(nextNumber).padStart(3, '0');
+        document_number = `NC-${currentYear}/${paddedNumber}`;
+
+        await supabase
+          .from("billing_series")
+          .update({ last_number: nextNumber, updated_at: new Date().toISOString() })
+          .eq("id", activeNCSeries.id);
+      } else {
+        document_number = `NC-${Date.now()}`;
+      }
+
+      // Generate Hash for NC
+      const { data: lastSaleForHash } = await supabase
+        .from("sales")
+        .select("hash")
+        .eq("company_id", req.user.company_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const prevHash = lastSaleForHash?.hash || '';
+      const currentHash = generateHash(`${document_number}|${sale.total}|${new Date().toISOString()}`, prevHash);
+
+      // 3. Update Sale Status
+      await supabase
+        .from("sales")
+        .update({ status: 'cancelled', metadata: { ...sale.metadata, cancelled_at: new Date().toISOString(), cancel_reason: reason, nc_number: document_number, nc_hash: currentHash } })
+        .eq("id", id);
+
+      // 4. Restore Stock
+      for (const item of sale.items) {
+        const { data: product } = await supabase.from("products").select("stock").eq("id", item.product_id).single();
+        if (product) {
+          await supabase.from("products").update({ stock: product.stock + item.quantity }).eq("id", item.product_id);
+        }
+      }
+
+      // 5. Update Customer Balance if credit
+      if (sale.payment_method === 'credit' && sale.customer_id) {
+        const { data: customer } = await supabase.from("customers").select("balance").eq("id", sale.customer_id).single();
+        if (customer) {
+          await supabase.from("customers").update({ balance: Math.max(0, (customer.balance || 0) - sale.total) }).eq("id", sale.customer_id);
+        }
+      }
+
+      // Log cancellation
+      await logActivity(req, 'CANCEL', 'SALE', `Venda ${sale.invoice_number} anulada via ${document_number}. Motivo: ${reason}`, { sale_id: id, nc_number: document_number });
+
+      res.json({ success: true, nc_number: document_number, hash: currentHash });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Billing Series Management
+  app.get("/api/billing-series", authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("billing_series")
+        .select("*")
+        .eq("company_id", req.user.company_id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/billing-series", authenticate, isAdmin, async (req: any, res) => {
+    try {
+      const { doc_type, series_name } = req.body;
+      const { data, error } = await supabase
+        .from("billing_series")
+        .insert([{
+          company_id: req.user.company_id,
+          doc_type,
+          series_name,
+          last_number: 0,
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/billing-series/:id/toggle", authenticate, isAdmin, async (req: any, res) => {
+    try {
+      const { is_active } = req.body;
+      const { error } = await supabase
+        .from("billing_series")
+        .update({ is_active })
+        .eq("id", req.params.id)
+        .eq("company_id", req.user.company_id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/payments", authenticate, async (req: any, res) => {
+    const { sale_id, amount, payment_method } = req.body;
+
+    try {
+      // 1. Get Sale info
+      const { data: sale, error: saleErr } = await supabase
+        .from("sales")
+        .select("*")
+        .eq("id", sale_id)
+        .eq("company_id", req.user.company_id)
+        .single();
+
+      if (saleErr || !sale) return res.status(404).json({ error: "Venda não encontrada" });
+
+      const newAmountPaid = (sale.amount_paid || 0) + amount;
+      const status = newAmountPaid >= sale.total ? 'paid' : 'pending';
+
+      // AGT: Generate Receipt (RE) document
+      const { data: activeRESeries } = await supabase
+        .from("billing_series")
+        .select("*")
+        .eq("company_id", req.user.company_id)
+        .eq("doc_type", "RE")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      let document_number;
+      if (activeRESeries) {
+        const currentYear = new Date().getFullYear();
+        let nextNumber = (activeRESeries.last_number || 0) + 1;
+
+        // Year reset check
+        const lastUpdateYear = activeRESeries.updated_at ? new Date(activeRESeries.updated_at).getFullYear() : currentYear;
+        if (lastUpdateYear < currentYear) nextNumber = 1;
+
+        const paddedNumber = String(nextNumber).padStart(3, '0');
+        document_number = `RE-${currentYear}/${paddedNumber}`;
+
+        // Update series
+        await supabase
+          .from("billing_series")
+          .update({ last_number: nextNumber, updated_at: new Date().toISOString() })
+          .eq("id", activeRESeries.id);
+      } else {
+        document_number = `RE-${Date.now()}`;
+      }
+
+      // Fetch last payment hash for chaining
+      const { data: lastPaymentForHash } = await supabase
+        .from("payments")
+        .select("hash")
+        .eq("company_id", req.user.company_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const prevHash = lastPaymentForHash?.hash || '';
+      const currentHash = generateHash(`${document_number}|${amount}|${new Date().toISOString()}`, prevHash);
+
+      // 2. Record payment with Document info and Hash
+      const { error: payError } = await supabase
+        .from("payments")
+        .insert([{
+          company_id: req.user.company_id,
+          sale_id,
+          amount,
+          payment_method,
+          document_number,
+          hash: currentHash,
+          prev_hash: prevHash,
+          is_certified: true
+        }]);
+
+      if (payError) throw payError;
+
+      // 3. Update Sale
+      const { error: updateErr } = await supabase
+        .from("sales")
+        .update({
+          amount_paid: newAmountPaid,
+          status,
+          payment_method: sale.payment_method === 'credit' ? payment_method : sale.payment_method
+        })
+        .eq("id", sale_id);
+
+      if (updateErr) throw updateErr;
+
+      // 3. Update Customer Balance if it was a credit sale
+      if (sale.payment_method === 'credit' && sale.customer_id) {
+        const { data: customer } = await supabase
+          .from("customers")
+          .select("balance")
+          .eq("id", sale.customer_id)
+          .single();
+
+        if (customer) {
+          const newBalance = Math.max(0, (customer.balance || 0) - amount);
+          await supabase.from("customers").update({ balance: newBalance }).eq("id", sale.customer_id);
+        }
+      }
+
+      // Log payment
+      await logActivity(req, 'PAYMENT', 'FINANCIAL', `Pagamento de ${amount} ${req.user.currency} registado para a venda ID ${sale_id}.`, { sale_id, amount, payment_method });
+
+      res.json({ success: true, new_amount_paid: newAmountPaid, status, document_number, hash: currentHash });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
@@ -1126,6 +1555,10 @@ async function startServer() {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log cash register opening
+    await logActivity(req, 'OPEN', 'CASH_REGISTER', `Caixa aberto com valor inicial de ${initial_value} ${req.user.currency}.`, { initial_value });
+
     res.json(data);
   });
 
@@ -1154,6 +1587,10 @@ async function startServer() {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // Log cash register closing
+    await logActivity(req, 'CLOSE', 'CASH_REGISTER', `Caixa fechado. Total vendido: ${total_sold} ${req.user.currency}.`, { total_sold, final_value: register.initial_value + total_sold });
+
     res.json(data);
   });
 
@@ -1766,6 +2203,180 @@ async function startServer() {
       .slice(0, 10);
 
     res.json(topSelling);
+  });
+
+  app.get("/api/reports/saft", authenticate, async (req: any, res) => {
+    const { month, year } = req.query;
+    const companyId = req.user.company_id;
+
+    if (!month || !year) return res.status(400).json({ error: "Mês e Ano são obrigatórios." });
+
+    try {
+      // 1. Fetch Data
+      const startDate = `${year}-${month.padStart(2, '0')}-01T00:00:00.000Z`;
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const endDate = `${year}-${month.padStart(2, '0')}-${lastDay}T23:59:59.999Z`;
+
+      const { data: company } = await supabase.from("companies").select("*").eq("id", companyId).single();
+      const { data: sales, error: salesError } = await supabase
+        .from("sales")
+        .select("*, sale_items(*, products(*)), customers(*)")
+        .eq("company_id", companyId)
+        .gte("created_at", startDate)
+        .lte("created_at", endDate);
+
+      if (salesError) throw salesError;
+
+      // 2. Build XML
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<AuditFile xmlns="urn:OECD:StandardAuditFile-Tax:AO:1.01">\n`;
+
+      // Header
+      xml += `  <Header>\n`;
+      xml += `    <AuditFileVersion>1.01</AuditFileVersion>\n`;
+      xml += `    <CompanyID>${escapeXml(company?.nif || '---')}</CompanyID>\n`;
+      xml += `    <TaxRegistrationNumber>${escapeXml(company?.nif || '---')}</TaxRegistrationNumber>\n`;
+      xml += `    <CompanyName>${escapeXml(company?.name || '---')}</CompanyName>\n`;
+      xml += `    <CompanyAddress>\n`;
+      xml += `      <AddressDetail>${escapeXml(company?.address || '---')}</AddressDetail>\n`;
+      xml += `      <City>${escapeXml(company?.city || 'Luanda')}</City>\n`;
+      xml += `      <Country>AO</Country>\n`;
+      xml += `    </CompanyAddress>\n`;
+      xml += `    <FiscalYear>${year}</FiscalYear>\n`;
+      xml += `    <StartDate>${startDate.split('T')[0]}</StartDate>\n`;
+      xml += `    <EndDate>${endDate.split('T')[0]}</EndDate>\n`;
+      xml += `    <CurrencyCode>AOA</CurrencyCode>\n`;
+      xml += `    <DateCreated>${new Date().toISOString().split('T')[0]}</DateCreated>\n`;
+      xml += `    <TaxEntity>Global</TaxEntity>\n`;
+      xml += `    <ProductCompanyID>Amazing Corporation</ProductCompanyID>\n`;
+      xml += `    <SoftwareCertificateNumber>0000/AGT/2026</SoftwareCertificateNumber>\n`;
+      xml += `    <ProductID>Venda Plus/AGT-Verified</ProductID>\n`;
+      xml += `    <ProductVersion>2.0.0</ProductVersion>\n`;
+      xml += `  </Header>\n`;
+
+      // MasterFiles
+      xml += `  <MasterFiles>\n`;
+
+      // Customers
+      const uniqueCustomers = Array.from(new Set(sales?.map(s => s.customers?.id).filter(id => id)));
+      for (const cid of uniqueCustomers) {
+        const cust = sales?.find(s => s.customers?.id === cid)?.customers;
+        if (cust) {
+          xml += `    <Customer>\n`;
+          xml += `      <CustomerID>${cust.id}</CustomerID>\n`;
+          xml += `      <CustomerTaxID>${escapeXml(cust.nif || '999999999')}</CustomerTaxID>\n`;
+          xml += `      <AccountID>Desconhecido</AccountID>\n`;
+          xml += `      <CompanyName>${escapeXml(cust.name)}</CompanyName>\n`;
+          xml += `      <BillingAddress><AddressDetail>---</AddressDetail><City>---</City><Country>AO</Country></BillingAddress>\n`;
+          xml += `      <SelfBillingIndicator>0</SelfBillingIndicator>\n`;
+          xml += `    </Customer>\n`;
+        }
+      }
+
+      // Products
+      const productsMap = new Map();
+      sales?.forEach(s => s.sale_items?.forEach((si: any) => {
+        if (si.products) productsMap.set(si.products.id, si.products);
+      }));
+      for (const prod of productsMap.values()) {
+        xml += `    <Product>\n`;
+        xml += `      <ProductType>P</ProductType>\n`;
+        xml += `      <ProductCode>${prod.id}</ProductCode>\n`;
+        xml += `      <ProductDescription>${escapeXml(prod.name)}</ProductDescription>\n`;
+        xml += `      <ProductNumberCode>${prod.id}</ProductNumberCode>\n`;
+        xml += `    </Product>\n`;
+      }
+
+      // TaxTable
+      xml += `    <TaxTable>\n`;
+      xml += `      <TaxTableEntry>\n`;
+      xml += `        <TaxType>IVA</TaxType>\n`;
+      xml += `        <TaxCountryRegion>AO</TaxCountryRegion>\n`;
+      xml += `        <TaxCode>NOR</TaxCode>\n`;
+      xml += `        <Description>Taxa Normal</Description>\n`;
+      xml += `        <TaxPercentage>14.00</TaxPercentage>\n`;
+      xml += `      </TaxTableEntry>\n`;
+      xml += `      <TaxTableEntry>\n`;
+      xml += `        <TaxType>IVA</TaxType>\n`;
+      xml += `        <TaxCountryRegion>AO</TaxCountryRegion>\n`;
+      xml += `        <TaxCode>ISE</TaxCode>\n`;
+      xml += `        <Description>Isento</Description>\n`;
+      xml += `        <TaxPercentage>0.00</TaxPercentage>\n`;
+      xml += `      </TaxTableEntry>\n`;
+      xml += `    </TaxTable>\n`;
+      xml += `  </MasterFiles>\n`;
+
+      // SourceDocuments
+      xml += `  <SourceDocuments>\n`;
+      xml += `    <SalesInvoices>\n`;
+      xml += `      <NumberOfEntries>${sales?.length || 0}</NumberOfEntries>\n`;
+      xml += `      <TotalDebit>0.00</TotalDebit>\n`;
+      xml += `      <TotalCredit>${sales?.reduce((acc, s) => acc + s.total, 0).toFixed(2) || '0.00'}</TotalCredit>\n`;
+
+      for (const s of (sales || [])) {
+        const type = s.is_pro_forma ? 'PRO' : 'FT';
+        xml += `      <Invoice>\n`;
+        xml += `        <InvoiceNo>${type} ${s.id}</InvoiceNo>\n`;
+        xml += `        <DocumentStatus>\n`;
+        xml += `          <InvoiceStatus>N</InvoiceStatus>\n`;
+        xml += `          <InvoiceStatusDate>${s.created_at}</InvoiceStatusDate>\n`;
+        xml += `          <SourceID>${s.vendedor_id || 'system'}</SourceID>\n`;
+        xml += `          <SourceBilling>P</SourceBilling>\n`;
+        xml += `        </DocumentStatus>\n`;
+        xml += `        <Hash>${escapeXml(s.hash || '')}</Hash>\n`;
+        xml += `        <HashControl>1</HashControl>\n`;
+        xml += `        <Period>${month}</Period>\n`;
+        xml += `        <InvoiceDate>${s.created_at.split('T')[0]}</InvoiceDate>\n`;
+        xml += `        <InvoiceType>${type}</InvoiceType>\n`;
+        xml += `        <SelfBillingIndicator>0</SelfBillingIndicator>\n`;
+        xml += `        <SystemEntryDate>${s.created_at}</SystemEntryDate>\n`;
+        xml += `        <CustomerID>${s.customers?.id || '0'}</CustomerID>\n`;
+
+        s.sale_items?.forEach((si: any, idx: number) => {
+          xml += `        <Line>\n`;
+          xml += `          <LineNumber>${idx + 1}</LineNumber>\n`;
+          xml += `          <ProductCode>${si.products?.id}</ProductCode>\n`;
+          xml += `          <ProductDescription>${escapeXml(si.products?.name)}</ProductDescription>\n`;
+          xml += `          <Quantity>${si.quantity}</Quantity>\n`;
+          xml += `          <UnitOfMeasure>un</UnitOfMeasure>\n`;
+          xml += `          <UnitPrice>${(si.unit_price || 0).toFixed(2)}</UnitPrice>\n`;
+          xml += `          <TaxPointDate>${s.created_at.split('T')[0]}</TaxPointDate>\n`;
+          xml += `          <Description>${escapeXml(si.products?.name)}</Description>\n`;
+          xml += `          <CreditAmount>${(si.total || 0).toFixed(2)}</CreditAmount>\n`;
+          xml += `          <Tax>\n`;
+          xml += `            <TaxType>IVA</TaxType>\n`;
+          xml += `            <TaxCountryRegion>AO</TaxCountryRegion>\n`;
+          xml += `            <TaxCode>${s.is_exempt ? 'ISE' : 'NOR'}</TaxCode>\n`;
+          xml += `            <TaxPercentage>${s.is_exempt ? '0.00' : '14.00'}</TaxPercentage>\n`;
+          xml += `          </Tax>\n`;
+          if (s.is_exempt) {
+            xml += `          <TaxExemptionReason>${escapeXml(s.exemption_reason || 'Isento')}</TaxExemptionReason>\n`;
+            xml += `          <TaxExemptionCode>M00</TaxExemptionCode>\n`;
+          }
+          xml += `          <SettlementAmount>0.00</SettlementAmount>\n`;
+          xml += `        </Line>\n`;
+        });
+
+        xml += `        <DocumentTotals>\n`;
+        xml += `          <TaxPayable>${(s.total - (s.total / 1.14)).toFixed(2)}</TaxPayable>\n`;
+        xml += `          <NetTotal>${(s.total / 1.14).toFixed(2)}</NetTotal>\n`;
+        xml += `          <GrossTotal>${s.total.toFixed(2)}</GrossTotal>\n`;
+        xml += `        </DocumentTotals>\n`;
+        xml += `      </Invoice>\n`;
+      }
+
+      xml += `    </SalesInvoices>\n`;
+      xml += `  </SourceDocuments>\n`;
+      xml += `</AuditFile>`;
+
+      res.setHeader('Content-Type', 'application/xml');
+      res.setHeader('Content-Disposition', `attachment; filename=SAFT_AO_${company?.nif || 'EMPRESA'}_${year}_${month}.xml`);
+      res.send(xml);
+
+    } catch (err: any) {
+      console.error("SAFT Error:", err);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // --- MÓDULO RECURSOS HUMANOS APIs ---
@@ -2381,6 +2992,23 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Activity Logs API
+  app.get("/api/activity-logs", authenticate, isAdmin, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .eq("company_id", req.user.company_id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- MASTER ADMIN APIs ---
   app.get("/api/saas/master/stats", authenticate, isMaster, async (req, res) => {
     try {
@@ -2532,6 +3160,87 @@ async function startServer() {
 
 
   const PORT = process.env.PORT || 3000;
+  // Certified Document Generation (Universal)
+  app.post('/api/documents', authenticate, async (req: any, res: any) => {
+    const { type, items, customer_name, metadata, company_id } = req.body;
+    if (!type || !items || !customer_name) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    try {
+      const prefix = type === 'Factura' ? 'FT' :
+        type === 'Factura-Recibo' ? 'FR' :
+          type === 'Recibo' ? 'RE' :
+            type === 'Nota de Crédito' ? 'NC' :
+              type === 'Nota de Débito' ? 'ND' : 'PRO';
+
+      const year = new Date().getFullYear();
+      const series = `${prefix} ${year}`;
+
+      // Get sequence
+      let { data: bSeries, error: sError } = await supabase
+        .from('billing_series')
+        .select('*')
+        .eq('series', series)
+        .eq('company_id', company_id || req.user.company_id)
+        .single();
+
+      if (sError && sError.code !== 'PGRST116') throw sError;
+
+      let nextNum = 1;
+      if (bSeries) {
+        nextNum = bSeries.current_number + 1;
+        await supabase.from('billing_series').update({ current_number: nextNum }).eq('id', bSeries.id);
+      } else {
+        await supabase.from('billing_series').insert({
+          series,
+          prefix,
+          current_number: 1,
+          year,
+          company_id: company_id || req.user.company_id
+        });
+      }
+
+      const docNumber = `${series}/${nextNum}`;
+      const total = items.reduce((acc: number, i: any) => acc + (i.total || (i.qtd * (i.preco_unitario || 0))), 0);
+      const iva = total * 0.14;
+      const finalTotal = total + iva;
+
+      // Get prev hash
+      const { data: lastDoc } = await supabase
+        .from('contabil_faturas')
+        .select('hash')
+        .eq('company_id', company_id || req.user.company_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const prevHash = lastDoc?.hash || '';
+      const hash = generateHash(`${docNumber};${finalTotal};${prevHash}`);
+
+      const { data: doc, error: dError } = await supabase.from('contabil_faturas').insert({
+        numero_fatura: docNumber,
+        cliente_nome: customer_name,
+        data_emissao: new Date().toISOString().split('T')[0],
+        valor_total: finalTotal,
+        status: 'Pendente',
+        company_id: company_id || req.user.company_id,
+        tipo: type,
+        hash,
+        prev_hash: prevHash,
+        metadata: { ...metadata, items, subtotal: total, iva }
+      }).select().single();
+
+      if (dError) throw dError;
+
+      logActivity(req.user.id, 'document_created', 'contabil_faturas', doc.id, { docNumber, type });
+      res.json(doc);
+    } catch (err: any) {
+      console.error('Error creating document:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

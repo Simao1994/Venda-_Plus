@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet, UserPlus, X } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet, UserPlus, X, FilePieChart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useReactToPrint } from 'react-to-print';
 import PaymentModal from './PaymentModal';
@@ -23,6 +23,7 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'multicaixa' | 'credit'>('cash');
   const [cart, setCart] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [barcodeSearch, setBarcodeSearch] = useState('');
   const [amountPaid, setAmountPaid] = useState<string>('0');
   const [showPayment, setShowPayment] = useState(false);
   const [showDebtPayment, setShowDebtPayment] = useState(false);
@@ -37,7 +38,10 @@ export default function POS() {
   const [isProForma, setIsProForma] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', nif: '', phone: '', address: '' });
+  const [isExempt, setIsExempt] = useState(false);
+  const [exemptionReason, setExemptionReason] = useState('');
   const receiptRef = useRef<HTMLDivElement>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
@@ -62,24 +66,13 @@ export default function POS() {
     checkRegisterStatus();
     fetchCompanyProfile();
 
-    // Barcode scanner listener
-    let barcodeBuffer = '';
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        if (barcodeBuffer.length > 3) {
-          const product = products.find(p => p.barcode === barcodeBuffer);
-          if (product) addToCart(product);
-          barcodeBuffer = '';
-        }
-      } else if (e.key.length === 1) {
-        barcodeBuffer += e.key;
-        setTimeout(() => barcodeBuffer = '', 100); // Clear buffer if no more keys
-      }
-    };
+    // Focus barcode input by default
+    const timer = setTimeout(() => {
+      barcodeInputRef.current?.focus();
+    }, 500);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [products]);
+    return () => clearTimeout(timer);
+  }, []);
 
   const fetchCompanyProfile = async () => {
     const res = await fetch('/api/company/profile', {
@@ -95,6 +88,21 @@ export default function POS() {
     });
     const data = await res.json();
     setTopProducts(data);
+  };
+
+  const handleBarcodeScan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barcodeSearch) return;
+
+    const product = products.find(p => p.barcode === barcodeSearch);
+    if (product) {
+      addToCart(product);
+      setBarcodeSearch('');
+    } else {
+      // Small feedback if not found
+      console.warn('Product not found for barcode:', barcodeSearch);
+      setBarcodeSearch('');
+    }
   };
 
   const checkRegisterStatus = async () => {
@@ -205,7 +213,7 @@ export default function POS() {
   const subtotal = cart.reduce((acc, item) => acc + (item.sale_price * item.quantity), 0);
   const discountAmount = subtotal * (discountPercentage / 100);
   const discountedSubtotal = subtotal - discountAmount;
-  const taxRate = companyProfile?.tax_percentage || 14;
+  const taxRate = isExempt ? 0 : (companyProfile?.tax_percentage || 14);
   const tax = discountedSubtotal * (taxRate / 100);
   const total = discountedSubtotal + tax;
   const amountPaidNum = parseFloat(amountPaid) || 0;
@@ -225,14 +233,16 @@ export default function POS() {
         body: JSON.stringify({
           items: cart,
           customer_id: selectedCustomer,
-          subtotal,
+          subtotal: discountedSubtotal,
           tax,
           total,
+          amount_paid: amountPaidNum,
+          change,
+          payment_method: isProForma ? 'credit' : paymentMethod,
           discount: discountPercentage,
           is_pro_forma: isProForma,
-          amount_paid: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : amountPaidNum),
-          change: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : change),
-          payment_method: isProForma ? 'credit' : paymentMethod
+          is_exempt: isExempt,
+          exemption_reason: isExempt ? exemptionReason : null
         })
       });
 
@@ -336,16 +346,33 @@ export default function POS() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="relative w-full lg:w-96">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Barcode Scanner Area */}
+            <form onSubmit={handleBarcodeScan} className="relative group">
+              <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center gap-2 text-gold-primary/40 group-focus-within:text-gold-primary transition-colors">
+                <Package size={18} />
+                <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Barcode:</span>
+              </div>
+              <input
+                ref={barcodeInputRef}
+                type="text"
+                placeholder="LER CÓDIGO (SCANNER)..."
+                className="w-full lg:w-64 pl-28 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 text-white text-xs font-black placeholder:text-white/20 outline-none transition-all uppercase tracking-widest text-center tabular-nums"
+                value={barcodeSearch}
+                onChange={(e) => setBarcodeSearch(e.target.value)}
+                autoComplete="off"
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gold-primary/20 animate-pulse border border-gold-primary/40" />
+            </form>
+
+            <div className="relative w-full lg:w-80">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gold-primary/40" size={18} />
               <input
                 type="text"
-                placeholder="PROCURAR PRODUTO (F1)..."
-                className="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 text-white text-xs font-black placeholder:text-white/10 outline-none transition-all uppercase tracking-widest"
+                placeholder="PROCURAR POR NOME (F1)..."
+                className="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 text-white text-xs font-black placeholder:text-white/40 outline-none transition-all uppercase tracking-widest"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                autoFocus
               />
             </div>
 
@@ -371,7 +398,7 @@ export default function POS() {
               >
                 {product.stock <= 0 && (
                   <div className="absolute inset-0 flex items-center justify-center z-20 bg-bg-deep/40 backdrop-blur-[2px]">
-                    <span className="bg-red-500 text-bg-deep text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full shadow-2xl rotate-[-12deg]">Esgotado</span>
+                    <span className="bg-red-500 text-bg-deep text-[10px] font-black uppercase tracking-0.2em] px-4 py-2 rounded-full shadow-2xl rotate-[-12deg]">Esgotado</span>
                   </div>
                 )}
 
@@ -398,6 +425,12 @@ export default function POS() {
                 </div>
               </button>
             ))}
+            {filteredProducts.length === 0 && (
+              <div className="col-span-full py-20 text-center opacity-20">
+                <Package size={48} className="mx-auto mb-4" />
+                <p className="font-black uppercase tracking-[0.4em] text-xs">Nenhum produto encontrado</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -493,7 +526,7 @@ export default function POS() {
                   <p className="text-lg font-black text-white italic tracking-tighter tabular-nums">{(item.sale_price * item.quantity).toLocaleString()}</p>
                   <button
                     onClick={() => removeFromCart(item.id)}
-                    className="text-white/10 hover:text-red-500 mt-2 p-1.5 hover:bg-red-500/10 rounded-lg transition-all"
+                    className="text-red-500/80 hover:text-red-500 mt-2 p-1.5 bg-red-500/5 hover:bg-red-500/10 rounded-lg transition-all border border-red-500/10"
                     title="Remover Item"
                   >
                     <Trash2 size={16} />
@@ -529,7 +562,7 @@ export default function POS() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <div className="glass-panel p-4 rounded-2xl border border-white/10 focus-within:border-gold-primary/40 transition-all">
               <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Desconto (%)</label>
               <input
@@ -542,16 +575,48 @@ export default function POS() {
                 placeholder="0"
               />
             </div>
-            <div
+
+            {/* Pro-forma Toggle */}
+            <button
               onClick={() => setIsProForma(!isProForma)}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-center ${isProForma ? 'bg-gold-primary/10 border-gold-primary/40 shadow-[0_0_20px_rgba(212,175,55,0.1)]' : 'glass-panel border-white/10 hover:border-white/20'}`}
+              className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 border-2 transition-all ${isProForma ? 'bg-indigo-50/10 border-indigo-500 text-indigo-400 shadow-lg' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}
             >
-              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Protocolo</label>
-              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isProForma ? 'text-gold-primary' : 'text-white/40'}`}>
-                {isProForma ? 'PRO-FORMA' : 'VENDA DIRECTA'}
-              </span>
-            </div>
+              <FilePieChart size={20} />
+              <div className="text-center">
+                <span className="text-[8px] font-black uppercase tracking-widest block opacity-40">Protocolo</span>
+                <span className="text-[9px] font-black uppercase tracking-widest leading-none">{isProForma ? 'PRÓ-FORMA' : 'VENDA'}</span>
+              </div>
+            </button>
+
+            {/* IVA Exemption Toggle */}
+            <button
+              onClick={() => setIsExempt(!isExempt)}
+              className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 border-2 transition-all ${isExempt ? 'bg-yellow-50/10 border-yellow-500 text-yellow-400 shadow-lg' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}
+            >
+              <AlertTriangle size={20} />
+              <div className="text-center">
+                <span className="text-[8px] font-black uppercase tracking-widest block opacity-40">Impostos</span>
+                <span className="text-[9px] font-black uppercase tracking-widest leading-none">{isExempt ? 'ISENTO' : 'IVA 14%'}</span>
+              </div>
+            </button>
           </div>
+
+          {isExempt && (
+            <div className="animate-in fade-in slide-in-from-top-2 bg-white/5 p-4 rounded-2xl border border-white/10">
+              <label className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-2 block text-center">Motivo da Isenção (Obrigatório AGT)</label>
+              <select
+                value={exemptionReason}
+                onChange={(e) => setExemptionReason(e.target.value)}
+                className="w-full bg-transparent border-b border-white/10 px-4 py-2 text-xs text-white focus:border-gold-primary transition-all outline-none"
+              >
+                <option value="" className="bg-bg-deep">Seleccione o motivo...</option>
+                <option value="Isento nos termos do artigo 12.º do CIVA" className="bg-bg-deep">Artigo 12.º do CIVA (Operações internas)</option>
+                <option value="IVA - Regime de Exclusão" className="bg-bg-deep">Regime de Exclusão</option>
+                <option value="Isento nos termos da Lei n.º 18/14" className="bg-bg-deep">Lei n.º 18/14 (Incentivos Fiscais)</option>
+                <option value="M00 - Isento" className="bg-bg-deep">Outro motivo de Isenção</option>
+              </select>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-2xl border border-white/5">
             <input
@@ -579,236 +644,242 @@ export default function POS() {
 
       {/* Payment Modal */}
       {/* Open Register Modal */}
-      {showOpenRegister && (
-        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
-          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold-primary to-transparent" />
+      {
+        showOpenRegister && (
+          <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
+            <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold-primary to-transparent" />
 
-            <div className="p-10 text-center relative z-10">
-              <div className="w-20 h-20 bg-gold-primary/10 text-gold-primary rounded-3xl flex items-center justify-center mx-auto mb-6 border border-gold-primary/20 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
-                <Wallet size={40} className="animate-pulse" />
-              </div>
-              <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">Abrir <span className="text-gold-gradient">Caixa</span></h3>
-              <p className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">Informe o valor inicial do caixa para continuar</p>
-            </div>
-
-            <div className="p-10 pt-0 space-y-8 relative z-10">
-              <div className="glass-panel p-6 rounded-3xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">Valor de Abertura</label>
-                <div className="relative">
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 font-black text-gold-primary/40 uppercase text-xs tracking-widest">{user?.currency}</span>
-                  <input
-                    autoFocus
-                    type="number"
-                    className="w-full text-center bg-transparent border-none outline-none font-black text-5xl text-white tracking-tighter italic"
-                    value={initialCash}
-                    onChange={(e) => setInitialCash(e.target.value)}
-                  />
+              <div className="p-10 text-center relative z-10">
+                <div className="w-20 h-20 bg-gold-primary/10 text-gold-primary rounded-3xl flex items-center justify-center mx-auto mb-6 border border-gold-primary/20 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+                  <Wallet size={40} className="animate-pulse" />
                 </div>
+                <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">Abrir <span className="text-gold-gradient">Caixa</span></h3>
+                <p className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">Informe o valor inicial do caixa para continuar</p>
               </div>
 
-              <button
-                onClick={handleOpenRegister}
-                className="w-full py-6 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-3xl text-[10px] font-black uppercase tracking-[0.4em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all active:scale-95 shadow-2xl"
-              >
-                Establish Connection
-              </button>
+              <div className="p-10 pt-0 space-y-8 relative z-10">
+                <div className="glass-panel p-6 rounded-3xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">Valor de Abertura</label>
+                  <div className="relative">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 font-black text-gold-primary/40 uppercase text-xs tracking-widest">{user?.currency}</span>
+                    <input
+                      autoFocus
+                      type="number"
+                      className="w-full text-center bg-transparent border-none outline-none font-black text-5xl text-white tracking-tighter italic"
+                      value={initialCash}
+                      onChange={(e) => setInitialCash(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleOpenRegister}
+                  className="w-full py-6 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-3xl text-[10px] font-black uppercase tracking-[0.4em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all active:scale-95 shadow-2xl"
+                >
+                  Establish Connection
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {showPayment && (
-        <div className="fixed inset-0 bg-bg-deep/60 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+      {
+        showPayment && (
+          <div className="fixed inset-0 bg-bg-deep/60 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+            <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
 
-            <div className="p-8 bg-gold-primary/5 border-b border-white/5 text-center">
-              <h3 className="text-xl font-black text-white italic uppercase tracking-widest">Finalize <span className="text-gold-gradient">Settlement</span></h3>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Required Assets:</span>
-                <span className="text-lg font-black text-gold-primary tracking-tighter italic">{total.toLocaleString()} {user?.currency}</span>
-              </div>
-            </div>
-
-            <div className="p-8 space-y-8">
-              <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5">
-                {[
-                  { id: 'cash', label: 'Cash' },
-                  { id: 'multicaixa', label: 'Vector' },
-                  { id: 'credit', label: 'Credit' }
-                ].map(method => (
-                  <button
-                    key={method.id}
-                    onClick={() => setPaymentMethod(method.id as any)}
-                    className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border ${paymentMethod === method.id ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'text-white/40 border-transparent hover:text-white/60'}`}
-                  >
-                    {method.label}
-                  </button>
-                ))}
-              </div>
-
-              {(paymentMethod === 'cash' || paymentMethod === 'multicaixa') ? (
-                <div className="space-y-6">
-                  <div className="glass-panel p-6 rounded-3xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                    <label className="block text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mb-4 text-center">
-                      {paymentMethod === 'cash' ? 'Asset Input (Liquid)' : 'Transaction Verification'}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        className="w-full text-center bg-transparent border-none outline-none font-black text-5xl text-white tracking-tighter italic"
-                        value={amountPaid}
-                        onChange={(e) => setAmountPaid(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  {paymentMethod === 'cash' && (
-                    <div className="bg-gold-primary/5 p-6 rounded-3xl border border-gold-primary/10 flex justify-between items-center group relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-gold-primary/[0.02] rounded-full -mr-8 -mt-8" />
-                      <div>
-                        <span className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em] block mb-1">Asset Return</span>
-                        <span className="text-3xl font-black text-gold-primary tracking-tighter italic">{change.toLocaleString()} {user?.currency}</span>
-                      </div>
-                      <div className="w-10 h-10 rounded-xl bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary">
-                        <Wallet size={20} />
-                      </div>
-                    </div>
-                  )}
+              <div className="p-8 bg-gold-primary/5 border-b border-white/5 text-center">
+                <h3 className="text-xl font-black text-white italic uppercase tracking-widest">Finalize <span className="text-gold-gradient">Settlement</span></h3>
+                <div className="mt-2 flex items-center justify-center gap-2">
+                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Required Assets:</span>
+                  <span className="text-lg font-black text-gold-primary tracking-tighter italic">{total.toLocaleString()} {user?.currency}</span>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="bg-red-500/5 p-6 rounded-3xl border border-red-500/10 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-12 h-full bg-gradient-to-l from-red-500/[0.03] to-transparent" />
-                    <div className="flex items-center gap-4 text-red-400 mb-4">
-                      <AlertTriangle size={20} className="animate-pulse" />
-                      <span className="font-black uppercase tracking-[0.2em] text-[10px]">Security Protocol: Credit Sale</span>
+              </div>
+
+              <div className="p-8 space-y-8">
+                <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5">
+                  {[
+                    { id: 'cash', label: 'Cash' },
+                    { id: 'multicaixa', label: 'Vector' },
+                    { id: 'credit', label: 'Credit' }
+                  ].map(method => (
+                    <button
+                      key={method.id}
+                      onClick={() => setPaymentMethod(method.id as any)}
+                      className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border ${paymentMethod === method.id ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'text-white/40 border-transparent hover:text-white/60'}`}
+                    >
+                      {method.label}
+                    </button>
+                  ))}
+                </div>
+
+                {(paymentMethod === 'cash' || paymentMethod === 'multicaixa') ? (
+                  <div className="space-y-6">
+                    <div className="glass-panel p-6 rounded-3xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                      <label className="block text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mb-4 text-center">
+                        {paymentMethod === 'cash' ? 'Asset Input (Liquid)' : 'Transaction Verification'}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          className="w-full text-center bg-transparent border-none outline-none font-black text-5xl text-white tracking-tighter italic"
+                          value={amountPaid}
+                          onChange={(e) => setAmountPaid(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
                     </div>
-                    <p className="text-xs text-white/40 font-medium leading-relaxed">
-                      This transaction will be logged as an outstanding liability for the following entity:
-                      <strong className="block mt-2 text-white font-black text-sm uppercase tracking-tight">
-                        {customers.find(c => c.id === selectedCustomer)?.name || 'NO ENTITY SPECIFIED'}
-                      </strong>
-                    </p>
-                    {!selectedCustomer && (
-                      <p className="text-[9px] text-red-500 mt-4 font-black uppercase tracking-[0.1em] flex items-center gap-2">
-                        <X size={10} /> Critical: Specify Entity to Proceed
-                      </p>
+
+                    {paymentMethod === 'cash' && (
+                      <div className="bg-gold-primary/5 p-6 rounded-3xl border border-gold-primary/10 flex justify-between items-center group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-gold-primary/[0.02] rounded-full -mr-8 -mt-8" />
+                        <div>
+                          <span className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em] block mb-1">Asset Return</span>
+                          <span className="text-3xl font-black text-gold-primary tracking-tighter italic">{change.toLocaleString()} {user?.currency}</span>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary">
+                          <Wallet size={20} />
+                        </div>
+                      </div>
                     )}
                   </div>
-
-                  {selectedCustomer && customers.find(c => c.id === selectedCustomer)?.balance >= 5000 && (
-                    <div className="bg-orange-500/5 p-6 rounded-3xl border border-orange-500/20">
-                      <div className="flex items-center gap-3 text-orange-400 mb-2">
-                        <AlertTriangle size={18} />
-                        <span className="font-black uppercase tracking-widest text-[9px]">Elevated Credit Risk</span>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-red-500/5 p-6 rounded-3xl border border-red-500/10 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-12 h-full bg-gradient-to-l from-red-500/[0.03] to-transparent" />
+                      <div className="flex items-center gap-4 text-red-400 mb-4">
+                        <AlertTriangle size={20} className="animate-pulse" />
+                        <span className="font-black uppercase tracking-[0.2em] text-[10px]">Security Protocol: Credit Sale</span>
                       </div>
-                      <p className="text-xs text-white/40 font-medium">
-                        Current Outstanding Balance:
-                        <span className="block text-xl font-black text-orange-400 mt-2 tracking-tighter italic">
-                          {customers.find(c => c.id === selectedCustomer)?.balance.toLocaleString()} {user?.currency}
-                        </span>
+                      <p className="text-xs text-white/40 font-medium leading-relaxed">
+                        This transaction will be logged as an outstanding liability for the following entity:
+                        <strong className="block mt-2 text-white font-black text-sm uppercase tracking-tight">
+                          {customers.find(c => c.id === selectedCustomer)?.name || 'NO ENTITY SPECIFIED'}
+                        </strong>
                       </p>
+                      {!selectedCustomer && (
+                        <p className="text-[9px] text-red-500 mt-4 font-black uppercase tracking-[0.1em] flex items-center gap-2">
+                          <X size={10} /> Critical: Specify Entity to Proceed
+                        </p>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
 
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowPayment(false)}
-                  className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 hover:text-white/60 transition-all font-medium"
-                >
-                  Abort
-                </button>
-                <button
-                  onClick={handleCheckout}
-                  disabled={paymentMethod === 'credit' && !selectedCustomer}
-                  className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all disabled:opacity-20 disabled:grayscale"
-                >
-                  {isProForma ? 'Emit Pro-Forma' : 'Confirm settlement'}
-                </button>
+                    {selectedCustomer && customers.find(c => c.id === selectedCustomer)?.balance >= 5000 && (
+                      <div className="bg-orange-500/5 p-6 rounded-3xl border border-orange-500/20">
+                        <div className="flex items-center gap-3 text-orange-400 mb-2">
+                          <AlertTriangle size={18} />
+                          <span className="font-black uppercase tracking-widest text-[9px]">Elevated Credit Risk</span>
+                        </div>
+                        <p className="text-xs text-white/40 font-medium">
+                          Current Outstanding Balance:
+                          <span className="block text-xl font-black text-orange-400 mt-2 tracking-tighter italic">
+                            {customers.find(c => c.id === selectedCustomer)?.balance.toLocaleString()} {user?.currency}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowPayment(false)}
+                    className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 hover:text-white/60 transition-all font-medium"
+                  >
+                    Abort
+                  </button>
+                  <button
+                    onClick={handleCheckout}
+                    disabled={paymentMethod === 'credit' && !selectedCustomer}
+                    className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all disabled:opacity-20 disabled:grayscale"
+                  >
+                    {isProForma ? 'Emit Pro-Forma' : 'Confirm settlement'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Add Customer Modal */}
-      {showAddCustomer && (
-        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
-          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+      {
+        showAddCustomer && (
+          <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
+            <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
 
-            <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02]">
-              <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-center">Register <span className="text-gold-gradient">Entity</span></h3>
-              <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-center mt-2">Initialize new customer profile in core database</p>
-            </div>
-
-            <div className="p-10 space-y-6 text-left">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Entity Name</label>
-                  <input
-                    type="text"
-                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                    placeholder="Enter identification"
-                  />
-                </div>
-                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Contact Link</label>
-                  <input
-                    type="text"
-                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
-                    value={newCustomer.phone}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                    placeholder="+244 000 000 000"
-                  />
-                </div>
-                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Fiscal Code (NIF)</label>
-                  <input
-                    type="text"
-                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
-                    value={newCustomer.nif}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, nif: e.target.value })}
-                    placeholder="Vector identification"
-                  />
-                </div>
-                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Address Vector</label>
-                  <input
-                    type="text"
-                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
-                    value={newCustomer.address}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                    placeholder="Location parameters"
-                  />
-                </div>
+              <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02]">
+                <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-center">Register <span className="text-gold-gradient">Entity</span></h3>
+                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-center mt-2">Initialize new customer profile in core database</p>
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <button
-                  onClick={() => setShowAddCustomer(false)}
-                  className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
-                >
-                  Terminate
-                </button>
-                <button
-                  onClick={handleSaveNewCustomer}
-                  className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all"
-                >
-                  Inject Data
-                </button>
+              <div className="p-10 space-y-6 text-left">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Entity Name</label>
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      value={newCustomer.name}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                      placeholder="Enter identification"
+                    />
+                  </div>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Contact Link</label>
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      value={newCustomer.phone}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                      placeholder="+244 000 000 000"
+                    />
+                  </div>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Fiscal Code (NIF)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      value={newCustomer.nif}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, nif: e.target.value })}
+                      placeholder="Vector identification"
+                    />
+                  </div>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Address Vector</label>
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      value={newCustomer.address}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                      placeholder="Location parameters"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    onClick={() => setShowAddCustomer(false)}
+                    className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
+                  >
+                    Terminate
+                  </button>
+                  <button
+                    onClick={handleSaveNewCustomer}
+                    className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all"
+                  >
+                    Inject Data
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <div style={{ display: 'none' }}>
         <div ref={receiptRef} className="receipt-container" style={{
@@ -847,7 +918,8 @@ export default function POS() {
             fontSize: '12px',
             fontWeight: 'bold'
           }}>
-            {lastSale?.is_pro_forma ? 'FACTURA PRO-FORMA' : 'FACTURA / RECIBO'}
+            {lastSale?.invoice_number?.startsWith('PRO') ? 'FACTURA PRO-FORMA' :
+              lastSale?.invoice_number?.startsWith('FR') ? 'FACTURA-RECIBO' : 'FACTURA'}
           </div>
 
           <div style={{ marginBottom: '8px', fontSize: '12px' }}>
@@ -856,8 +928,14 @@ export default function POS() {
               <span style={{ fontWeight: 'bold' }}>{lastSale?.invoice_number}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>DATA:</span>
-              <span>{lastSale?.date}</span>
+              <span>DATA/HORA:</span>
+              <span style={{ fontWeight: 'bold' }}>
+                {lastSale?.created_at ?
+                  new Date(lastSale.created_at).toLocaleString('pt-AO', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  }) : lastSale?.date}
+              </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>OPERADOR:</span>
@@ -869,7 +947,9 @@ export default function POS() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>NIF CLIENTE:</span>
-              <span style={{ fontWeight: 'bold' }}>{lastSale?.customer_nif || 'Consumidor Final'}</span>
+              <span style={{ fontWeight: 'bold' }}>
+                {lastSale?.customer_nif && lastSale.customer_nif !== '---' ? lastSale.customer_nif : '999999999'}
+              </span>
             </div>
           </div>
 
@@ -947,52 +1027,57 @@ export default function POS() {
             lineHeight: '1.2'
           }}>
             <p style={{ margin: 0, fontWeight: 'bold' }}>Obrigado pela preferência!</p>
-            <p style={{ margin: 0 }}>{lastSale?.is_pro_forma ? 'ORÇAMENTO VÁLIDO POR 15 DIAS' : 'O VALOR DESTE DOC. NÃO SERVE DE FATURA'}</p>
+            <p style={{ margin: 0 }}>{lastSale?.is_pro_forma ? 'ORÇAMENTO VÁLIDO POR 15 DIAS' :
+              lastSale?.hash ? `${lastSale.hash.substring(0, 4)}-Processado por Programas Validados` : ''}</p>
             <p style={{ margin: '3px 0 0 0', opacity: 0.7 }}>Processado por Venda Plus</p>
           </div>
         </div>
       </div>
 
       {/* Success Notification with Print Option */}
-      {lastSale && (
-        <div className="fixed bottom-10 right-10 z-[120]">
-          <div className="glass-panel p-6 rounded-[32px] border border-gold-primary/30 shadow-[0_0_50px_rgba(212,175,55,0.1)] flex items-center gap-6 animate-in slide-in-from-right duration-500 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gold-primary opacity-0 group-hover:opacity-[0.02] transition-opacity" />
-            <div className="w-16 h-16 bg-gold-primary/10 text-gold-primary rounded-2xl flex items-center justify-center border border-gold-primary/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
-              <Printer size={32} className="group-hover:scale-110 transition-transform" />
-            </div>
-            <div>
-              <h4 className="text-[10px] font-black text-gold-primary uppercase tracking-[0.4em] mb-1">Transaction Verified</h4>
-              <p className="text-white font-black text-sm italic uppercase tracking-tight">Voucher {lastSale.invoice_number}</p>
-            </div>
-            <div className="flex gap-3 ml-6">
-              <button
-                onClick={handlePrint}
-                className="px-6 py-3 bg-gold-primary text-bg-deep rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all"
-              >
-                Hardcopy
-              </button>
-              <button
-                onClick={() => setLastSale(null)}
-                className="px-6 py-3 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-white/60 transition-all border border-white/5"
-              >
-                Discard
-              </button>
+      {
+        lastSale && (
+          <div className="fixed bottom-10 right-10 z-[120]">
+            <div className="glass-panel p-6 rounded-[32px] border border-gold-primary/30 shadow-[0_0_50px_rgba(212,175,55,0.1)] flex items-center gap-6 animate-in slide-in-from-right duration-500 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gold-primary opacity-0 group-hover:opacity-[0.02] transition-opacity" />
+              <div className="w-16 h-16 bg-gold-primary/10 text-gold-primary rounded-2xl flex items-center justify-center border border-gold-primary/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                <Printer size={32} className="group-hover:scale-110 transition-transform" />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-gold-primary uppercase tracking-[0.4em] mb-1">Transaction Verified</h4>
+                <p className="text-white font-black text-sm italic uppercase tracking-tight">Voucher {lastSale.invoice_number}</p>
+              </div>
+              <div className="flex gap-3 ml-6">
+                <button
+                  onClick={handlePrint}
+                  className="px-6 py-3 bg-gold-primary text-bg-deep rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all"
+                >
+                  Hardcopy
+                </button>
+                <button
+                  onClick={() => setLastSale(null)}
+                  className="px-6 py-3 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-white/60 transition-all border border-white/5"
+                >
+                  Discard
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {showDebtPayment && selectedCustomer && (
-        <PaymentModal
-          customer={customers.find(c => c.id === selectedCustomer)}
-          onClose={() => setShowDebtPayment(false)}
-          onSuccess={() => {
-            setShowDebtPayment(false);
-            fetchCustomers();
-          }}
-        />
-      )}
-    </div>
+      {
+        showDebtPayment && selectedCustomer && (
+          <PaymentModal
+            customer={customers.find(c => c.id === selectedCustomer)}
+            onClose={() => setShowDebtPayment(false)}
+            onSuccess={() => {
+              setShowDebtPayment(false);
+              fetchCustomers();
+            }}
+          />
+        )
+      }
+    </div >
   );
 }

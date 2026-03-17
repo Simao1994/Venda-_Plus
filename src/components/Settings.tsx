@@ -5,7 +5,7 @@ import {
   DollarSign, Database, Download, CheckCircle2, Server,
   Shield, Store, Package, Users, User, BarChart3,
   Plus, Newspaper, Megaphone, PieChart, Settings as SettingsIcon,
-  X, Check
+  X, Check, FileText, Activity
 } from 'lucide-react';
 
 const MODULE_DEFS = [
@@ -37,8 +37,11 @@ export default function Settings() {
     logo: '',
     role_permissions: {}
   });
-  const [activeTab, setActiveTab] = useState<'profile' | 'system'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'system'>('profile');
   const [dbState, setDbState] = useState<any>(null);
+  const [billingSeries, setBillingSeries] = useState<any[]>([]);
+  const [showSeriesModal, setShowSeriesModal] = useState(false);
+  const [newSeries, setNewSeries] = useState({ doc_type: 'FAC', series_name: '2026' });
   const [exporting, setExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,9 +87,58 @@ export default function Settings() {
     }
   };
 
+  const fetchBillingSeries = async () => {
+    try {
+      const res = await fetch('/api/billing-series', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setBillingSeries(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching series:', error);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'system') fetchSystemState();
+    if (activeTab === 'billing') fetchBillingSeries();
   }, [activeTab]);
+
+  const handleCreateSeries = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/billing-series', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(newSeries)
+      });
+      if (res.ok) {
+        setShowSeriesModal(false);
+        fetchBillingSeries();
+      }
+    } catch (error) {
+      console.error('Error creating series:', error);
+    }
+  };
+
+  const toggleSeriesStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/billing-series/${id}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_active: !currentStatus })
+      });
+      if (res.ok) fetchBillingSeries();
+    } catch (error) {
+      console.error('Error toggling series:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +221,12 @@ export default function Settings() {
           className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'profile' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
         >
           Perfil da Empresa
+        </button>
+        <button
+          onClick={() => setActiveTab('billing')}
+          className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'billing' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+        >
+          Séries de Faturação
         </button>
         <button
           onClick={() => setActiveTab('system')}
@@ -373,6 +431,120 @@ export default function Settings() {
             </button>
           </div>
         </form>
+      ) : activeTab === 'billing' ? (
+        <div className="space-y-6">
+          <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">Séries de Faturação</h2>
+                <p className="text-gray-500 text-sm font-medium">Configure as sequências numéricas para as suas faturas e documentos.</p>
+              </div>
+              <button
+                onClick={() => setShowSeriesModal(true)}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+              >
+                <Plus size={16} /> Nova Série
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400">Tipo</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400">Série</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400 text-center">Último Nº</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400 text-center">Estado</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400 text-right">Acções</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {billingSeries.length > 0 ? billingSeries.map((s) => (
+                    <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-2">
+                        <span className="px-3 py-1 bg-gray-100 rounded-lg font-black text-[10px] uppercase text-gray-600">{s.doc_type}</span>
+                      </td>
+                      <td className="py-4 px-2 font-bold text-gray-700">{s.series_name}</td>
+                      <td className="py-4 px-2 text-center font-mono font-bold text-emerald-600">{String(s.last_number).padStart(3, '0')}</td>
+                      <td className="py-4 px-2 text-center">
+                        <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase ${s.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                          {s.is_active ? 'Activa' : 'Inactiva'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-2 text-right">
+                        <button
+                          onClick={() => toggleSeriesStatus(s.id, s.is_active)}
+                          className={`p-2 rounded-xl transition-all ${s.is_active ? 'text-orange-500 hover:bg-orange-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+                          title={s.is_active ? 'Desactivar' : 'Activar'}
+                        >
+                          {s.is_active ? <X size={18} /> : <CheckCircle2 size={18} />}
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-gray-400 font-bold italic">Nenhuma série configurada. O sistema usará o formato padrão (FAC-Timestamp).</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {showSeriesModal && (
+            <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+              <div className="bg-white rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                  <h3 className="text-xl font-black text-gray-900">Nova Série de Faturação</h3>
+                  <button onClick={() => setShowSeriesModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <X size={24} />
+                  </button>
+                </div>
+                <form onSubmit={handleCreateSeries} className="p-8 space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Tipo de Documento</label>
+                      <select
+                        className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                        value={newSeries.doc_type}
+                        onChange={e => setNewSeries({ ...newSeries, doc_type: e.target.value })}
+                      >
+                        <option value="FAC">Factura (FAC)</option>
+                        <option value="PRO">Factura Pro-forma (PRO)</option>
+                        <option value="NC">Nota de Crédito (NC)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Nome da Série (Ex: 2024)</label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                        value={newSeries.series_name}
+                        onChange={e => setNewSeries({ ...newSeries, series_name: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowSeriesModal(false)}
+                      className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-4 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-100 transition-all"
+                    >
+                      Criar Série
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-6">
           <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">

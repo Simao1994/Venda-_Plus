@@ -10,6 +10,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION query_sql(sql_query text)
+RETURNS json AS $$
+DECLARE
+    result json;
+BEGIN
+    EXECUTE 'SELECT json_agg(t) FROM (' || sql_query || ') t' INTO result;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 1. SAAS & CORE
 -- Project: margarmxtxvmszzpxpjl
 

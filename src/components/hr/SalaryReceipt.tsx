@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface SalaryReceiptProps {
   employee: any;
@@ -11,7 +12,24 @@ interface SalaryReceiptProps {
 
 export default function SalaryReceipt({ employee, payroll }: SalaryReceiptProps) {
   const { user } = useAuth();
-  
+  const [companyProfile, setCompanyProfile] = React.useState(null);
+
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data } = await supabase
+          .from('company_profiles')
+          .select('logo, name')
+          .eq('id', user?.company_id)
+          .maybeSingle();
+        setCompanyProfile(data);
+      } catch (err) {
+        console.error('Error fetching company profile:', err);
+      }
+    };
+    fetchProfile();
+  }, [user?.company_id]);
+
   const months = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
@@ -24,9 +42,14 @@ export default function SalaryReceipt({ employee, payroll }: SalaryReceiptProps)
     <div className="bg-white p-8 max-w-4xl mx-auto text-gray-900 font-sans border border-gray-200">
       {/* Header */}
       <div className="flex justify-between items-start border-b-2 border-gray-900 pb-6 mb-8">
-        <div>
-          <h1 className="text-2xl font-black uppercase tracking-tight">{user?.company_name}</h1>
-          <p className="text-sm text-gray-600">Recibo de Salário</p>
+        <div className="flex items-center gap-4">
+          {companyProfile?.logo && (
+            <img src={companyProfile.logo} className="h-12 w-auto object-contain" alt="Logo" />
+          )}
+          <div>
+            <h1 className="text-2xl font-black uppercase tracking-tight">{companyProfile?.name || user?.company_name}</h1>
+            <p className="text-sm text-gray-600 font-bold">Recibo de Salário</p>
+          </div>
         </div>
         <div className="text-right">
           <p className="text-sm font-bold">Período: {months[payroll.month - 1]} / {payroll.year}</p>

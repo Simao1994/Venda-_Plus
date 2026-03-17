@@ -74,7 +74,7 @@ function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void,
 
       <button
         onClick={onBackToPublic}
-        className="absolute top-8 left-8 flex items-center gap-2 text-gold-primary/60 hover:text-gold-primary font-black text-xs uppercase tracking-widest transition-all z-20 group"
+        className="absolute top-8 left-8 flex items-center object-contain gap-2 text-gold-primary/60 hover:text-gold-primary font-black text-xs uppercase tracking-widest transition-all z-20 group"
       >
         <X size={18} className="group-hover:rotate-90 transition-transform" />
         Voltar para o Market
@@ -90,7 +90,7 @@ function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void,
           <h1 className="text-4xl font-black text-white tracking-tighter italic font-display">
             VENDA <span className="text-gold-gradient">PLUS</span>
           </h1>
-          <p className="text-gold-primary/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">High Tech Enterprise ERp</p>
+          <p className="text-gold-primary/40 font-black text-[10px] uppercase tracking-[0.3em] mt-3">High Tech Enterprise ERP</p>
         </div>
 
         {error && (

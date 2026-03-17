@@ -188,26 +188,31 @@ export default function Reports() {
                   <input
                     type="text"
                     placeholder="Pesquisar fatura..."
-                    className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-gray-900"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">De:</span>
-                  <input
-                    type="date"
-                    className="px-4 py-2 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-xs"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Até:</span>
-                  <input
-                    type="date"
-                    className="px-4 py-2 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-xs"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                  />
+                <div className="flex items-center gap-4 bg-white p-2.5 rounded-2xl border-2 border-zinc-100 shadow-sm">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 rounded-xl">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">De:</span>
+                    <input
+                      type="date"
+                      className="bg-transparent border-none focus:ring-0 font-black text-xs text-zinc-800 outline-none"
+                      value={startDate}
+                      onChange={e => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="w-[2px] h-4 bg-zinc-100" />
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 rounded-xl">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Até:</span>
+                    <input
+                      type="date"
+                      className="bg-transparent border-none focus:ring-0 font-black text-xs text-zinc-800 outline-none"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 min-w-[200px]">
                   <Filter size={14} className="text-gray-400" />
@@ -239,7 +244,15 @@ export default function Reports() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredSales.map(sale => (
-                    <tr key={sale.id} className="hover:bg-gray-50 transition-all cursor-pointer" onClick={() => setExpandedSale(expandedSale === sale.id ? null : sale.id)}>
+                    <tr
+                      key={sale.id}
+                      className="hover:bg-emerald-50 transition-all cursor-pointer group"
+                      onClick={() => {
+                        setSaleToPrint(sale);
+                        // Também expande para ver detalhes se necessário
+                        setExpandedSale(expandedSale === sale.id ? null : sale.id);
+                      }}
+                    >
                       <td className="p-6 font-black text-gray-900">{sale.invoice_number}</td>
                       <td className="p-6 text-gray-500 text-sm">{new Date(sale.created_at).toLocaleString()}</td>
                       <td className="p-6 text-gray-900 font-bold">{sale.customer_name || 'Consumidor Final'}</td>

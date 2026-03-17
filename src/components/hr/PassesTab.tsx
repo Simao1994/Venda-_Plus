@@ -15,9 +15,27 @@ export default function PassesTab() {
     const [printingPass, setPrintingPass] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
+    const [companyProfile, setCompanyProfile] = useState(null);
+
     useEffect(() => {
         fetchEmployees();
+        fetchCompanyProfile();
     }, []);
+
+    const fetchCompanyProfile = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('company_profiles')
+                .select('logo, name')
+                .eq('id', user?.company_id)
+                .maybeSingle();
+
+            if (error) throw error;
+            setCompanyProfile(data);
+        } catch (error) {
+            console.error('Erro ao buscar perfil da empresa:', error);
+        }
+    };
 
     const fetchEmployees = async () => {
         setLoading(true);
@@ -127,9 +145,18 @@ export default function PassesTab() {
                                 <div className="absolute top-0 left-0 w-48 h-48 bg-sky-600/10 rounded-full -translate-y-24 -translate-x-24"></div>
 
                                 <div className="z-10 mt-10 mb-8 flex flex-col items-center text-white">
-                                    <div className="scale-75 opacity-90 filter brightness-0 invert">
-                                        <Logo />
+                                    <div className="mb-2">
+                                        {companyProfile?.logo ? (
+                                            <img src={companyProfile.logo} className="h-12 object-contain" />
+                                        ) : (
+                                            <div className="scale-75 opacity-90 filter brightness-0 invert">
+                                                <Logo />
+                                            </div>
+                                        )}
                                     </div>
+                                    {companyProfile?.name && (
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{companyProfile.name}</p>
+                                    )}
                                     <div className="w-8 h-1 bg-yellow-500 rounded-full mt-4"></div>
                                 </div>
 

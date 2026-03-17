@@ -1,9 +1,9 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-   Calculator, BarChart2, BarChart as LucideBarChart, Receipt, Users, Landmark, Scale,
+   Calculator, BarChart2, BarChart3, BarChart as LucideBarChart, Receipt, Users, Landmark, Scale,
    Calendar, FilePieChart, Sparkles, BrainCircuit, ArrowUpRight,
-   ArrowDownLeft, History, CheckCircle2, AlertTriangle, ListChecks,
+   ArrowDownLeft, History, CheckCircle2, ArrowLeftRight, AlertTriangle, ListChecks,
    MoreVertical, Lock, ShieldAlert, Search, Building2, DollarSign,
    Plus, Download, FileText, BookOpen, Briefcase,
    Save, X, Printer, FileCheck, ShieldCheck, RefreshCw, ShieldAlert as AuditIcon,
@@ -23,6 +23,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { safeQuery } from '../../lib/supabaseUtils';
 import { formatAOA } from '../../constants';
+import { useReactToPrint } from 'react-to-print';
 import Select from '../ui/Select';
 import Logo from '../Logo';
 import { AmazingStorage, STORAGE_KEYS } from '../../utils/storage';
@@ -34,16 +35,16 @@ const COLORS_PIE = ['#eab308', '#22c55e', '#ef4444', '#3b82f6', '#a855f7', '#f97
 const PGN_PADRAO_ANGOLANO: PlanoConta[] = [
    // Classe 1
    { id: '1', codigo: '1', nome: 'Meios fixos e investimentos', tipo: 'Ativo', natureza: 'Devedora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
-   { id: '1.1', codigo: '1.1', nome: 'Imobilizações corpóreas', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '1', e_sintetica: true, aceita_lancamentos: false },
+   { id: '1.1', codigo: '1.1', nome: 'ImobilizaÃ§Ãµes corpÃ³reas', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '1', e_sintetica: true, aceita_lancamentos: false },
    { id: '1.1.1', codigo: '1.1.1', nome: 'Terrenos e recursos naturais', tipo: 'Ativo', natureza: 'Devedora', nivel: 3, pai_id: '1.1', e_analitica: true, aceita_lancamentos: true },
-   { id: '1.1.2', codigo: '1.1.2', nome: 'Edifícios e outras construções', tipo: 'Ativo', natureza: 'Devedora', nivel: 3, pai_id: '1.1', e_analitica: true, aceita_lancamentos: true },
-   { id: '1.1.3', codigo: '1.1.3', nome: 'Equipamento básico', tipo: 'Ativo', natureza: 'Devedora', nivel: 3, pai_id: '1.1', e_analitica: true, aceita_lancamentos: true },
-   { id: '1.2', codigo: '1.2', nome: 'Imobilizações incorpóreas', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '1', e_sintetica: true, aceita_lancamentos: false },
-   { id: '1.8', codigo: '1.8', nome: 'Amortizações acumuladas', tipo: 'Ativo', natureza: 'Credora', nivel: 2, pai_id: '1', e_analitica: true, aceita_lancamentos: true },
+   { id: '1.1.2', codigo: '1.1.2', nome: 'EdifÃ­cios e outras construÃ§Ãµes', tipo: 'Ativo', natureza: 'Devedora', nivel: 3, pai_id: '1.1', e_analitica: true, aceita_lancamentos: true },
+   { id: '1.1.3', codigo: '1.1.3', nome: 'Equipamento bÃ¡sico', tipo: 'Ativo', natureza: 'Devedora', nivel: 3, pai_id: '1.1', e_analitica: true, aceita_lancamentos: true },
+   { id: '1.2', codigo: '1.2', nome: 'ImobilizaÃ§Ãµes incorpÃ³reas', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '1', e_sintetica: true, aceita_lancamentos: false },
+   { id: '1.8', codigo: '1.8', nome: 'AmortizaÃ§Ãµes acumuladas', tipo: 'Ativo', natureza: 'Credora', nivel: 2, pai_id: '1', e_analitica: true, aceita_lancamentos: true },
    // Classe 2
-   { id: '2', codigo: '2', nome: 'Existências', tipo: 'Ativo', natureza: 'Devedora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
+   { id: '2', codigo: '2', nome: 'ExistÃªncias', tipo: 'Ativo', natureza: 'Devedora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
    { id: '2.1', codigo: '2.1', nome: 'Compras', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '2', e_analitica: true, aceita_lancamentos: true },
-   { id: '2.2', codigo: '2.2', nome: 'Matérias-primas e materiais', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '2', e_analitica: true, aceita_lancamentos: true },
+   { id: '2.2', codigo: '2.2', nome: 'MatÃ©rias-primas e materiais', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '2', e_analitica: true, aceita_lancamentos: true },
    { id: '2.4', codigo: '2.4', nome: 'Mercadorias', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '2', e_analitica: true, aceita_lancamentos: true },
    // Classe 3
    { id: '3', codigo: '3', nome: 'Contas a receber e a pagar', tipo: 'Ativo', natureza: 'Devedora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
@@ -51,12 +52,12 @@ const PGN_PADRAO_ANGOLANO: PlanoConta[] = [
    { id: '3.1.1', codigo: '3.1.1', nome: 'Clientes gerais', tipo: 'Ativo', natureza: 'Devedora', nivel: 3, pai_id: '3.1', e_analitica: true, aceita_lancamentos: true },
    { id: '3.2', codigo: '3.2', nome: 'Fornecedores', tipo: 'Passivo', natureza: 'Credora', nivel: 2, pai_id: '3', e_sintetica: true, aceita_lancamentos: false },
    { id: '3.2.1', codigo: '3.2.1', nome: 'Fornecedores gerais', tipo: 'Passivo', natureza: 'Credora', nivel: 3, pai_id: '3.2', e_analitica: true, aceita_lancamentos: true },
-   { id: '3.3', codigo: '3.3', nome: 'Empréstimos bank', tipo: 'Passivo', natureza: 'Credora', nivel: 2, pai_id: '3', e_analitica: true, aceita_lancamentos: true },
+   { id: '3.3', codigo: '3.3', nome: 'EmprÃ©stimos bank', tipo: 'Passivo', natureza: 'Credora', nivel: 2, pai_id: '3', e_analitica: true, aceita_lancamentos: true },
    { id: '3.4', codigo: '3.4', nome: 'Estado', tipo: 'Passivo', natureza: 'Credora', nivel: 2, pai_id: '3', e_sintetica: true, aceita_lancamentos: false },
    { id: '3.4.1', codigo: '3.4.1', nome: 'IVA a pagar', tipo: 'Passivo', natureza: 'Credora', nivel: 3, pai_id: '3.4', e_analitica: true, aceita_lancamentos: true },
    { id: '3.4.2', codigo: '3.4.2', nome: 'IRT', tipo: 'Passivo', natureza: 'Credora', nivel: 3, pai_id: '3.4', e_analitica: true, aceita_lancamentos: true },
    // Classe 4
-   { id: '4', codigo: '4', nome: 'Meios monetários', tipo: 'Ativo', natureza: 'Devedora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
+   { id: '4', codigo: '4', nome: 'Meios monetÃ¡rios', tipo: 'Ativo', natureza: 'Devedora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
    { id: '4.1', codigo: '4.1', nome: 'Caixa', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '4', e_analitica: true, aceita_lancamentos: true },
    { id: '4.2', codigo: '4.2', nome: 'Bancos - DO', tipo: 'Ativo', natureza: 'Devedora', nivel: 2, pai_id: '4', e_analitica: true, aceita_lancamentos: true },
    // Classe 5
@@ -66,17 +67,17 @@ const PGN_PADRAO_ANGOLANO: PlanoConta[] = [
    // Classe 6
    { id: '6', codigo: '6', nome: 'Proveitos e ganhos', tipo: 'Receita', natureza: 'Credora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
    { id: '6.1', codigo: '6.1', nome: 'Vendas', tipo: 'Receita', natureza: 'Credora', nivel: 2, pai_id: '6', e_analitica: true, aceita_lancamentos: true },
-   { id: '6.2', codigo: '6.2', nome: 'Prestações de serviços', tipo: 'Receita', natureza: 'Credora', nivel: 2, pai_id: '6', e_analitica: true, aceita_lancamentos: true },
+   { id: '6.2', codigo: '6.2', nome: 'PrestaÃ§Ãµes de serviÃ§os', tipo: 'Receita', natureza: 'Credora', nivel: 2, pai_id: '6', e_analitica: true, aceita_lancamentos: true },
    // Classe 7
    { id: '7', codigo: '7', nome: 'Custos e perdas', tipo: 'Despesa', natureza: 'Devedora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
-   { id: '7.1', codigo: '7.1', nome: 'Custo existências vendidas', tipo: 'Despesa', natureza: 'Devedora', nivel: 2, pai_id: '7', e_analitica: true, aceita_lancamentos: true },
+   { id: '7.1', codigo: '7.1', nome: 'Custo existÃªncias vendidas', tipo: 'Despesa', natureza: 'Devedora', nivel: 2, pai_id: '7', e_analitica: true, aceita_lancamentos: true },
    { id: '7.2', codigo: '7.2', nome: 'Custos com pessoal', tipo: 'Despesa', natureza: 'Devedora', nivel: 2, pai_id: '7', e_sintetica: true, aceita_lancamentos: false },
-   { id: '7.2.1', codigo: '7.2.1', nome: 'Remunerações', tipo: 'Despesa', natureza: 'Devedora', nivel: 3, pai_id: '7.2', e_analitica: true, aceita_lancamentos: true },
+   { id: '7.2.1', codigo: '7.2.1', nome: 'RemuneraÃ§Ãµes', tipo: 'Despesa', natureza: 'Devedora', nivel: 3, pai_id: '7.2', e_analitica: true, aceita_lancamentos: true },
    { id: '7.5', codigo: '7.5', nome: 'FST', tipo: 'Despesa', natureza: 'Devedora', nivel: 2, pai_id: '7', e_sintetica: true, aceita_lancamentos: false },
-   { id: '7.5.1', codigo: '7.5.1', nome: 'Comunicações', tipo: 'Despesa', natureza: 'Devedora', nivel: 3, pai_id: '7.5', e_analitica: true, aceita_lancamentos: true },
+   { id: '7.5.1', codigo: '7.5.1', nome: 'ComunicaÃ§Ãµes', tipo: 'Despesa', natureza: 'Devedora', nivel: 3, pai_id: '7.5', e_analitica: true, aceita_lancamentos: true },
    // Classe 8
    { id: '8', codigo: '8', nome: 'Resultados', tipo: 'Capital', natureza: 'Credora', nivel: 1, e_sintetica: true, aceita_lancamentos: false },
-   { id: '8.8', codigo: '8.8', nome: 'Resultados líquidos', tipo: 'Capital', natureza: 'Credora', nivel: 2, pai_id: '8', e_analitica: true, aceita_lancamentos: true },
+   { id: '8.8', codigo: '8.8', nome: 'Resultados lÃ­quidos', tipo: 'Capital', natureza: 'Credora', nivel: 2, pai_id: '8', e_analitica: true, aceita_lancamentos: true },
 ];
 
 // --- COMPONENTES AUXILIARES ---
@@ -116,8 +117,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [showEmployeeModal, setShowEmployeeModal] = useState(false);
    const [showReceiptModal, setShowReceiptModal] = useState(false);
    const [selectedFolha, setSelectedFolha] = useState<FolhaPagamento | null>(null);
+   const invoicePrintRef = React.useRef<HTMLDivElement>(null);
+   const [lastCreatedDoc, setLastCreatedDoc] = useState<any>(null);
 
-   // --- ESTADO DE RELATÓRIOS ---
+   const handlePrintInvoiceAction = useReactToPrint({
+      content: () => invoicePrintRef.current,
+      documentTitle: 'Documento_AGT'
+   });
+
+   // --- ESTADO DE RELATÃ“RIOS ---
    const [activeReport, setActiveReport] = useState<{ id: string; title: string; data: any[] } | null>(null);
    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -133,16 +141,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       centro_custo_id: ''
    });
 
-   // --- ESTADO DE FATURAÇÃO ---
+   // --- ESTADO DE FATURAÃ‡ÃƒO ---
    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
    const [isSavingInvoice, setIsSavingInvoice] = useState(false);
    const [invoiceForm, setInvoiceForm] = useState({
       cliente_id: '',
       cliente_nome: '',
-      tipo: 'Factura' as 'Factura' | 'Pró-forma' | 'Guia' | 'Encomenda',
+      tipo: 'Factura' as 'Factura' | 'PrÃ³-forma' | 'Guia' | 'Encomenda',
       data_emissao: new Date().toISOString().split('T')[0],
       itens: [] as { id: string; nome: string; qtd: number; preco_unitario: number; total: number }[],
-      observacoes: ''
+      observacoes: '',
+      is_exempt: false,
+      exemption_reason: ''
    });
 
    const [customItem, setCustomItem] = useState({ nome: '', preco: 0, qtd: 1 });
@@ -152,9 +162,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [showContactModal, setShowContactModal] = useState(false);
    const [isSavingContact, setIsSavingContact] = useState(false);
    const [newContact, setNewContact] = useState({
-      nome: '', nif: '', tipo: 'Cliente' as 'Cliente' | 'Fornecedor' | 'Ambos',
       email: '', telefone: '', morada: ''
    });
+
+   // --- ESTADO DE EXPORTAÇÃO SAFT-AO ---
+   const [showSaftModal, setShowSaftModal] = useState(false);
+   const [saftMonth, setSaftMonth] = useState(new Date().getMonth() + 1);
+   const [saftYear, setSaftYear] = useState(new Date().getFullYear());
+   const [isExportingSaft, setIsExportingSaft] = useState(false);
 
    // --- ESTADO DE FOLHA DE PAGAMENTO ---
    const [newEmployee, setNewEmployee] = useState({
@@ -204,7 +219,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       return imposto;
    };
 
-   // --- ESTADO DE INVENTÁRIO (CATEGORIAS E ITENS) ---
+   // --- ESTADO DE INVENTÃRIO (CATEGORIAS E ITENS) ---
    const [categorias, setCategorias] = useState<any[]>(() => AmazingStorage.get(STORAGE_KEYS.ACC_CATEGORIAS, []));
    const [showCategoryModal, setShowCategoryModal] = useState(false);
    const [isSavingCategory, setIsSavingCategory] = useState(false);
@@ -242,7 +257,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    };
 
    const handleAddCustomItem = () => {
-      if (!customItem.nome || customItem.preco <= 0) return alert("Preencha o nome e o preço do item.");
+      if (!customItem.nome || customItem.preco <= 0) return alert("Preencha o nome e o preÃ§o do item.");
       handleAddInvoiceItem({
          id: `C${Date.now()}`,
          nome: customItem.nome,
@@ -278,44 +293,33 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
       setIsSavingInvoice(true);
       try {
-         const totalLiquido = invoiceForm.itens.reduce((acc, i) => acc + i.total, 0);
-         const iva = totalLiquido * 0.14;
-         const totalGeral = totalLiquido + iva;
-         const numDoc = `${invoiceForm.tipo.substring(0, 2).toUpperCase()} ${new Date().getFullYear()}/${Math.floor(Math.random() * 9000) + 1000}`;
+         const res = await fetch('/api/documents', {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+               Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
+            },
+            body: JSON.stringify({
+               type: invoiceForm.tipo,
+               customer_name: invoiceForm.cliente_nome,
+               items: invoiceForm.itens,
+               company_id: selectedEmpresaId,
+               metadata: { observacoes: invoiceForm.observacoes },
+               is_exempt: invoiceForm.is_exempt,
+               exemption_reason: invoiceForm.exemption_reason
+            })
+         });
 
-         const { data: invData, error: invError } = await supabase.from('contabil_faturas').insert({
-            numero_fatura: numDoc,
-            cliente_nome: invoiceForm.cliente_nome,
-            data_emissao: invoiceForm.data_emissao,
-            valor_total: totalGeral,
-            status: 'Pendente',
-            company_id: selectedEmpresaId,
-            tipo: invoiceForm.tipo,
-            metadata: { itens: invoiceForm.itens, subtotal: totalLiquido, iva: iva, observacoes: invoiceForm.observacoes }
-         }).select().single();
+         if (!res.ok) throw new Error(await res.text());
 
-         if (invError) throw invError;
+         const doc = await res.json();
+         setLastCreatedDoc(doc);
 
-         // Actualizar Stock (Simulação de Movimento)
-         for (const item of invoiceForm.itens) {
-            // Decrementar no Inventário
-            const target = extInventario.find(i => i.id === item.id);
-            if (target) {
-               const novaQtd = (Number(target.quantidade_atual) || 0) - item.qtd;
-               await supabase.from('inventario').update({ quantidade_atual: novaQtd }).eq('id', item.id);
+         alert(`${invoiceForm.tipo} emitida com sucesso: ${doc.numero_fatura}`);
 
-               // Registar Movimento
-               await supabase.from('stock_movimentos').insert({
-                  produto_id: item.id,
-                  tipo: 'saida',
-                  quantidade: item.qtd,
-                  referencia: numDoc,
-                  motivo: `Venda via ${invoiceForm.tipo}`
-               });
-            }
-         }
+         // Trigger print
+         setTimeout(() => handlePrintInvoiceAction(), 500);
 
-         alert(`${invoiceForm.tipo} emitida com sucesso: ${numDoc}`);
          setShowInvoiceModal(false);
          setInvoiceForm({
             cliente_id: '',
@@ -323,7 +327,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             tipo: 'Factura',
             data_emissao: new Date().toISOString().split('T')[0],
             itens: [],
-            observacoes: ''
+            observacoes: '',
+            is_exempt: false,
+            exemption_reason: ''
          });
          fetchAccountingData();
       } catch (error: any) {
@@ -334,38 +340,64 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
    };
 
-   const handleAnularFatura = async (fatura: any) => {
-      if (!confirm(`Tem a certeza que deseja ANULAR o documento ${fatura.numero_fatura}? Esta acção é irreversível e o stock será restaurado.`)) return;
-
+   const handleExportSaft = async () => {
+      setIsExportingSaft(true);
       try {
-         const { error } = await supabase.from('contabil_faturas')
-            .update({ status: 'Anulado' })
-            .eq('id', fatura.id)
-            .eq('company_id', selectedEmpresaId);
-
-         if (error) throw error;
-
-         // Restaurar stock se houver metadados de itens
-         if (fatura.metadata?.itens) {
-            for (const item of fatura.metadata.itens) {
-               const { data: currentStock } = await supabase.from('inventario').select('quantidade_atual').eq('id', item.id).single();
-               if (currentStock) {
-                  const novaQtd = (Number(currentStock.quantidade_atual) || 0) + item.qtd;
-                  await supabase.from('inventario').update({ quantidade_atual: novaQtd }).eq('id', item.id).eq('company_id', selectedEmpresaId);
-
-                  await supabase.from('stock_movimentos').insert({
-                     produto_id: item.id,
-                     tipo: 'entrada',
-                     quantidade: item.qtd,
-                     referencia: fatura.numero_fatura,
-                     motivo: `Restauro Automático (Anulação de ${fatura.tipo || 'Venda'})`,
-                     company_id: selectedEmpresaId
-                  });
-               }
+         const response = await fetch(`/api/reports/saft?month=${saftMonth}&year=${saftYear}`, {
+            headers: {
+               Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
             }
+         });
+
+         if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Erro ao gerar SAFT-AO");
          }
 
-         alert("Documento anulado e stock restaurado com sucesso.");
+         const blob = await response.blob();
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         a.download = `SAFT_AO_${saftYear}_${String(saftMonth).padStart(2, '0')}.xml`;
+         document.body.appendChild(a);
+         a.click();
+         a.remove();
+         window.URL.revokeObjectURL(url);
+         setShowSaftModal(false);
+         alert("Ficheiro SAFT-AO exportado com sucesso!");
+      } catch (err: any) {
+         console.error("Export Error:", err);
+         alert(`Erro na exportação: ${err.message}`);
+      } finally {
+         setIsExportingSaft(false);
+      }
+   };
+
+   const handleAnularFatura = async (fatura: any) => {
+      if (!confirm(`Tem a certeza que deseja ANULAR o documento ${fatura.numero_fatura}? Esta acÃ§Ã£o Ã© irreversÃ­vel e o stock serÃ¡ restaurado.`)) return;
+
+      try {
+         // Se for uma fatura do POS (venda), usar o endpoint de cancelamento de venda
+         if (fatura.tipo === 'Venda') {
+            const res = await fetch(`/api/sales/${fatura.id}/cancel`, {
+               method: 'POST',
+               headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
+               }
+            });
+            if (!res.ok) throw new Error(await res.text());
+         } else {
+            // Caso contrÃ¡rio, apenas marcar como anulado
+            const { error } = await supabase.from('contabil_faturas')
+               .update({ status: 'Anulado' })
+               .eq('id', fatura.id)
+               .eq('company_id', selectedEmpresaId);
+
+            if (error) throw error;
+         }
+
+         alert("Documento anulado com sucesso.");
          fetchAccountingData();
       } catch (error: any) {
          console.error("Anular Error:", error);
@@ -374,7 +406,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    };
 
 
-   // --- LÓGICA DE PERÍODOS ---
+   // --- LÃ“GICA DE PERÃODOS ---
    const handleOpenYear = async () => {
       if (!selectedEmpresaId) return alert("Selecione uma empresa primeiro.");
 
@@ -386,10 +418,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          targetYear = lastYear + 1;
       }
 
-      if (!confirm(`Deseja abrir o exercício fiscal de ${targetYear}?`)) return;
+      if (!confirm(`Deseja abrir o exercÃ­cio fiscal de ${targetYear}?`)) return;
 
       try {
-         // Verificar se já existe QUALQUER mês aberto para este ano
+         // Verificar se jÃ¡ existe QUALQUER mÃªs aberto para este ano
          const { data: exists } = await supabase.from('acc_periodos')
             .select('id')
             .eq('company_id', selectedEmpresaId)
@@ -397,7 +429,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             .limit(1)
             .maybeSingle();
 
-         if (exists) return alert(`O exercício de ${targetYear} já possui períodos abertos.`);
+         if (exists) return alert(`O exercÃ­cio de ${targetYear} jÃ¡ possui perÃ­odos abertos.`);
 
          const { error } = await supabase.from('acc_periodos').insert({
             ano: targetYear,
@@ -407,11 +439,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          });
 
          if (error) throw error;
-         alert(`Exercício ${targetYear} (Mês 1) aberto com sucesso.`);
+         alert(`ExercÃ­cio ${targetYear} (MÃªs 1) aberto com sucesso.`);
          await fetchAccountingData();
       } catch (error: any) {
          console.error("Open Year Error:", error);
-         alert(`Erro ao abrir novo ano: ${error.message || 'Erro de conexão'}`);
+         alert(`Erro ao abrir novo ano: ${error.message || 'Erro de conexÃ£o'}`);
       }
    };
 
@@ -432,7 +464,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          nextAno = last.mes === 12 ? last.ano + 1 : last.ano;
       }
 
-      if (!confirm(`Abrir período contábil de ${nextMes}/${nextAno}?`)) return;
+      if (!confirm(`Abrir perÃ­odo contÃ¡bil de ${nextMes}/${nextAno}?`)) return;
 
       try {
          // Verificar duplicado
@@ -443,7 +475,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             .eq('mes', nextMes)
             .maybeSingle();
 
-         if (exists) return alert(`O mês ${nextMes}/${nextAno} já se encontra aberto.`);
+         if (exists) return alert(`O mÃªs ${nextMes}/${nextAno} jÃ¡ se encontra aberto.`);
 
          const { error } = await supabase.from('acc_periodos').insert({
             ano: nextAno,
@@ -453,56 +485,62 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          });
 
          if (error) throw error;
-         alert(`Mês ${nextMes}/${nextAno} aberto.`);
+         alert(`MÃªs ${nextMes}/${nextAno} aberto.`);
          await fetchAccountingData();
       } catch (error: any) {
          console.error("Open Month Error:", error);
-         alert(`Erro ao abrir novo mês: ${error.message || 'Erro de conexão'}`);
+         alert(`Erro ao abrir novo mÃªs: ${error.message || 'Erro de conexÃ£o'}`);
       }
    };
 
    const handleOpenPlanPadrao = async () => {
-      if (!confirm("Deseja importar os modelos padrões de lançamentos para venda, compra e folha?")) return;
+      if (!confirm("Deseja importar os modelos padrÃµes de lanÃ§amentos para venda, compra e folha?")) return;
       alert("Modelos importados com sucesso.");
    };
 
    const sidebarItems = [
-      { id: 'dashboard', label: 'Visão Global', icon: <BarChart2 size={20} /> },
-      { id: 'facturas', label: 'Facturas', icon: <FileText size={20} /> },
-      { id: 'proformas', label: 'Pró-formas', icon: <FilePieChart size={20} /> },
+      { id: 'dashboard', label: 'VisÃ£o Global', icon: <BarChart2 size={20} /> },
+      { id: 'facturas', label: 'Facturas / FR', icon: <FileText size={20} /> },
+      { id: 'proformas', label: 'Pro-formas', icon: <FilePieChart size={20} /> },
+      { id: 'recibos', label: 'Recibos (RE)', icon: <CheckCircle2 size={20} /> },
+      { id: 'notas', label: 'Notas (NC/ND)', icon: <ArrowLeftRight size={20} /> },
       { id: 'guias', label: 'Guias', icon: <Briefcase size={20} /> },
       { id: 'encomendas', label: 'Encomendas', icon: <ShoppingCart size={20} /> },
       { id: 'contactos', label: 'Contactos', icon: <Users size={20} /> },
       { id: 'itens', label: 'Itens', icon: <Plus size={20} /> },
-      { id: 'relatorios', label: 'Relatórios', icon: <PieChartIcon size={20} /> },
+      { id: 'relatorios', label: 'RelatÃ³rios', icon: <PieChartIcon size={20} /> },
    ] as const;
 
    const reportCards = [
       { id: 'cta_corrente', title: 'Conta Corrente de Cliente', icon: <Users className="text-blue-500" />, desc: 'Extrato detalhado de movimentos por cliente.' },
-      { id: 'pag_falta', title: 'Pagamentos em Falta', icon: <AlertTriangle className="text-red-500" />, desc: 'Listagem de faturas vencidas e não pagas.' },
-      { id: 'liq_impostos', title: 'Liquidação de Impostos', icon: <Scale className="text-yellow-600" />, desc: 'Cálculo de IVA, IRT e Imposto Industrial.' },
-      { id: 'fact_item', title: 'Facturação por Item', icon: <ShoppingCart className="text-purple-500" />, desc: 'Análise de vendas detalhada por produto.' },
-      { id: 'rel_fact', title: 'Relatório de Facturação', icon: <FileText className="text-blue-600" />, desc: 'Resumo mensal e anual de toda faturação.' },
-      { id: 'mapa_impostos', title: 'Mapa de Impostos', icon: <Landmark className="text-emerald-500" />, desc: 'Geração de mapas oficiais para AGT.' },
-      { id: 'rel_colab', title: 'Relatório por Colaborador', icon: <Users className="text-orange-500" />, desc: 'Performance e custos de pessoal.' },
-      { id: 'pag_efet', title: 'Pagamentos Efectuados', icon: <CheckCircle2 className="text-green-500" />, desc: 'Histórico de liquidações e saídas.' },
+      { id: 'pag_falta', title: 'Pagamentos em Falta', icon: <AlertTriangle className="text-red-500" />, desc: 'Listagem de faturas vencidas e nÃ£o pagas.' },
+      { id: 'vendas_diarias', title: 'Vendas do Dia', icon: <BarChart3 className="text-green-500" />, desc: 'RelatÃ³rio de vendas realizadas no dia atual.' },
+      { id: 'vendas_semanais', title: 'Vendas Semanais', icon: <BarChart3 className="text-yellow-500" />, desc: 'AnÃ¡lise de vendas por semana.' },
+      { id: 'vendas_mensais', title: 'Vendas Mensais', icon: <BarChart3 className="text-indigo-500" />, desc: 'Resumo detalhado das vendas do mÃªs.' },
+      { id: 'vendas_anuais', title: 'AnÃ¡lise Anual', icon: <BarChart3 className="text-orange-500" />, desc: 'VisÃ£o geral das vendas ao longo do ano fiscal.' },
+      { id: 'liq_impostos', title: 'LiquidaÃ§Ã£o de Impostos', icon: <Scale className="text-yellow-600" />, desc: 'CÃ¡lculo de IVA, IRT e Imposto Industrial.' },
+      { id: 'fact_item', title: 'FacturaÃ§Ã£o por Item', icon: <ShoppingCart className="text-purple-500" />, desc: 'AnÃ¡lise de vendas detalhada por produto.' },
+      { id: 'rel_fact', title: 'RelatÃ³rio de FacturaÃ§Ã£o', icon: <FileText className="text-blue-600" />, desc: 'Resumo mensal e anual de toda faturaÃ§Ã£o.' },
+      { id: 'mapa_impostos', title: 'Mapa de Impostos', icon: <Landmark className="text-emerald-500" />, desc: 'GeraÃ§Ã£o de mapas oficiais para AGT.' },
+      { id: 'rel_colab', title: 'RelatÃ³rio por Colaborador', icon: <Users className="text-orange-500" />, desc: 'Performance e custos de pessoal.' },
+      { id: 'pag_efet', title: 'Pagamentos Efectuados', icon: <CheckCircle2 className="text-green-500" />, desc: 'HistÃ³rico de liquidaÃ§Ãµes e saÃ­das.' },
    ];
 
    const handleClosePeriod = async (id: string) => {
-      if (!confirm("Tem certeza que deseja fechar este período? Novos lançamentos serão bloqueados.")) return;
+      if (!confirm("Tem certeza que deseja fechar este perÃ­odo? Novos lanÃ§amentos serÃ£o bloqueados.")) return;
       try {
          const { error } = await supabase.from('acc_periodos').update({ status: 'Fechado' }).eq('id', id).eq('company_id', selectedEmpresaId);
          if (error) throw error;
          fetchAccountingData();
       } catch (error) {
-         alert('Erro ao fechar período.');
+         alert('Erro ao fechar perÃ­odo.');
       }
    };
 
    const handleCreateAccount = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
-         // Determinar Nível e Pai automaticamente se não fornecido
+         // Determinar NÃ­vel e Pai automaticamente se nÃ£o fornecido
          let nivel = Number(newAccount.nivel);
          if (newAccount.codigo.includes('.')) {
             nivel = newAccount.codigo.split('.').length;
@@ -512,7 +550,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             ...newAccount,
             nivel: nivel,
             company_id: selectedEmpresaId,
-            e_sintetica: !newAccount.aceita_lancamentos, // Se não aceita lançamentos, é sintética
+            e_sintetica: !newAccount.aceita_lancamentos, // Se nÃ£o aceita lanÃ§amentos, Ã© sintÃ©tica
             data_criacao: new Date().toISOString()
          });
          if (error) throw error;
@@ -534,7 +572,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [integrityResult, setIntegrityResult] = useState<{ status: string; unbalanced_entries: number; check_date: string } | null>(null);
    const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
 
-   // Form State para Novo Lançamento
+   // Form State para Novo LanÃ§amento
    const [newEntry, setNewEntry] = useState({
       descricao: '',
       contaDebito: '7.5',
@@ -561,7 +599,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [extratos, setExtratos] = useState<any[]>([]);
    const [isSuggestingAccounts, setIsSuggestingAccounts] = useState(false);
 
-   // --- MÓDULOS EXTERNOS (INTEGRAÇÃO AUTOMÁTICA) ---
+   // --- MÃ“DULOS EXTERNOS (INTEGRAÃ‡ÃƒO AUTOMÃTICA) ---
    const [extFaturas, setExtFaturas] = useState<any[]>(() => AmazingStorage.get('amazing_ext_faturas', []));
    const [extTesouraria, setExtTesouraria] = useState<any[]>(() => AmazingStorage.get('amazing_ext_tesouraria', []));
    const [extRhRecibos, setExtRhRecibos] = useState<any[]>(() => AmazingStorage.get('amazing_ext_rh_recibos', []));
@@ -570,7 +608,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [isSyncingModules, setIsSyncingModules] = useState(false);
    const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
 
-   // --- MODELOS E REGRAS AUTOMÁTICAS ---
+   // --- MODELOS E REGRAS AUTOMÃTICAS ---
    const [isAutoLaunching, setIsAutoLaunching] = useState(false);
 
    // --- PLANO DE CONTAS INTELIGENTE ---
@@ -590,18 +628,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    };
 
    const handleImportPlanoPadrao = async () => {
-      if (!confirm("Isso exportará o PGC Angolano padrão para a base de dados. Deseja continuar?")) return;
+      if (!confirm("Isso exportarÃ¡ o PGC Angolano padrÃ£o para a base de dados. Deseja continuar?")) return;
       try {
          setIsAnalyzing(true);
-         // O sistema já tem os dados no DB via migração, mas podemos forçar um Refresh ou Inserção se necessário.
-         // Para este ERP, vamos assumir que o 'Importar' garante que a tabela está populada.
+         // O sistema jÃ¡ tem os dados no DB via migraÃ§Ã£o, mas podemos forÃ§ar um Refresh ou InserÃ§Ã£o se necessÃ¡rio.
+         // Para este ERP, vamos assumir que o 'Importar' garante que a tabela estÃ¡ populada.
          const { error } = await supabase.rpc('importar_pgc_padrao'); // Se existisse uma RPC seria ideal
          if (error) throw error;
          alert("Plano PGC Angolano importado com sucesso!");
          fetchAccountingData();
       } catch (e) {
-         // Fallback manual se RPC não existir - mas já fizemos via migração
-         alert("Operação concluída. O PGC já está disponível.");
+         // Fallback manual se RPC nÃ£o existir - mas jÃ¡ fizemos via migraÃ§Ã£o
+         alert("OperaÃ§Ã£o concluÃ­da. O PGC jÃ¡ estÃ¡ disponÃ­vel.");
          fetchAccountingData();
       } finally {
          setIsAnalyzing(false);
@@ -627,7 +665,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    // --- CONTACTOS ---
    const handleCreateContact = async (e?: any) => {
       if (e) e.preventDefault();
-      if (!newContact.nome) return alert("O nome é obrigatório.");
+      if (!newContact.nome) return alert("O nome Ã© obrigatÃ³rio.");
       if (!selectedEmpresaId) return alert("Seleccione uma empresa primeiro.");
 
       setIsSavingContact(true);
@@ -662,7 +700,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    });
    const [isSavingCompra, setIsSavingCompra] = useState(false);
 
-   // --- APROVAÇÃO DE LANÇAMENTOS ---
+   // --- APROVAÃ‡ÃƒO DE LANÃ‡AMENTOS ---
    const [isApprovingId, setIsApprovingId] = useState<string | null>(null);
    const [showApprovalModal, setShowApprovalModal] = useState(false);
    const [approvalTarget, setApprovalTarget] = useState<any | null>(null);
@@ -671,7 +709,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    // --- ESTORNO ---
    const [isEstornandoId, setIsEstornandoId] = useState<string | null>(null);
 
-   // --- LÓGICA DE INTEGRIDADE DO LEDGER ---
+   // --- LÃ“GICA DE INTEGRIDADE DO LEDGER ---
    const handleCheckLedgerIntegrity = async () => {
       setIsCheckingIntegrity(true);
       try {
@@ -858,7 +896,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    const handleCreateCategory = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newCategory.nome) return alert("O nome da categoria é obrigatório.");
+      if (!newCategory.nome) return alert("O nome da categoria Ã© obrigatÃ³rio.");
       setIsSavingCategory(true);
       try {
          const { error } = await supabase.from('acc_categorias').insert({
@@ -879,7 +917,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    const handleCreateItem = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newInventoryItem.nome || !newInventoryItem.categoria_id) return alert("Nome e Categoria são obrigatórios.");
+      if (!newInventoryItem.nome || !newInventoryItem.categoria_id) return alert("Nome e Categoria sÃ£o obrigatÃ³rios.");
       setIsSavingItem(true);
       try {
          const { error } = await supabase.from('inventario').insert({
@@ -906,7 +944,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       fetchAccountingData();
    }, [selectedEmpresaId]);
 
-   // Garantir que o período selecionado pertence à empresa selecionada
+   // Garantir que o perÃ­odo selecionado pertence Ã  empresa selecionada
    useEffect(() => {
       if (!selectedEmpresaId || periodos.length === 0) return;
 
@@ -922,7 +960,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    const currentEmpresa = empresas?.find(e => e.id === selectedEmpresaId) || empresas?.[0];
 
-   // --- DADOS INTEGRADOS (USADOS EM MÚLTIPLAS ABAS) ---
+   // --- DADOS INTEGRADOS (USADOS EM MÃšLTIPLAS ABAS) ---
    const { extFinanceiroNotas, totalFacturado, totalPendente, totalCaixa, totalEntradas, totalSaidas, totalSalarios, totalBruto, totalInventarioValor, itensCriticos } = useMemo(() => {
       const _fat = extFaturas || [];
       const _tes = extTesouraria || [];
@@ -963,7 +1001,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       };
    }, [extFaturas, extTesouraria, extRhRecibos, extInventario]);
 
-   // --- LÓGICA DE GRÁFICOS E RELATÓRIOS (ULTRA DEFENSIVA) ---
+   // --- LÃ“GICA DE GRÃFICOS E RELATÃ“RIOS (ULTRA DEFENSIVA) ---
    const chartData = useMemo(() => {
       try {
          const filterEmpAndPeriod = (arr: LancamentoContabil[]) => (arr || []).filter(l =>
@@ -972,7 +1010,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          );
          const empLancamentos = filterEmpAndPeriod(lancamentos);
 
-         // 1. Dados para Gráfico de Barras
+         // 1. Dados para GrÃ¡fico de Barras
          const monthlyStats: Record<string, { receita: number, despesa: number }> = {};
          const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
          meses.forEach(m => monthlyStats[m] = { receita: 0, despesa: 0 });
@@ -1027,8 +1065,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          const finalPieData = pieChartData.length > 0 ? pieChartData : [
             { name: 'Pessoal', value: 450000 },
-            { name: 'Manutenção', value: 120000 },
-            { name: 'Serviços Terceiros', value: 80000 },
+            { name: 'ManutenÃ§Ã£o', value: 120000 },
+            { name: 'ServiÃ§os Terceiros', value: 80000 },
             { name: 'Impostos', value: 50000 },
          ];
 
@@ -1039,7 +1077,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
    }, [selectedEmpresaId, selectedPeriodoId, lancamentos]);
 
-   // --- LÓGICA DE BALANÇO E DRE (ULTRA DEFENSIVA) ---
+   // --- LÃ“GICA DE BALANÃ‡O E DRE (ULTRA DEFENSIVA) ---
    const financeReports = useMemo(() => {
       try {
          const filterEmpAndPeriod = (arr: LancamentoContabil[]) => (arr || []).filter(l =>
@@ -1094,11 +1132,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
    }, [selectedEmpresaId, selectedPeriodoId, lancamentos, planoContas]);
 
-   // --- LÓGICA DE IA ---
+   // --- LÃ“GICA DE IA ---
    const handleAIAnalysis = async () => {
       const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
       if (!apiKey) {
-         setIaResponse("A chave da API (GEMINI_API_KEY) não foi configurada. Contacte o administrador.");
+         setIaResponse("A chave da API (GEMINI_API_KEY) nÃ£o foi configurada. Contacte o administrador.");
          return;
       }
 
@@ -1110,9 +1148,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 - Receita: ${safeFormatAOA(financeReports.receitaTotal)}
 - Despesa: ${safeFormatAOA(financeReports.despesaTotal)}
 - Lucro: ${safeFormatAOA(financeReports.lucroLiquido)}
-- Património Líquido: ${safeFormatAOA(financeReports.ativos - financeReports.passivos)}
+- PatrimÃ³nio LÃ­quido: ${safeFormatAOA(financeReports.ativos - financeReports.passivos)}
       
-      Forneça 3 sugestões estratégicas para redução de custos e 1 alerta sobre conformidade fiscal(IVA / IRT).`;
+      ForneÃ§a 3 sugestÃµes estratÃ©gicas para reduÃ§Ã£o de custos e 1 alerta sobre conformidade fiscal(IVA / IRT).`;
 
          const result = await ai.models.generateContent({
             model: 'gemini-1.5-pro',
@@ -1122,7 +1160,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          setIaResponse(result.text || "Sem resposta da IA.");
       } catch (error) {
          console.error('AI Error:', error);
-         setIaResponse("A IA está processando auditorias externas. Tente novamente em instantes.");
+         setIaResponse("A IA estÃ¡ processando auditorias externas. Tente novamente em instantes.");
       } finally {
          setIsAnalyzing(false);
       }
@@ -1135,9 +1173,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       setIsSuggestingAccounts(true);
       try {
          const ai = new GoogleGenAI({ apiKey });
-         const prompt = `Com base no Plano Geral de Contas de Angola (PGC) e na descrição "${descricao}", sugira apenas o código da conta de Débito e o código da conta de Crédito. 
+         const prompt = `Com base no Plano Geral de Contas de Angola (PGC) e na descriÃ§Ã£o "${descricao}", sugira apenas o cÃ³digo da conta de DÃ©bito e o cÃ³digo da conta de CrÃ©dito. 
          Retorne APENAS um JSON no formato: {"debito": "codigo", "credito": "codigo"}.
-         Exemplos de contas: 1.1 (Caixa), 7.2 (Salários), 6.1 (Vendas), 3.1 (Inventários).`;
+         Exemplos de contas: 1.1 (Caixa), 7.2 (SalÃ¡rios), 6.1 (Vendas), 3.1 (InventÃ¡rios).`;
 
          const result = await ai.models.generateContent({
             model: 'gemini-1.5-flash',
@@ -1189,7 +1227,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             data_admissao: new Date().toISOString().split('T')[0]
          });
          if (error) throw error;
-         alert("Funcionário registado com sucesso!");
+         alert("FuncionÃ¡rio registado com sucesso!");
          setShowEmployeeModal(false);
          setNewEmployee({
             nome: '', funcao: '', bilhete: '', telefone: '', salario_base: 0,
@@ -1201,22 +1239,22 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          });
          fetchAccountingData();
       } catch (e: any) {
-         alert(`Erro ao registar funcionário: ${e.message}`);
+         alert(`Erro ao registar funcionÃ¡rio: ${e.message}`);
       } finally {
          setIsProcessingPayroll(false);
       }
    };
 
-   // --- LÓGICA DE PAYROLL ---
+   // --- LÃ“GICA DE PAYROLL ---
    const runPayroll = async () => {
       if (!selectedEmpresaId || !selectedPeriodoId) {
-         alert("Selecione uma empresa e um período aberto antes de processar a folha.");
+         alert("Selecione uma empresa e um perÃ­odo aberto antes de processar a folha.");
          return;
       }
 
       const activePeriodo = periodos.find(p => p.id === selectedPeriodoId);
       if (!activePeriodo || activePeriodo.status === 'Fechado') {
-         alert("O período selecionado está fechado.");
+         alert("O perÃ­odo selecionado estÃ¡ fechado.");
          return;
       }
 
@@ -1226,11 +1264,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       );
 
       if (funcionariosAtivos.length === 0) {
-         alert("Não há funcionários ativos vinculados a esta empresa para processar.");
+         alert("NÃ£o hÃ¡ funcionÃ¡rios ativos vinculados a esta empresa para processar.");
          return;
       }
 
-      if (!confirm(`Confirmar processamento da folha para ${funcionariosAtivos.length} colaboradores para o período ${activePeriodo.mes}/${activePeriodo.ano}?`)) return;
+      if (!confirm(`Confirmar processamento da folha para ${funcionariosAtivos.length} colaboradores para o perÃ­odo ${activePeriodo.mes}/${activePeriodo.ano}?`)) return;
 
       setIsProcessingPayroll(true);
 
@@ -1242,21 +1280,21 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             const bonifBase = Number((f as any).outras_bonificacoes_base) || 0;
             const hExtras = Number((f as any).valor_hora_extra_base) || 0;
             const adiantamento = Number((f as any).adiantamento_padrao) || 0;
-            const descAtrasos = 0; // Logica automática para atrasos (poderia ser baseado em faltas/checkpoint)
-            const descFerias = 0; // Desconto de férias se aplicável
+            const descAtrasos = 0; // Logica automÃ¡tica para atrasos (poderia ser baseado em faltas/checkpoint)
+            const descFerias = 0; // Desconto de fÃ©rias se aplicÃ¡vel
 
-            // Cálculos Automáticos
+            // CÃ¡lculos AutomÃ¡ticos
             let natal = 0;
             let ferias = 0;
 
-            // Subsídio de Natal automático em Dezembro
+            // SubsÃ­dio de Natal automÃ¡tico em Dezembro
             if (activePeriodo.mes === 12) natal = Number((f as any).subsidio_natal_base) || base;
-            // Subsídio de Férias automático em Junho
+            // SubsÃ­dio de FÃ©rias automÃ¡tico em Junho
             if (activePeriodo.mes === 6) ferias = Number((f as any).subsidio_ferias_base) || base;
 
             const salarioBruto = base + subAlim + subTrans + bonifBase + natal + ferias + hExtras;
             const inss = calculateINSS(base + bonifBase + hExtras); // INSS incide sobre base e complementos de rendimento
-            const irt = calculateIRT(salarioBruto - inss.trabalhador - subAlim - subTrans); // IRT sobre rendimento líquido de INSS e isento de subsídios (simplificado)
+            const irt = calculateIRT(salarioBruto - inss.trabalhador - subAlim - subTrans); // IRT sobre rendimento lÃ­quido de INSS e isento de subsÃ­dios (simplificado)
 
             const totalDescontos = inss.trabalhador + irt + descAtrasos + descFerias + adiantamento;
             const salarioLiquido = salarioBruto - totalDescontos;
@@ -1291,7 +1329,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          const { error: fError } = await supabase.from('acc_folhas').insert(payrollBatch);
          if (fError) throw fError;
 
-         // 2. Criar Lançamento Contábil Correspondente
+         // 2. Criar LanÃ§amento ContÃ¡bil Correspondente
          const totalBrutoBatch = (payrollBatch || []).reduce((acc, f) => acc + Number(f.salario_bruto), 0);
          const totalLiquidoBatch = (payrollBatch || []).reduce((acc, f) => acc + Number(f.salario_liquido), 0);
          const totalDescontosBatch = totalBrutoBatch - totalLiquidoBatch;
@@ -1299,7 +1337,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          const { data: entry, error: lError } = await supabase.from('acc_lancamentos').insert([{
             company_id: selectedEmpresaId,
             debito: totalBrutoBatch,
-            credito: totalDescontosBatch + totalLiquidoBatch, // Equilíbrio contábil
+            credito: totalDescontosBatch + totalLiquidoBatch, // EquilÃ­brio contÃ¡bil
             descricao: `Processamento de Folha de Pagamento - Ciclo ${periodos.find(p => p.id === selectedPeriodoId)?.mes}/${periodos.find(p => p.id === selectedPeriodoId)?.ano}`,
             data: new Date().toISOString().split('T')[0],
             status: 'concluido'
@@ -1307,11 +1345,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          if (lError) throw lError;
 
-         // 3. Itens do Lançamento
+         // 3. Itens do LanÃ§amento
          await supabase.from('acc_lancamento_itens').insert([
-            { lancamento_id: entry.id, conta_id: '62', debito: totalBrutoBatch, credito: 0, descricao: 'Gastos com Pessoal (Salários)' },
-            { lancamento_id: entry.id, conta_id: '34', debito: 0, credito: totalDescontosBatch, descricao: 'Retenções e Descontos (Seg. Social/IRT)' },
-            { lancamento_id: entry.id, conta_id: '37', debito: 0, credito: totalLiquidoBatch, descricao: 'Salários Líquidos a Pagar' }
+            { lancamento_id: entry.id, conta_id: '62', debito: totalBrutoBatch, credito: 0, descricao: 'Gastos com Pessoal (SalÃ¡rios)' },
+            { lancamento_id: entry.id, conta_id: '34', debito: 0, credito: totalDescontosBatch, descricao: 'RetenÃ§Ãµes e Descontos (Seg. Social/IRT)' },
+            { lancamento_id: entry.id, conta_id: '37', debito: 0, credito: totalLiquidoBatch, descricao: 'SalÃ¡rios LÃ­quidos a Pagar' }
          ]);
 
          await fetchAccountingData();
@@ -1319,28 +1357,32 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       } catch (error: any) {
          console.error('Payroll error:', error);
          alert(`Erro ao processar folha: ${error.message}`);
-      } finally {
          setIsProcessingPayroll(false);
       }
    };
 
    const handlePrintFatura = (fatura: any) => {
-      alert(`Imprimindo documento ${fatura.numero_fatura || fatura.numero}...`);
+      setLastCreatedDoc(fatura);
+      // Pequeno atraso para garantir que o estado foi actualizado antes de imprimir
+      setTimeout(() => handlePrintInvoiceAction(), 500);
    };
 
-   // --- LÓGICA DE RELATÓRIOS ---
+   // --- LÃ“GICA DE RELATÃ“RIOS ---
    const openReport = async (reportId: string) => {
       setIsGeneratingReport(true);
       const reportTitle = {
-         'balanco': 'Balanço Patrimonial',
-         'dre': 'Demonstração de Resultados (DRE)',
-         'balancete': 'Balancete de Verificação',
-         'diario': 'Diário de Lançamentos',
-         'razão': 'Livro Razão',
-         'cashflow': 'Fluxo de Caixa',
-         'fiscal': 'Relatório Fiscal (IVA/IRT)',
-         'auditoria': 'Trilhas de Auditoria'
-      }[reportId] || 'Relatório';
+         'balanco': 'BalanÃ§o Patrimonial',
+         'dre': 'DemonstraÃ§Ã£o de Resultados (DRE)',
+         'balancete': 'Balancete de VerificaÃ§Ã£o',
+         'diario': 'DiÃ¡rio de LanÃ§amentos',
+         'razÃ£o': 'Livro RazÃ£o',
+         'cta_corrente': 'Extracto de Conta Corrente',
+         'pag_falta': 'RelatÃ³rio de Pagamentos em Falta',
+         'vendas_diarias': 'Vendas do Dia (Hoje)',
+         'vendas_semanais': 'Vendas da Semana (Ãšltimos 7 dias)',
+         'vendas_mensais': 'Vendas do MÃªs Corrente',
+         'vendas_anuais': 'Resumo de Vendas Anual'
+      }[reportId] || 'RelatÃ³rio';
 
       if (!selectedEmpresaId) {
          alert("Por favor, selecione uma empresa primeiro.");
@@ -1353,7 +1395,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          if (reportId === 'diario') {
             if (!selectedPeriodoId) {
-               alert("Selecione um período (Ano/Mês) para visualizar o diário.");
+               alert("Selecione um perÃ­odo (Ano/MÃªs) para visualizar o diÃ¡rio.");
                setIsGeneratingReport(false);
                return;
             }
@@ -1384,7 +1426,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             data = [
                { desc: 'PROVEITOS E GANHOS', valor: proveitos, tipo: 'R' },
                { desc: 'CUSTOS E PERDAS', valor: custos, tipo: 'D' },
-               { desc: 'RESULTADO LÍQUIDO', valor: proveitos - custos, tipo: 'T' }
+               { desc: 'RESULTADO LÃQUIDO', valor: proveitos - custos, tipo: 'T' }
             ];
          } else if (reportId === 'balanco') {
             const ativo = (lancamentos || []).filter(l => l.company_id === selectedEmpresaId && l.status === 'Postado')
@@ -1413,7 +1455,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             data = [
                { desc: 'ACTIVO TOTAL', valor: ativo },
                { desc: 'PASSIVO TOTAL', valor: passivo },
-               { desc: 'CAPITAL PRÓPRIO', valor: capital },
+               { desc: 'CAPITAL PRÃ“PRIO', valor: capital },
                { desc: 'TOTAL PASSIVO + CP', valor: passivo + capital }
             ];
          } else if (reportId === 'auditoria') {
@@ -1431,10 +1473,43 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
             data = [
                { desc: 'IVA Liquidado (Vendas)', valor: ivaLiquidado },
-               { desc: 'IVA Dedutível (Compras)', valor: ivaDedutivel },
+               { desc: 'IVA DedutÃ­vel (Compras)', valor: ivaDedutivel },
                { desc: 'IVA a Pagar / Recuperar', valor: ivaLiquidado - ivaDedutivel }
             ];
-         } else if (reportId === 'razão') {
+         } else if (['vendas_diarias', 'vendas_semanais', 'vendas_mensais', 'vendas_anuais'].includes(reportId)) {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+
+            data = extFinanceiroNotas.filter(n => {
+               if (n.company_id !== selectedEmpresaId) return false;
+               if (!['Venda', 'Factura', 'Factura-Recibo'].includes(n.tipo)) return false;
+
+               const d = n.data_emissao;
+               if (reportId === 'vendas_diarias') return d === today;
+               if (reportId === 'vendas_semanais') {
+                  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                  return d >= weekAgo;
+               }
+               if (reportId === 'vendas_mensais') {
+                  return d.startsWith(today.slice(0, 7));
+               }
+               if (reportId === 'vendas_anuais') {
+                  return d.startsWith(today.slice(0, 4));
+               }
+               return false;
+            });
+
+            if (reportId === 'vendas_anuais') {
+               const mensal: any = {};
+               data.forEach(n => {
+                  const mes = n.data_emissao.slice(0, 7);
+                  if (!mensal[mes]) mensal[mes] = { periodo: mes, valor: 0, qtd: 0 };
+                  mensal[mes].valor += Number(n.valor_total) || 0;
+                  mensal[mes].qtd += 1;
+               });
+               data = Object.values(mensal).sort((a: any, b: any) => b.periodo.localeCompare(a.periodo));
+            }
+         } else if (reportId === 'razÃ£o') {
             // Agrupar movimentos detalhados por conta
             const razao: any = {};
             (lancamentos || []).filter(l => l.company_id === selectedEmpresaId && l.status === 'Postado').forEach(l => {
@@ -1450,10 +1525,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   });
                });
             });
-            // Converter para array plano para exibição
+            // Converter para array plano para exibiÃ§Ã£o
             data = Object.values(razao).sort((a: any, b: any) => a.codigo.localeCompare(b.codigo));
          } else if (reportId === 'cashflow') {
-            // Fluxo de Caixa Simplicado (Entradas vs Saídas na Classe 1)
+            // Fluxo de Caixa Simplicado (Entradas vs SaÃ­das na Classe 1)
             const entradas = (lancamentos || []).filter(l => l.company_id === selectedEmpresaId && l.status === 'Postado')
                .flatMap(l => (l.itens || []))
                .filter(it => it?.conta_codigo?.startsWith('1.1') && it?.tipo === 'D') // Caixa/Bancos como destino (entrada)
@@ -1461,29 +1536,29 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
             const saidas = (lancamentos || []).filter(l => l.company_id === selectedEmpresaId && l.status === 'Postado')
                .flatMap(l => (l.itens || []))
-               .filter(it => it?.conta_codigo?.startsWith('1.1') && it?.tipo === 'C') // Caixa/Bancos como origem (saída)
+               .filter(it => it?.conta_codigo?.startsWith('1.1') && it?.tipo === 'C') // Caixa/Bancos como origem (saÃ­da)
                .reduce((acc, it) => acc + (Number(it.valor) || 0), 0);
 
             data = [
                { desc: 'ENTRADAS DE CAIXA', valor: entradas, tipo: 'R' },
-               { desc: 'SAÍDAS DE CAIXA', valor: saidas, tipo: 'D' },
-               { desc: 'FLUXO LÍQUIDO DO PERÍODO', valor: entradas - saidas, tipo: 'T' }
+               { desc: 'SAÃDAS DE CAIXA', valor: saidas, tipo: 'D' },
+               { desc: 'FLUXO LÃQUIDO DO PERÃODO', valor: entradas - saidas, tipo: 'T' }
             ];
          }
 
          setActiveReport({ id: reportId, title: reportTitle, data });
          setShowReportModal(true);
       } catch (e) {
-         console.error("Erro ao gerar relatório:", e);
+         console.error("Erro ao gerar relatÃ³rio:", e);
       } finally {
          setIsGeneratingReport(false);
       }
    };
 
-   // --- LANÇAMENTOS AUTOMÁTICOS: FATURAÇÃO ---
+   // --- LANÃ‡AMENTOS AUTOMÃTICOS: FATURAÃ‡ÃƒO ---
    const handleAutoLaunchFromFatura = async (fatura: any) => {
       if (!selectedEmpresaId || !selectedPeriodoId) {
-         alert('Selecione empresa e período antes de contabilizar.');
+         alert('Selecione empresa e perÃ­odo antes de contabilizar.');
          return;
       }
       setIsAutoLaunching(true);
@@ -1498,26 +1573,26 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             company_id: selectedEmpresaId,
             usuario_id: null,
             status: 'Postado',
-            tipo_transacao: 'Automático'
+            tipo_transacao: 'AutomÃ¡tico'
          }]).select().single();
          if (error) throw error;
          await supabase.from('acc_lancamento_itens').insert([
             { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Clientes / Contas a Receber', tipo: 'D', valor: Number(fatura.valor_total) || 0 },
-            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas de Serviços', tipo: 'C', valor: Number(fatura.valor_total) || 0 }
+            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas de ServiÃ§os', tipo: 'C', valor: Number(fatura.valor_total) || 0 }
          ]);
          await fetchAccountingData();
-         alert(`Lançamento automático criado para a fatura ${fatura.numero_fatura || ''}!`);
+         alert(`LanÃ§amento automÃ¡tico criado para a fatura ${fatura.numero_fatura || ''}!`);
       } catch (err) {
-         alert('Erro ao criar lançamento automático.');
+         alert('Erro ao criar lanÃ§amento automÃ¡tico.');
       } finally {
          setIsAutoLaunching(false);
       }
    };
 
-   // --- LANÇAMENTOS AUTOMÁTICOS: TESOURARIA ---
+   // --- LANÃ‡AMENTOS AUTOMÃTICOS: TESOURARIA ---
    const handleAutoLaunchFromTesouraria = async (transacao: any) => {
       if (!selectedEmpresaId || !selectedPeriodoId) {
-         alert('Selecione empresa e período antes de contabilizar.');
+         alert('Selecione empresa e perÃ­odo antes de contabilizar.');
          return;
       }
       setIsAutoLaunching(true);
@@ -1530,7 +1605,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             company_id: selectedEmpresaId,
             usuario_id: null,
             status: 'Postado',
-            tipo_transacao: 'Automático'
+            tipo_transacao: 'AutomÃ¡tico'
          }]).select().single();
          if (error) throw error;
          await supabase.from('acc_lancamento_itens').insert([
@@ -1538,16 +1613,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             { lancamento_id: head.id, conta_codigo: isEntrada ? '6.1' : '1.1', conta_nome: isEntrada ? 'Receitas' : 'Caixa/Bancos', tipo: 'C', valor: Number(transacao.valor) || 0 }
          ]);
          await fetchAccountingData();
-         alert('Lançamento automático de tesouraria criado!');
+         alert('LanÃ§amento automÃ¡tico de tesouraria criado!');
       } catch (err) {
-         alert('Erro ao criar lançamento automático.');
+         alert('Erro ao criar lanÃ§amento automÃ¡tico.');
       } finally {
          setIsAutoLaunching(false);
       }
    };
 
    // ============================================================
-   // --- COMPRAS: REGISTO + LANÇAMENTO AUTOMÁTICO ---
+   // --- COMPRAS: REGISTO + LANÃ‡AMENTO AUTOMÃTICO ---
    // ============================================================
    const handleSaveCompra = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -1563,7 +1638,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }]).select().single();
          if (cErr) throw cErr;
 
-         // 2. Criar lançamento automático se a empresa tiver período activo
+         // 2. Criar lanÃ§amento automÃ¡tico se a empresa tiver perÃ­odo activo
          if (selectedPeriodoId) {
             const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('compra')) || {
                conta_debito_codigo: '2.1', conta_credito_codigo: '3.2'
@@ -1571,15 +1646,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             const { data: head, error: hErr } = await supabase.from('acc_lancamentos').insert([{
                data: newCompra.data_compra,
                periodo_id: selectedPeriodoId,
-               descricao: `Compra ${newCompra.numero_compra || ''} — ${newCompra.fornecedor_nome || 'Fornecedor'}`,
+               descricao: `Compra ${newCompra.numero_compra || ''} â€” ${newCompra.fornecedor_nome || 'Fornecedor'}`,
                company_id: selectedEmpresaId,
                usuario_id: null,
                status: 'Postado',
-               tipo_transacao: 'Automático'
+               tipo_transacao: 'AutomÃ¡tico'
             }]).select().single();
             if (!hErr && head) {
                await supabase.from('acc_lancamento_itens').insert([
-                  { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Inventário / Activos Circulantes', tipo: 'D', valor: Number(newCompra.valor_total), company_id: selectedEmpresaId },
+                  { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'InventÃ¡rio / Activos Circulantes', tipo: 'D', valor: Number(newCompra.valor_total), company_id: selectedEmpresaId },
                   { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Fornecedores / Contas a Pagar', tipo: 'C', valor: Number(newCompra.valor_total), company_id: selectedEmpresaId }
                ]);
                // Marcar compra como contabilizada
@@ -1599,7 +1674,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    };
 
    // ============================================================
-   // --- APROVAÇÃO DE LANÇAMENTOS ---
+   // --- APROVAÃ‡ÃƒO DE LANÃ‡AMENTOS ---
    // ============================================================
    const handleAprovarLancamento = async (lancamento: any, obs: string) => {
       setIsApprovingId(lancamento.id);
@@ -1615,34 +1690,34 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          setShowApprovalModal(false);
          setApprovalTarget(null);
          setApprovalObs('');
-         alert('Lançamento aprovado e postado com sucesso!');
+         alert('LanÃ§amento aprovado e postado com sucesso!');
       } catch (err) {
-         alert('Erro ao aprovar lançamento.');
+         alert('Erro ao aprovar lanÃ§amento.');
       } finally {
          setIsApprovingId(null);
       }
    };
 
    const handleRejeitarLancamento = async (lancamento: any) => {
-      if (!confirm('Rejeitar e eliminar este lançamento?')) return;
+      if (!confirm('Rejeitar e eliminar este lanÃ§amento?')) return;
       try {
          await supabase.from('acc_lancamento_itens').delete().eq('lancamento_id', lancamento.id).eq('company_id', selectedEmpresaId);
          await supabase.from('acc_lancamentos').delete().eq('id', lancamento.id).eq('company_id', selectedEmpresaId);
          await fetchAccountingData();
       } catch (err) {
-         alert('Erro ao rejeitar lançamento.');
+         alert('Erro ao rejeitar lanÃ§amento.');
       }
    };
 
    // ============================================================
-   // --- ESTORNO DE LANÇAMENTOS ---
+   // --- ESTORNO DE LANÃ‡AMENTOS ---
    // ============================================================
    const handleEstornarLancamento = async (lancamento: any) => {
-      if (lancamento.estornado) { alert('Este lançamento já foi estornado.'); return; }
-      if (!confirm(`Criar estorno do lançamento "${lancamento.descricao}"? Esta acção é irreversível.`)) return;
+      if (lancamento.estornado) { alert('Este lanÃ§amento jÃ¡ foi estornado.'); return; }
+      if (!confirm(`Criar estorno do lanÃ§amento "${lancamento.descricao}"? Esta acÃ§Ã£o Ã© irreversÃ­vel.`)) return;
       setIsEstornandoId(lancamento.id);
       try {
-         // 1. Criar lançamento espelho com D/C invertidos
+         // 1. Criar lanÃ§amento espelho com D/C invertidos
          const { data: estornoHead, error: eErr } = await supabase.from('acc_lancamentos').insert([{
             data: new Date().toISOString().split('T')[0],
             periodo_id: lancamento.periodo_id || selectedPeriodoId,
@@ -1677,7 +1752,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }).eq('id', lancamento.id).eq('company_id', selectedEmpresaId);
 
          await fetchAccountingData();
-         alert(`Estorno criado com sucesso! Referência: ${estornoHead.id.slice(0, 8).toUpperCase()}`);
+         alert(`Estorno criado com sucesso! ReferÃªncia: ${estornoHead.id.slice(0, 8).toUpperCase()}`);
       } catch (err) {
          alert('Erro ao criar estorno.');
       } finally {
@@ -1685,7 +1760,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
    };
 
-   // --- LÓGICA NOVO LANÇAMENTO (com validação D=C) ---
+   // --- LÃ“GICA NOVO LANÃ‡AMENTO (com validaÃ§Ã£o D=C) ---
    const handleNewEntry = async (e: React.FormEvent) => {
 
       e.preventDefault();
@@ -1694,18 +1769,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          return;
       }
       if (newEntry.contaDebito === newEntry.contaCredito) {
-         alert('A conta de Débito e a conta de Crédito não podem ser iguais.');
+         alert('A conta de DÃ©bito e a conta de CrÃ©dito nÃ£o podem ser iguais.');
          return;
       }
       const debito = planoContas.find(c => c.codigo === newEntry.contaDebito);
       const credito = planoContas.find(c => c.codigo === newEntry.contaCredito);
       if (!debito || !credito) {
-         alert('Selecione contas válidas para Débito e Crédito.');
+         alert('Selecione contas vÃ¡lidas para DÃ©bito e CrÃ©dito.');
          return;
       }
 
       try {
-         // 1. Inserir cabeçalho
+         // 1. Inserir cabeÃ§alho
          const { data: head, error: hError } = await supabase.from('acc_lancamentos').insert([{
             data: newEntry.data,
             periodo_id: selectedPeriodoId || null,
@@ -1717,7 +1792,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }]).select().single();
          if (hError) throw hError;
 
-         // 2. Inserir itens D e C (valores iguais — soma D = soma C garantida)
+         // 2. Inserir itens D e C (valores iguais â€” soma D = soma C garantida)
          await supabase.from('acc_lancamento_itens').insert([
             { lancamento_id: head.id, conta_codigo: debito!.codigo, conta_nome: debito!.nome, tipo: 'D', valor: Number(newEntry.valor), company_id: selectedEmpresaId },
             { lancamento_id: head.id, conta_codigo: credito!.codigo, conta_nome: credito!.nome, tipo: 'C', valor: Number(newEntry.valor), company_id: selectedEmpresaId }
@@ -1727,28 +1802,28 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          setShowEntryModal(false);
          setNewEntry({ ...newEntry, descricao: '', valor: 0 });
       } catch (error) {
-         alert('Erro ao salvar lançamento');
+         alert('Erro ao salvar lanÃ§amento');
       }
    };
 
    const handleExportChart = () => {
-      alert("Exportação de gráfico iniciada. (Funcionalidade simulada)");
+      alert("ExportaÃ§Ã£o de grÃ¡fico iniciada. (Funcionalidade simulada)");
    };
 
    const handleExportFiscal = async () => {
       if (!selectedEmpresaId) return alert("Selecione uma empresa.");
       setIsExportingFiscal(true);
       try {
-         // Simulação de geração de PDF robusta
+         // SimulaÃ§Ã£o de geraÃ§Ã£o de PDF robusta
          await new Promise(resolve => setTimeout(resolve, 3000));
 
          const reportContent = `
-            RELATÓRIO FISCAL - ${currentEmpresa?.nome}
-            Período: ${periodos.find(p => p.id === selectedPeriodoId)?.mes}/${periodos.find(p => p.id === selectedPeriodoId)?.ano}
+            RELATÃ“RIO FISCAL - ${currentEmpresa?.nome}
+            PerÃ­odo: ${periodos.find(p => p.id === selectedPeriodoId)?.mes}/${periodos.find(p => p.id === selectedPeriodoId)?.ano}
             
             RECEITA TOTAL: ${safeFormatAOA(financeReports.receitaTotal)}
             DESPESA TOTAL: ${safeFormatAOA(financeReports.despesaTotal)}
-            LUCRO LÍQUIDO: ${safeFormatAOA(financeReports.lucroLiquido)}
+            LUCRO LÃQUIDO: ${safeFormatAOA(financeReports.lucroLiquido)}
             
             IMPOSTOS ESTIMADOS:
             - IVA: ${safeFormatAOA(financeReports.receitaTotal * 0.14)}
@@ -1758,7 +1833,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          `;
 
          console.log("PDF Export Content Generated:", reportContent);
-         alert("Mapas Fiscais (IVA/IRT/II) gerados e exportados com sucesso para o diretório de downloads.");
+         alert("Mapas Fiscais (IVA/IRT/II) gerados e exportados com sucesso para o diretÃ³rio de downloads.");
       } catch (error) {
          alert("Erro ao exportar mapas fiscais.");
       } finally {
@@ -1782,11 +1857,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                 </style>
              </head>
              <body>
-                <h1>Balancete de Verificação</h1>
+                <h1>Balancete de VerificaÃ§Ã£o</h1>
                 <p>Empresa: ${currentEmpresa?.nome}</p>
                 <table>
                    <thead>
-                      <tr><th>Código</th><th>Conta</th><th>Saldo</th></tr>
+                      <tr><th>CÃ³digo</th><th>Conta</th><th>Saldo</th></tr>
                    </thead>
                    <tbody>
                       ${planoContas.filter(c => financeReports.saldos[c.codigo] !== 0).map(c => `
@@ -1822,7 +1897,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   onClick={() => setLoading(false)}
                   className="px-6 py-2.5 bg-zinc-900 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-yellow-500 hover:text-zinc-900 transition-all shadow-lg"
                >
-                  Bypass Sync (Acesso de Emergência)
+                  Bypass Sync (Acesso de EmergÃªncia)
                </button>
             </div>
          </div>
@@ -1837,7 +1912,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             </div>
             <div className="max-w-md space-y-2">
                <h2 className="text-2xl font-black uppercase">Configurando Ambiente</h2>
-               <p className="text-zinc-500 font-medium">Não foram encontradas entidades activas ou o sistema está a recuperar a sincronização.</p>
+               <p className="text-zinc-500 font-medium">NÃ£o foram encontradas entidades activas ou o sistema estÃ¡ a recuperar a sincronizaÃ§Ã£o.</p>
                <p className="text-[10px] text-zinc-400 font-mono">Status: {loadingStatus || 'Aguardando payload...'}</p>
             </div>
             <div className="flex gap-4">
@@ -1845,13 +1920,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   onClick={() => fetchAccountingData()}
                   className="px-8 py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2"
                >
-                  <RefreshCw size={16} /> Forçar Sincronização
+                  <RefreshCw size={16} /> ForÃ§ar SincronizaÃ§Ã£o
                </button>
                <button
                   onClick={() => window.location.href = '/empresas'}
                   className="px-8 py-4 bg-white text-zinc-900 border border-zinc-200 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-zinc-50 transition-all shadow-xl"
                >
-                  Ver Gestão
+                  Ver GestÃ£o
                </button>
             </div>
          </div>
@@ -1869,7 +1944,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   </div>
                   <div>
                      <h2 className="text-white font-black text-lg tracking-tight leading-none uppercase">Amazing</h2>
-                     <p className="text-yellow-500/80 font-black text-[10px] uppercase tracking-widest mt-1">ContábilExpert</p>
+                     <p className="text-yellow-500/80 font-black text-[10px] uppercase tracking-widest mt-1">ContÃ¡bilExpert</p>
                   </div>
                </div>
             </div>
@@ -1895,14 +1970,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                {/* Separator for advanced options */}
                <div className="my-8 h-px bg-white/5 mx-4" />
-               <p className="px-4 text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Gestão & Auditoria</p>
+               <p className="px-4 text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">GestÃ£o & Auditoria</p>
                {[
-                  { id: 'diario', label: 'Diário Geral', icon: <BookOpen size={18} /> },
-                  { id: 'periodos', label: 'Períodos', icon: <Calendar size={18} /> },
+                  { id: 'diario', label: 'DiÃ¡rio Geral', icon: <BookOpen size={18} /> },
+                  { id: 'periodos', label: 'PerÃ­odos', icon: <Calendar size={18} /> },
                   { id: 'plano', label: 'Plano de Contas', icon: <ListFilter size={18} /> },
                   { id: 'fiscal', label: 'Fiscal / Impostos', icon: <Landmark size={18} /> },
                   { id: 'folha', label: 'Folha Pagamento', icon: <Briefcase size={18} /> },
-                  { id: 'conciliacao', label: 'Conciliação', icon: <RefreshCw size={18} /> },
+                  { id: 'conciliacao', label: 'ConciliaÃ§Ã£o', icon: <RefreshCw size={18} /> },
                   { id: 'auditoria', label: 'Log Auditoria', icon: <ShieldCheck size={18} /> },
                   { id: 'ia', label: 'Amazing IA', icon: <BrainCircuit size={18} /> },
                ].map((item) => (
@@ -1943,12 +2018,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   <div>
                      <h1 className="text-3xl font-black text-zinc-900 tracking-tight uppercase">
                         {([...sidebarItems,
-                        { id: 'diario', label: 'Diário Geral' },
-                        { id: 'periodos', label: 'Períodos' },
+                        { id: 'diario', label: 'DiÃ¡rio Geral' },
+                        { id: 'periodos', label: 'PerÃ­odos' },
                         { id: 'plano', label: 'Plano de Contas' },
                         { id: 'fiscal', label: 'Fiscal / Impostos' },
                         { id: 'folha', label: 'Folha Pagamento' },
-                        { id: 'conciliacao', label: 'Conciliação' },
+                        { id: 'conciliacao', label: 'ConciliaÃ§Ã£o' },
                         { id: 'auditoria', label: 'Log Auditoria' },
                         { id: 'ia', label: 'Amazing IA' }
                         ].find(i => i.id === activeTab) as any)?.label || 'Painel de Controlo'}
@@ -1995,7 +2070,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                {/* --- DASHBOARD PREMIUM --- */}
                {activeTab === 'dashboard' && (() => {
-                  // === CÁLCULOS PREMIUM DINÂMICOS ===
+                  // === CÃLCULOS PREMIUM DINÃ‚MICOS ===
                   const receita = Number(financeReports.receitaTotal) || 0;
                   const despesa = Number(financeReports.despesaTotal) || 0;
                   const lucro = Number(financeReports.lucroLiquido) || 0;
@@ -2008,14 +2083,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   const despesaTotal = lancamentos.reduce((acc, l) => acc + (l.itens?.filter(it => it.conta_codigo?.startsWith('7')).reduce((sum, i) => sum + (Number(i.valor) || 0), 0) || 0), 0);
                   const lucroReal = receitaTotal - despesaTotal;
                   const score = receitaTotal > 0 ? Math.min(10, Math.max(0, (lucroReal / receitaTotal) * 10 + 5)) : 5.0;
-                  // Indicadores Automáticos
+                  // Indicadores AutomÃ¡ticos
                   const liquidezCorrente = passivos > 0 ? ativos / passivos : ativos > 0 ? 99 : 0;
                   const solvencia = (ativos + capital) > 0 ? ativos / (passivos + capital) : 0;
                   const margemLiquida = receita > 0 ? (lucro / receita) * 100 : 0;
                   const roe = capital > 0 ? (lucro / capital) * 100 : 0;
                   const ratioEndividamento = ativos > 0 ? (passivos / ativos) * 100 : 0;
 
-                  // Score Financeiro (0–10) — algoritmo dinâmico
+                  // Score Financeiro (0â€“10) â€” algoritmo dinÃ¢mico
                   // let score = 5.0; // This line is now replaced by the new score calculation above
                   // if (margemLiquida > 20) score += 2;
                   // else if (margemLiquida > 10) score += 1;
@@ -2027,29 +2102,29 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   // else if (ratioEndividamento > 70) score -= 1;
                   // if (receita === 0) score = 0;
                   // score = Math.min(10, Math.max(0, score));
-                  const scoreLabel = score >= 8 ? 'Excelência' : score >= 6 ? 'Bom' : score >= 4 ? 'Atenção' : 'Crítico';
+                  const scoreLabel = score >= 8 ? 'ExcelÃªncia' : score >= 6 ? 'Bom' : score >= 4 ? 'AtenÃ§Ã£o' : 'CrÃ­tico';
                   const scoreColor = score >= 8 ? 'text-green-400' : score >= 6 ? 'text-yellow-400' : score >= 4 ? 'text-orange-400' : 'text-red-400';
 
-                  // Alertas de Risco Dinâmicos
+                  // Alertas de Risco DinÃ¢micos
                   const alertas: { nivel: 'danger' | 'warn' | 'ok'; msg: string; sub: string }[] = [];
 
                   // Alerta de Stock (Novo)
                   const lowStockCount = extInventario.filter(i => Number(i.quantidade_atual) <= Number(i.quantidade_minima)).length;
                   if (lowStockCount > 0) {
-                     alertas.push({ nivel: 'danger', msg: 'Ruptura de Stock', sub: `${lowStockCount} itens atingiram o nível crítico de stock.` });
+                     alertas.push({ nivel: 'danger', msg: 'Ruptura de Stock', sub: `${lowStockCount} itens atingiram o nÃ­vel crÃ­tico de stock.` });
                   }
 
-                  if (lucro < 0) alertas.push({ nivel: 'danger', msg: 'Resultado Negativo', sub: `Prejuízo de ${safeFormatAOA(Math.abs(lucro))} no período.` });
+                  if (lucro < 0) alertas.push({ nivel: 'danger', msg: 'Resultado Negativo', sub: `PrejuÃ­zo de ${safeFormatAOA(Math.abs(lucro))} no perÃ­odo.` });
                   if (liquidezCorrente < 1 && ativos > 0) alertas.push({ nivel: 'danger', msg: 'Risco de Liquidez', sub: `Activos cobrem apenas ${(liquidezCorrente * 100).toFixed(0)}% do passivo.` });
-                  if (ratioEndividamento > 70 && ativos > 0) alertas.push({ nivel: 'warn', msg: 'Alto Endividamento', sub: `${ratioEndividamento.toFixed(0)}% dos activos financiados por dívida.` });
-                  if (margemLiquida > 0 && margemLiquida < 10) alertas.push({ nivel: 'warn', msg: 'Margem Comprimida', sub: `Margem líquida de ${margemLiquida.toFixed(1)}% — abaixo do ideal (>10%).` });
+                  if (ratioEndividamento > 70 && ativos > 0) alertas.push({ nivel: 'warn', msg: 'Alto Endividamento', sub: `${ratioEndividamento.toFixed(0)}% dos activos financiados por dÃ­vida.` });
+                  if (margemLiquida > 0 && margemLiquida < 10) alertas.push({ nivel: 'warn', msg: 'Margem Comprimida', sub: `Margem lÃ­quida de ${margemLiquida.toFixed(1)}% â€” abaixo do ideal (>10%).` });
                   const ivaEstimado = receita * 0.14;
-                  if (ivaEstimado > 0) alertas.push({ nivel: 'warn', msg: 'IVA Estimado Pendente', sub: `${safeFormatAOA(ivaEstimado)} (14% sobre receita) — verificar agenda fiscal.` });
-                  if (lucro > 0 && margemLiquida >= 10) alertas.push({ nivel: 'ok', msg: 'Desempenho Sólido', sub: `Margem de ${margemLiquida.toFixed(1)}% com resultado positivo.` });
-                  if (liquidezCorrente >= 1.5) alertas.push({ nivel: 'ok', msg: 'Liquidez Confortável', sub: `Cobertura de ${liquidezCorrente.toFixed(2)}x sobre as obrigações.` });
+                  if (ivaEstimado > 0) alertas.push({ nivel: 'warn', msg: 'IVA Estimado Pendente', sub: `${safeFormatAOA(ivaEstimado)} (14% sobre receita) â€” verificar agenda fiscal.` });
+                  if (lucro > 0 && margemLiquida >= 10) alertas.push({ nivel: 'ok', msg: 'Desempenho SÃ³lido', sub: `Margem de ${margemLiquida.toFixed(1)}% com resultado positivo.` });
+                  if (liquidezCorrente >= 1.5) alertas.push({ nivel: 'ok', msg: 'Liquidez ConfortÃ¡vel', sub: `Cobertura de ${liquidezCorrente.toFixed(2)}x sobre as obrigaÃ§Ãµes.` });
                   const alertasToShow = alertas.slice(0, 4);
 
-                  // Previsão de Fluxo de Caixa (próximos 6 meses por tendência simples)
+                  // PrevisÃ£o de Fluxo de Caixa (prÃ³ximos 6 meses por tendÃªncia simples)
                   const tendencia = receita > 0 ? (lucro / receita) : 0;
                   const base = receita > 0 ? receita : 500000;
                   const growthFactor = 1 + (tendencia * 0.1);
@@ -2078,7 +2153,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <p className="text-[9px] text-zinc-400 font-bold mt-3">Pessoal + Operacional</p>
                            </div>
                            <div className="bg-zinc-900 p-7 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden">
-                              <p className="text-yellow-500 text-[9px] font-black uppercase tracking-widest mb-2">Lucro Líquido</p>
+                              <p className="text-yellow-500 text-[9px] font-black uppercase tracking-widest mb-2">Lucro LÃ­quido</p>
                               <p className={`text-2xl font-black ${lucro >= 0 ? 'text-white' : 'text-red-400'}`}>{safeFormatAOA(lucro)}</p>
                               <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
                                  <div className="h-full bg-yellow-500 transition-all duration-1000"
@@ -2092,13 +2167,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <p className="text-[9px] text-zinc-400 font-bold mt-3">Passivo: {safeFormatAOA(passivos)}</p>
                            </div>
 
-                           {/* Score Dinâmico */}
+                           {/* Score DinÃ¢mico */}
                            <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-zinc-900 to-zinc-800 p-7 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-center text-center relative overflow-hidden">
                               <div className="absolute inset-0 opacity-10">
                                  <div className="absolute top-2 right-2 w-24 h-24 rounded-full bg-yellow-500 blur-2xl" />
                               </div>
                               <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Score Financeiro</p>
-                              <p className={`text-5xl font-black mt-1 ${scoreColor}`}>{receita > 0 ? score.toFixed(1) : '—'}</p>
+                              <p className={`text-5xl font-black mt-1 ${scoreColor}`}>{receita > 0 ? score.toFixed(1) : 'â€”'}</p>
                               <p className={`text-[9px] font-black uppercase tracking-widest mt-2 ${scoreColor}`}>{receita > 0 ? scoreLabel : 'Sem Dados'}</p>
                               <div className="w-full mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
                                  <div className="h-full bg-yellow-500 transition-all duration-1000 rounded-full"
@@ -2107,36 +2182,36 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                         </div>
 
-                        {/* FILA 2: Indicadores Financeiros Automáticos */}
+                        {/* FILA 2: Indicadores Financeiros AutomÃ¡ticos */}
                         <div className="bg-white rounded-[3rem] border border-sky-100 shadow-sm p-8">
                            <div className="flex items-center justify-between mb-6">
                               <h3 className="text-base font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
-                                 <BarChart2 size={18} className="text-yellow-500" /> Indicadores Financeiros Automáticos
+                                 <BarChart2 size={18} className="text-yellow-500" /> Indicadores Financeiros AutomÃ¡ticos
                               </h3>
                               <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest px-3 py-1.5 bg-zinc-50 rounded-xl border border-zinc-100">Calculados em Tempo Real</span>
                            </div>
                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {[
                                  {
-                                    label: 'Liquidez Corrente', value: receita > 0 ? liquidezCorrente.toFixed(2) : '—', unit: 'x',
+                                    label: 'Liquidez Corrente', value: receita > 0 ? liquidezCorrente.toFixed(2) : 'â€”', unit: 'x',
                                     info: 'Activo / Passivo. Ideal > 1.5',
                                     color: liquidezCorrente >= 1.5 ? 'bg-green-50 border-green-100 text-green-600' : liquidezCorrente >= 1 ? 'bg-yellow-50 border-yellow-100 text-yellow-600' : 'bg-red-50 border-red-100 text-red-600',
-                                    status: liquidezCorrente >= 1.5 ? '? Saudável' : liquidezCorrente >= 1 ? '? Aceitável' : '? Risco'
+                                    status: liquidezCorrente >= 1.5 ? '? SaudÃ¡vel' : liquidezCorrente >= 1 ? '? AceitÃ¡vel' : '? Risco'
                                  },
                                  {
-                                    label: 'Solvência', value: receita > 0 ? solvencia.toFixed(2) : '—', unit: 'x',
+                                    label: 'SolvÃªncia', value: receita > 0 ? solvencia.toFixed(2) : 'â€”', unit: 'x',
                                     info: 'Activo / (Passivo+Capital). Ideal > 1',
                                     color: solvencia >= 1 ? 'bg-green-50 border-green-100 text-green-600' : 'bg-red-50 border-red-100 text-red-600',
                                     status: solvencia >= 1 ? '? Solvente' : '? Insolvente'
                                  },
                                  {
-                                    label: 'ROE', value: receita > 0 ? roe.toFixed(1) : '—', unit: '%',
-                                    info: 'Retorno sobre Capital Próprio',
+                                    label: 'ROE', value: receita > 0 ? roe.toFixed(1) : 'â€”', unit: '%',
+                                    info: 'Retorno sobre Capital PrÃ³prio',
                                     color: roe >= 15 ? 'bg-green-50 border-green-100 text-green-600' : roe >= 5 ? 'bg-yellow-50 border-yellow-100 text-yellow-600' : 'bg-zinc-50 border-zinc-100 text-zinc-500',
-                                    status: roe >= 15 ? '? Excelente' : roe >= 5 ? '? Moderado' : '— Neutro'
+                                    status: roe >= 15 ? '? Excelente' : roe >= 5 ? '? Moderado' : 'â€” Neutro'
                                  },
                                  {
-                                    label: 'Endividamento', value: receita > 0 ? ratioEndividamento.toFixed(0) : '—', unit: '%',
+                                    label: 'Endividamento', value: receita > 0 ? ratioEndividamento.toFixed(0) : 'â€”', unit: '%',
                                     info: 'Passivo / Activo. Ideal < 50%',
                                     color: ratioEndividamento < 40 ? 'bg-green-50 border-green-100 text-green-600' : ratioEndividamento < 70 ? 'bg-yellow-50 border-yellow-100 text-yellow-600' : 'bg-red-50 border-red-100 text-red-600',
                                     status: ratioEndividamento < 40 ? '? Baixo' : ratioEndividamento < 70 ? '? Moderado' : '? Alto'
@@ -2144,7 +2219,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               ].map((ind, i) => (
                                  <div key={i} className={`p-5 rounded-2xl border ${ind.color} flex flex-col gap-1`}>
                                     <p className="text-[9px] font-black uppercase tracking-widest opacity-70">{ind.label}</p>
-                                    <p className="text-3xl font-black">{ind.value}<span className="text-sm">{ind.value !== '—' ? ind.unit : ''}</span></p>
+                                    <p className="text-3xl font-black">{ind.value}<span className="text-sm">{ind.value !== 'â€”' ? ind.unit : ''}</span></p>
                                     <p className="text-[9px] font-bold opacity-60">{ind.info}</p>
                                     <p className="text-[9px] font-black uppercase tracking-widest mt-1">{ind.status}</p>
                                  </div>
@@ -2152,7 +2227,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                         </div>
 
-                        {/* FILA 3: Gráficos */}
+                        {/* FILA 3: GrÃ¡ficos */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                            {/* Comparativo Receita vs Despesa */}
                            <div className="bg-white p-10 rounded-[3rem] border border-sky-100 shadow-sm h-[420px] flex flex-col">
@@ -2161,7 +2236,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
                                        <LucideBarChart className="text-yellow-500" size={18} /> Comparativo Financeiro
                                     </h3>
-                                    <p className="text-xs text-zinc-400 font-bold mt-1 uppercase tracking-widest">Análise por Período · {currentEmpresa?.nome || ''}</p>
+                                    <p className="text-xs text-zinc-400 font-bold mt-1 uppercase tracking-widest">AnÃ¡lise por PerÃ­odo Â· {currentEmpresa?.nome || ''}</p>
                                  </div>
                                  <button onClick={handleExportChart} className="p-2 bg-zinc-50 hover:bg-zinc-100 rounded-xl text-zinc-400 hover:text-zinc-900 transition-colors" title="Exportar">
                                     <Download size={16} />
@@ -2182,17 +2257,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               </div>
                            </div>
 
-                           {/* Previsão de Fluxo de Caixa */}
+                           {/* PrevisÃ£o de Fluxo de Caixa */}
                            <div className="bg-white p-10 rounded-[3rem] border border-sky-100 shadow-sm h-[420px] flex flex-col">
                               <div className="flex justify-between items-start mb-6">
                                  <div>
                                     <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                                       <ArrowUpRight className="text-yellow-500" size={18} /> Previsão de Fluxo de Caixa
+                                       <ArrowUpRight className="text-yellow-500" size={18} /> PrevisÃ£o de Fluxo de Caixa
                                     </h3>
-                                    <p className="text-xs text-zinc-400 font-bold mt-1 uppercase tracking-widest">Projecção próximos 6 meses · Baseada em tendência real</p>
+                                    <p className="text-xs text-zinc-400 font-bold mt-1 uppercase tracking-widest">ProjecÃ§Ã£o prÃ³ximos 6 meses Â· Baseada em tendÃªncia real</p>
                                  </div>
                                  <span className={`text-[9px] font-black px-3 py-1.5 rounded-xl border ${tendencia >= 0 ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                                    Tendência {tendencia >= 0 ? `+${(tendencia * 100 * 0.1).toFixed(1)}%` : `${(tendencia * 100 * 0.1).toFixed(1)}%`} /mês
+                                    TendÃªncia {tendencia >= 0 ? `+${(tendencia * 100 * 0.1).toFixed(1)}%` : `${(tendencia * 100 * 0.1).toFixed(1)}%`} /mÃªs
                                  </span>
                               </div>
                               <div className="flex-1 w-full min-h-0">
@@ -2221,7 +2296,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                         </div>
 
-                        {/* FILA 4: Alertas de Risco Dinâmicos + Gráfico Pizza */}
+                        {/* FILA 4: Alertas de Risco DinÃ¢micos + GrÃ¡fico Pizza */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                            {/* Alertas Inteligentes */}
                            <div className="bg-zinc-900 p-10 rounded-[3rem] text-white flex flex-col justify-between shadow-2xl">
@@ -2230,12 +2305,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <h3 className="text-lg font-black uppercase tracking-tight text-yellow-500 flex items-center gap-2">
                                        <AlertTriangle size={18} /> Alertas de Risco Financeiro
                                     </h3>
-                                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{alertas.filter(a => a.nivel === 'danger').length} Crítico(s)</span>
+                                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{alertas.filter(a => a.nivel === 'danger').length} CrÃ­tico(s)</span>
                                  </div>
                                  <div className="space-y-3">
                                     {alertasToShow.length === 0 && (
                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center">
-                                          <p className="text-xs text-zinc-400 font-bold">Sem dados suficientes para gerar alertas automáticos.</p>
+                                          <p className="text-xs text-zinc-400 font-bold">Sem dados suficientes para gerar alertas automÃ¡ticos.</p>
                                        </div>
                                     )}
                                     {alertasToShow.map((alerta, i) => (
@@ -2253,17 +2328,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               </div>
                               <button onClick={() => openReport('balanco')}
                                  className="w-full mt-8 py-4 bg-yellow-500 text-zinc-900 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-yellow-400 transition-all shadow-xl">
-                                 Ver Relatório Detalhado
+                                 Ver RelatÃ³rio Detalhado
                               </button>
                            </div>
 
-                           {/* Distribuição de Despesas */}
+                           {/* DistribuiÃ§Ã£o de Despesas */}
                            <div className="bg-white p-10 rounded-[3rem] border border-sky-100 shadow-sm h-[420px] flex flex-col">
                               <div className="mb-6">
                                  <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                                    <PieChartIcon className="text-yellow-500" size={18} /> Distribuição de Despesas
+                                    <PieChartIcon className="text-yellow-500" size={18} /> DistribuiÃ§Ã£o de Despesas
                                  </h3>
-                                 <p className="text-xs text-zinc-400 font-bold mt-1 uppercase tracking-widest">Alocação de Custos Operacionais</p>
+                                 <p className="text-xs text-zinc-400 font-bold mt-1 uppercase tracking-widest">AlocaÃ§Ã£o de Custos Operacionais</p>
                               </div>
                               <div className="flex-1 w-full min-h-0 relative">
                                  <ResponsiveContainer width="100%" height="100%">
@@ -2299,7 +2374,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
                               <input
                                  type="text"
-                                 placeholder="Pesquisar no diário..."
+                                 placeholder="Pesquisar no diÃ¡rio..."
                                  className="w-full pl-12 pr-6 py-3.5 bg-zinc-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-yellow-500/20"
                               />
                            </div>
@@ -2307,7 +2382,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         <div className="flex items-center gap-3">
                            {periodos.find(p => p.id === selectedPeriodoId)?.status === 'Fechado' && (
                               <div className="px-4 py-2 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-red-100">
-                                 <Lock size={14} /> Período Bloqueado
+                                 <Lock size={14} /> PerÃ­odo Bloqueado
                               </div>
                            )}
                            <button
@@ -2321,7 +2396,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               disabled={periodos.find(p => p.id === selectedPeriodoId)?.status === 'Fechado'}
                               className="px-8 py-4 bg-zinc-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-yellow-500 hover:text-zinc-900 transition-all shadow-xl disabled:opacity-50"
                            >
-                              <Plus size={20} /> Novo Lançamento
+                              <Plus size={20} /> Novo LanÃ§amento
                            </button>
                         </div>
                      </div>
@@ -2332,12 +2407,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <thead className="bg-zinc-900 text-white border-b border-zinc-800">
                                  <tr className="text-[10px] font-black uppercase tracking-[0.2em]">
                                     <th className="px-10 py-6">Data</th>
-                                    <th className="px-10 py-6">Referência</th>
-                                    <th className="px-10 py-6">Histórico / Descrição</th>
+                                    <th className="px-10 py-6">ReferÃªncia</th>
+                                    <th className="px-10 py-6">HistÃ³rico / DescriÃ§Ã£o</th>
                                     <th className="px-10 py-6 text-right">Valor Total</th>
                                     <th className="px-10 py-6 text-center">Status</th>
                                     <th className="px-10 py-6 text-center">Tipo</th>
-                                    <th className="px-6 py-6 text-center">Acções</th>
+                                    <th className="px-6 py-6 text-center">AcÃ§Ãµes</th>
                                  </tr>
                               </thead>
                               <tbody className="divide-y divide-zinc-100">
@@ -2372,7 +2447,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 }`}>{l.estornado ? 'Estornado' : (l.status || 'Postado')}</span>
                                           </td>
                                           <td className="px-10 py-8 text-center">
-                                             <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${l.tipo_transacao === 'Automático' ? 'bg-blue-50 text-blue-600' :
+                                             <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${l.tipo_transacao === 'AutomÃ¡tico' ? 'bg-blue-50 text-blue-600' :
                                                 l.tipo_transacao === 'Estorno' ? 'bg-red-50 text-red-600' :
                                                    l.tipo_transacao === 'Folha' ? 'bg-purple-50 text-purple-600' :
                                                       'bg-zinc-50 text-zinc-500'
@@ -2384,12 +2459,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                    title="Criar Estorno" className="p-2 bg-zinc-50 hover:bg-red-50 hover:text-red-600 text-zinc-400 rounded-xl transition-all disabled:opacity-40">
                                                    {isEstornandoId === l.id ? <RefreshCw size={14} className="animate-spin" /> : <RotateCcw size={14} />}
                                                 </button>
-                                             ) : <span className="text-zinc-200">—</span>}
+                                             ) : <span className="text-zinc-200">â€”</span>}
                                           </td>
                                        </tr>
                                     ))
                                  ) : (
-                                    <tr><td colSpan={7} className="text-center py-20 text-zinc-400 font-bold italic">Nenhum lançamento registado para este período.</td></tr>
+                                    <tr><td colSpan={7} className="text-center py-20 text-zinc-400 font-bold italic">Nenhum lanÃ§amento registado para este perÃ­odo.</td></tr>
                                  )}
                               </tbody>
                            </table>
@@ -2398,14 +2473,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   </div>
                )}
 
-               {/* --- DEMONSTRAÇÕES FINANCEIRAS --- */}
+               {/* --- DEMONSTRAÃ‡Ã•ES FINANCEIRAS --- */}
                {
                   activeTab === 'demonstracoes' && (
                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-bottom-4">
-                        {/* Balanço Patrimonial */}
+                        {/* BalanÃ§o Patrimonial */}
                         <div className="bg-white p-12 rounded-[4rem] shadow-sm border border-sky-100">
                            <div className="flex justify-between items-center mb-10">
-                              <h3 className="text-2xl font-black uppercase tracking-tight">Balanço Patrimonial - {currentEmpresa?.nome || ''}</h3>
+                              <h3 className="text-2xl font-black uppercase tracking-tight">BalanÃ§o Patrimonial - {currentEmpresa?.nome || ''}</h3>
                               <button className="p-3 bg-zinc-50 rounded-xl text-zinc-400 hover:text-zinc-900"><Printer size={20} /></button>
                            </div>
                            <div className="space-y-8">
@@ -2415,14 +2490,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               </div>
                               <div className="space-y-4">
                                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b pb-2">Passivo (Credora)</p>
-                                 <div className="flex justify-between text-sm"><span className="font-bold">Obrigações a Curto Prazo</span><span className="font-black text-red-600">{safeFormatAOA(financeReports.passivos)}</span></div>
+                                 <div className="flex justify-between text-sm"><span className="font-bold">ObrigaÃ§Ãµes a Curto Prazo</span><span className="font-black text-red-600">{safeFormatAOA(financeReports.passivos)}</span></div>
                               </div>
                               <div className="space-y-4">
-                                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b pb-2">Capital Próprio</p>
+                                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b pb-2">Capital PrÃ³prio</p>
                                  <div className="flex justify-between text-sm"><span className="font-bold">Reservas e Capital Social</span><span className="font-black">{safeFormatAOA(financeReports.capital)}</span></div>
                               </div>
                               <div className="pt-6 border-t-2 border-zinc-900 flex justify-between">
-                                 <span className="text-lg font-black uppercase">Património Líquido</span>
+                                 <span className="text-lg font-black uppercase">PatrimÃ³nio LÃ­quido</span>
                                  <span className="text-2xl font-black text-zinc-900">{safeFormatAOA(financeReports.ativos - financeReports.passivos)}</span>
                               </div>
                            </div>
@@ -2432,7 +2507,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         <div className="bg-zinc-900 p-12 rounded-[4rem] shadow-2xl text-white">
                            <div className="flex justify-between items-center mb-10">
                               <h3 className="text-2xl font-black uppercase tracking-tight text-yellow-500">DRE (Resultado)</h3>
-                              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Exercício 2024</span>
+                              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">ExercÃ­cio 2024</span>
                            </div>
                            <div className="space-y-8">
                               <div className="flex justify-between border-b border-white/10 pb-4">
@@ -2444,13 +2519,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <span className="font-black text-lg text-red-400">({safeFormatAOA(folhas?.reduce((acc, b) => acc + (Number(b.salario_base) || 0), 0) || 0)})</span>
                               </div>
                               <div className="flex justify-between border-b border-white/10 pb-4">
-                                 <span className="font-bold text-zinc-400 uppercase text-xs">Custos de Manutenção</span>
+                                 <span className="font-bold text-zinc-400 uppercase text-xs">Custos de ManutenÃ§Ã£o</span>
                                  <span className="font-black text-lg text-red-400">({safeFormatAOA((Number(financeReports.despesaTotal) || 0) * 0.3)})</span>
                               </div>
                               <div className="bg-white/5 p-8 rounded-3xl mt-12">
                                  <div className="flex justify-between items-center">
                                     <div>
-                                       <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest mb-1">Resultado Líquido do Período</p>
+                                       <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest mb-1">Resultado LÃ­quido do PerÃ­odo</p>
                                        <p className="text-3xl font-black">{safeFormatAOA(financeReports.lucroLiquido)}</p>
                                     </div>
                                     <div className={`p-4 rounded-2xl ${financeReports.lucroLiquido >= 0 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
@@ -2461,14 +2536,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                         </div>
 
-                        {/* BALANCETE DE VERIFICAÇÃO - NOVO */}
+                        {/* BALANCETE DE VERIFICAÃ‡ÃƒO - NOVO */}
                         <div className="bg-white p-12 rounded-[3rem] shadow-sm border border-sky-100 col-span-1 md:col-span-2">
                            <div className="flex justify-between items-center mb-10">
                               <div>
                                  <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-3">
-                                    <ListChecks size={24} className="text-yellow-500" /> Balancete de Verificação
+                                    <ListChecks size={24} className="text-yellow-500" /> Balancete de VerificaÃ§Ã£o
                                  </h3>
-                                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Saldos Acumulados por Conta no Período</p>
+                                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Saldos Acumulados por Conta no PerÃ­odo</p>
                               </div>
                               <button
                                  onClick={handleExportBalancete}
@@ -2481,9 +2556,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <table className="w-full text-left">
                                  <thead>
                                     <tr className="bg-zinc-900 text-white text-[9px] font-black uppercase tracking-[0.2em]">
-                                       <th className="px-8 py-5">Código</th>
+                                       <th className="px-8 py-5">CÃ³digo</th>
                                        <th className="px-8 py-5">Nome da Conta</th>
-                                       <th className="px-8 py-5 text-right">Saldo do Período</th>
+                                       <th className="px-8 py-5 text-right">Saldo do PerÃ­odo</th>
                                     </tr>
                                  </thead>
                                  <tbody className="divide-y divide-zinc-100">
@@ -2497,21 +2572,21 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        </tr>
                                     ))}
                                     {Object.values(financeReports.saldos).every(s => s === 0) && (
-                                       <tr><td colSpan={3} className="px-8 py-10 text-center text-zinc-400 italic">Sem movimentações no período selecionado.</td></tr>
+                                       <tr><td colSpan={3} className="px-8 py-10 text-center text-zinc-400 italic">Sem movimentaÃ§Ãµes no perÃ­odo selecionado.</td></tr>
                                     )}
                                  </tbody>
                               </table>
                            </div>
                         </div>
 
-                        {/* RAZÃO (LEDGER) - NOVO COMPONENTE CORPORATIVO */}
+                        {/* RAZÃƒO (LEDGER) - NOVO COMPONENTE CORPORATIVO */}
                         <div className="bg-white p-12 rounded-[3rem] shadow-sm border border-sky-100 col-span-1 md:col-span-2">
                            <div className="flex justify-between items-center mb-10">
                               <div>
                                  <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-3">
-                                    <History size={24} className="text-yellow-500" /> Livro Razão Detalhado
+                                    <History size={24} className="text-yellow-500" /> Livro RazÃ£o Detalhado
                                  </h3>
-                                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Movimentações Analíticas por Conta</p>
+                                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">MovimentaÃ§Ãµes AnalÃ­ticas por Conta</p>
                               </div>
                               <div className="flex gap-2">
                                  <button className="p-3 bg-zinc-50 rounded-xl text-zinc-400 hover:text-zinc-900 transition-all"><Printer size={20} /></button>
@@ -2537,9 +2612,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           <thead>
                                              <tr className="text-[9px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100">
                                                 <th className="px-8 py-4">Data</th>
-                                                <th className="px-8 py-4">Descrição / Histórico</th>
-                                                <th className="px-8 py-4 text-right">Débito</th>
-                                                <th className="px-8 py-4 text-right">Crédito</th>
+                                                <th className="px-8 py-4">DescriÃ§Ã£o / HistÃ³rico</th>
+                                                <th className="px-8 py-4 text-right">DÃ©bito</th>
+                                                <th className="px-8 py-4 text-right">CrÃ©dito</th>
                                              </tr>
                                           </thead>
                                           <tbody className="divide-y divide-zinc-50">
@@ -2548,7 +2623,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 return (
                                                    <tr key={m.id} className="text-xs hover:bg-zinc-50 transition-all">
                                                       <td className="px-8 py-4 font-mono text-zinc-500">{m.data ? new Date(m.data).toLocaleDateString() : 'N/A'}</td>
-                                                      <td className="px-8 py-4 font-bold text-zinc-800 uppercase">{m.descricao || 'Sem Descrição'}</td>
+                                                      <td className="px-8 py-4 font-bold text-zinc-800 uppercase">{m.descricao || 'Sem DescriÃ§Ã£o'}</td>
                                                       <td className="px-8 py-4 text-right font-bold text-green-600">{it?.tipo === 'D' ? safeFormatAOA(it.valor) : '-'}</td>
                                                       <td className="px-8 py-4 text-right font-bold text-red-600">{it?.tipo === 'C' ? safeFormatAOA(it.valor) : '-'}</td>
                                                    </tr>
@@ -2578,14 +2653,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
                               </div>
                               <h2 className="text-6xl font-black tracking-tighter leading-none">Auditoria <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-white">Inteligente Amazing.</span></h2>
-                              <p className="text-zinc-400 text-xl font-medium leading-relaxed max-w-2xl">Analise anomalias, otimize impostos e tome decisões baseadas em padrões de alto nível processados em tempo real.</p>
+                              <p className="text-zinc-400 text-xl font-medium leading-relaxed max-w-2xl">Analise anomalias, otimize impostos e tome decisÃµes baseadas em padrÃµes de alto nÃ­vel processados em tempo real.</p>
                               <button
                                  onClick={handleAIAnalysis}
                                  disabled={isAnalyzing}
                                  className="px-12 py-6 bg-indigo-600 hover:bg-indigo-500 rounded-3xl font-black uppercase text-sm tracking-widest shadow-2xl transition-all disabled:opacity-50 flex items-center gap-4"
                               >
                                  {isAnalyzing ? <RefreshCw className="animate-spin" /> : <ShieldAlert />}
-                                 {isAnalyzing ? 'Processando Balancetes...' : 'Gerar Relatório de Auditoria IA'}
+                                 {isAnalyzing ? 'Processando Balancetes...' : 'Gerar RelatÃ³rio de Auditoria IA'}
                               </button>
                            </div>
                         </div>
@@ -2600,7 +2675,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- PLANO DE CONTAS INTELIGENTE (HIERÁRQUICO + CC) --- */}
+               {/* --- PLANO DE CONTAS INTELIGENTE (HIERÃRQUICO + CC) --- */}
                {
                   activeTab === 'plano' && (
                      <div className="space-y-6 animate-in slide-in-from-bottom-4">
@@ -2625,7 +2700,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  onClick={handleImportPlanoPadrao}
                                  className="flex-1 md:flex-none px-6 py-4 bg-yellow-50 text-yellow-700 border border-yellow-100 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all"
                               >
-                                 Importar PGC Padrão
+                                 Importar PGC PadrÃ£o
                               </button>
                               <button
                                  onClick={() => planoSubTab === 'contas' ? setShowAccountModal(true) : setShowCCModal(true)}
@@ -2640,7 +2715,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <div className="bg-white rounded-[3.5rem] shadow-sm border border-sky-100 overflow-hidden">
                               <div className="p-8 border-b border-zinc-100 bg-zinc-50/30 flex justify-between items-center">
                                  <div className="flex items-center gap-4">
-                                    <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Estatuto Orgânico de Contas (PGC)</h3>
+                                    <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Estatuto OrgÃ¢nico de Contas (PGC)</h3>
                                     <span className="px-3 py-1 bg-zinc-900 text-white text-[9px] font-black rounded-lg uppercase">{planoContas.length} Contas</span>
                                  </div>
                                  <div className="relative">
@@ -2656,12 +2731,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <table className="w-full text-left">
                                     <thead className="bg-zinc-900 text-white">
                                        <tr className="text-[10px] font-black uppercase tracking-widest">
-                                          <th className="px-10 py-5">Código</th>
-                                          <th className="px-6 py-5">Descrição</th>
+                                          <th className="px-10 py-5">CÃ³digo</th>
+                                          <th className="px-6 py-5">DescriÃ§Ã£o</th>
                                           <th className="px-6 py-5">Tipo</th>
                                           <th className="px-6 py-5">Natureza</th>
                                           <th className="px-6 py-5 text-center">Status</th>
-                                          <th className="px-10 py-5 text-right">Ações</th>
+                                          <th className="px-10 py-5 text-right">AÃ§Ãµes</th>
                                        </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-100">
@@ -2687,7 +2762,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 <td className="px-6 py-4">
                                                    <div className="flex items-center gap-2" style={{ paddingLeft: `${(c.nivel || 1 - 1) * 20}px` }}>
                                                       <span className={`${c.e_sintetica ? 'font-black text-zinc-900' : 'font-bold text-zinc-600'}`}>{c.nome}</span>
-                                                      {!c.aceita_lancamentos && <Lock size={10} className="text-zinc-300" title="Conta Sintética" />}
+                                                      {!c.aceita_lancamentos && <Lock size={10} className="text-zinc-300" title="Conta SintÃ©tica" />}
                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -2700,9 +2775,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                    {c.aceita_lancamentos ? (
-                                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-[8px] font-black uppercase">Analítica</span>
+                                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-[8px] font-black uppercase">AnalÃ­tica</span>
                                                    ) : (
-                                                      <span className="px-2 py-0.5 bg-zinc-200 text-zinc-600 rounded-md text-[8px] font-black uppercase">Sintética</span>
+                                                      <span className="px-2 py-0.5 bg-zinc-200 text-zinc-600 rounded-md text-[8px] font-black uppercase">SintÃ©tica</span>
                                                    )}
                                                 </td>
                                                 <td className="px-10 py-4 text-right">
@@ -2730,7 +2805,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform"><Landmark size={64} /></div>
                                           <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest mb-2">{cc.tipo}</p>
                                           <h4 className="text-2xl font-black text-zinc-900 tracking-tighter mb-1 uppercase">{cc.nome}</h4>
-                                          <p className="text-[10px] font-mono text-zinc-400 font-bold uppercase mb-4">Código: {cc.codigo}</p>
+                                          <p className="text-[10px] font-mono text-zinc-400 font-bold uppercase mb-4">CÃ³digo: {cc.codigo}</p>
                                           <div className="flex items-center justify-between mt-6 pt-6 border-t border-zinc-200">
                                              <span className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase ${cc.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                 {cc.ativo ? 'Ativo' : 'Inativo'}
@@ -2747,20 +2822,20 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- GESTÃO DE PERÍODOS --- */}
+               {/* --- GESTÃƒO DE PERÃODOS --- */}
                {
                   activeTab === 'periodos' && (
                      <div className="space-y-8 animate-in slide-in-from-bottom-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                            <div className="bg-zinc-900 p-10 rounded-[3rem] text-white shadow-2xl relative overflow-hidden group">
                               <Calendar size={120} className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform" />
-                              <h4 className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-6">Controlo de Exercício</h4>
+                              <h4 className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-6">Controlo de ExercÃ­cio</h4>
                               <p className="text-3xl font-black mb-2">Ano {
                                  periodos.filter(p => p.company_id === selectedEmpresaId).length > 0
                                     ? Math.max(...periodos.filter(p => p.company_id === selectedEmpresaId).map(p => Number(p.ano)))
                                     : new Date().getFullYear()
                               }</p>
-                              <p className="text-xs text-zinc-500 font-bold uppercase">Exercício Corrente</p>
+                              <p className="text-xs text-zinc-500 font-bold uppercase">ExercÃ­cio Corrente</p>
                               <button
                                  onClick={handleOpenYear}
                                  className="mt-8 px-6 py-3 bg-white/10 hover:bg-yellow-500 hover:text-zinc-900 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
@@ -2771,12 +2846,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                            <div className="md:col-span-2 bg-white rounded-[3rem] shadow-sm border border-sky-100 overflow-hidden">
                               <div className="p-10 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
-                                 <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Meses Contabilísticos</h3>
+                                 <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Meses ContabilÃ­sticos</h3>
                                  <button
                                     onClick={handleOpenMonth}
                                     className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all"
                                  >
-                                    <Plus size={18} /> Novo Mês
+                                    <Plus size={18} /> Novo MÃªs
                                  </button>
                               </div>
                               <div className="divide-y divide-zinc-100">
@@ -2797,7 +2872,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 onClick={() => handleClosePeriod(p.id)}
                                                 className="px-6 py-3 bg-zinc-100 text-zinc-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all"
                                              >
-                                                Fechar Período
+                                                Fechar PerÃ­odo
                                              </button>
                                           ) : (
                                              <button className="px-6 py-3 bg-red-50 text-red-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center gap-2">
@@ -2809,7 +2884,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     </div>
                                  ))}
                                  {periodos.filter(p => p.company_id === selectedEmpresaId).length === 0 && (
-                                    <div className="p-20 text-center text-zinc-400 font-bold italic">Nenhum período contabilístico configurado para esta unidade.</div>
+                                    <div className="p-20 text-center text-zinc-400 font-bold italic">Nenhum perÃ­odo contabilÃ­stico configurado para esta unidade.</div>
                                  )}
                               </div>
                            </div>
@@ -2818,18 +2893,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- CONCILIAÇÃO BANCÁRIA --- */}
+               {/* --- CONCILIAÃ‡ÃƒO BANCÃRIA --- */}
                {
                   activeTab === 'conciliacao' && (
                      <div className="space-y-8 animate-in slide-in-from-bottom-4">
                         <div className="bg-white rounded-[3rem] shadow-sm border border-sky-100 overflow-hidden">
                            <div className="p-10 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
                               <div>
-                                 <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Conciliação Bancária Inteligente</h3>
-                                 <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Sincronização de extratos com lançamentos contabilísticos</p>
+                                 <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">ConciliaÃ§Ã£o BancÃ¡ria Inteligente</h3>
+                                 <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">SincronizaÃ§Ã£o de extratos com lanÃ§amentos contabilÃ­sticos</p>
                               </div>
                               <div className="flex gap-4">
-                                 <label className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all cursor-pointer" title="Formato: Data,Descrição,Valor (Ex: 2024-05-15,Pagamento Fornecedor,-50000)">
+                                 <label className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all cursor-pointer" title="Formato: Data,DescriÃ§Ã£o,Valor (Ex: 2024-05-15,Pagamento Fornecedor,-50000)">
                                     <RefreshCw size={18} /> Importar Extrato (CSV)
                                     <input type="file" className="hidden" accept=".csv" onChange={async (e) => {
                                        const file = e.target.files?.[0];
@@ -2849,7 +2924,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        const { error } = await supabase.from('acc_extratos_bancarios').insert(batch);
                                        if (error) {
                                           console.error('Import error:', error);
-                                          alert('Erro ao importar extrato. Verifique o formato CSV (Data,Descrição,Valor).');
+                                          alert('Erro ao importar extrato. Verifique o formato CSV (Data,DescriÃ§Ã£o,Valor).');
                                        } else {
                                           fetchAccountingData();
                                        }
@@ -2860,9 +2935,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <div className="p-6">
                               <div className="grid grid-cols-12 gap-4 px-8 py-4 bg-zinc-900 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest mb-4 font-mono">
                                  <div className="col-span-2">Data</div>
-                                 <div className="col-span-4">Descrição Bancária</div>
+                                 <div className="col-span-4">DescriÃ§Ã£o BancÃ¡ria</div>
                                  <div className="col-span-2">Valor (Kz)</div>
-                                 <div className="col-span-4">Sugestão de Lançamento</div>
+                                 <div className="col-span-4">SugestÃ£o de LanÃ§amento</div>
                               </div>
                               <div className="space-y-3">
                                  {extratos.filter(e => e.company_id === selectedEmpresaId).map(ex => {
@@ -2896,7 +2971,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 </div>
                                              ) : (
                                                 <div className="flex items-center gap-2">
-                                                   <div className="text-[10px] font-bold text-zinc-400 p-2 italic">Sem correspondência exacta</div>
+                                                   <div className="text-[10px] font-bold text-zinc-400 p-2 italic">Sem correspondÃªncia exacta</div>
                                                    <button
                                                       onClick={() => {
                                                          setNewEntry({
@@ -2909,7 +2984,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                       }}
                                                       className="px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all shadow-sm"
                                                    >
-                                                      Novo Lançamento
+                                                      Novo LanÃ§amento
                                                    </button>
                                                 </div>
                                              )}
@@ -2918,7 +2993,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     );
                                  })}
                                  {extratos.filter(e => e.company_id === selectedEmpresaId).length === 0 && (
-                                    <div className="p-20 text-center text-zinc-400 font-bold italic">Nenhum extrato importado. Carregue um ficheiro CSV para iniciar a conciliação.</div>
+                                    <div className="p-20 text-center text-zinc-400 font-bold italic">Nenhum extrato importado. Carregue um ficheiro CSV para iniciar a conciliaÃ§Ã£o.</div>
                                  )}
                               </div>
                            </div>
@@ -2944,7 +3019,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        : <ShieldAlert size={32} className="text-red-400" />}
                               </div>
                               <div>
-                                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ledger Imutável — Verificação de Integridade</p>
+                                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ledger ImutÃ¡vel â€” VerificaÃ§Ã£o de Integridade</p>
                                  {integrityResult ? (
                                     <>
                                        <p className={`text-2xl font-black mt-1 ${integrityResult.status === 'OK' ? 'text-green-400' : 'text-red-400'}`}>
@@ -2952,13 +3027,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        </p>
                                        <p className="text-xs text-zinc-500 font-bold mt-1">
                                           {integrityResult.unbalanced_entries === 0
-                                             ? 'Todos os lançamentos estão em equilíbrio (D=C).'
-                                             : `${integrityResult.unbalanced_entries} lançamento(s) com D?C encontrado(s).`
-                                          } · {new Date(integrityResult.check_date).toLocaleString('pt-PT')}
+                                             ? 'Todos os lanÃ§amentos estÃ£o em equilÃ­brio (D=C).'
+                                             : `${integrityResult.unbalanced_entries} lanÃ§amento(s) com D?C encontrado(s).`
+                                          } Â· {new Date(integrityResult.check_date).toLocaleString('pt-PT')}
                                        </p>
                                     </>
                                  ) : (
-                                    <p className="text-lg font-black text-zinc-300 mt-1">Clique para verificar a cadeia de blocos contábeis</p>
+                                    <p className="text-lg font-black text-zinc-300 mt-1">Clique para verificar a cadeia de blocos contÃ¡beis</p>
                                  )}
                               </div>
                            </div>
@@ -2972,12 +3047,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </button>
                         </div>
 
-                        {/* Blockchain Contábil */}
+                        {/* Blockchain ContÃ¡bil */}
                         {ledgerEntries.length > 0 && (
                            <div className="bg-white rounded-[3rem] shadow-sm border border-sky-100 overflow-hidden">
                               <div className="p-8 border-b border-zinc-100 bg-zinc-50/50">
                                  <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                                    <Lock size={16} className="text-yellow-500" /> Blockchain Contábil — Últimos {ledgerEntries.length} Blocos
+                                    <Lock size={16} className="text-yellow-500" /> Blockchain ContÃ¡bil â€” Ãšltimos {ledgerEntries.length} Blocos
                                  </h4>
                               </div>
                               <div className="divide-y divide-zinc-50">
@@ -3000,8 +3075,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         <div className="bg-white rounded-[3rem] shadow-sm border border-sky-100 overflow-hidden">
                            <div className="p-10 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
                               <div>
-                                 <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Rasto de Auditoria Imutável</h3>
-                                 <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Registo completo de alterações e acessos fiscais</p>
+                                 <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Rasto de Auditoria ImutÃ¡vel</h3>
+                                 <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Registo completo de alteraÃ§Ãµes e acessos fiscais</p>
                               </div>
                               <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-green-100">
                                  <ShieldCheck size={16} /> Sistema Protegido
@@ -3009,7 +3084,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                            <div className="overflow-hidden">
                               <div className="p-10 bg-zinc-50/30 border-b border-zinc-100">
-                                 <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-6">Logs de Operação do Sistema</h4>
+                                 <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-6">Logs de OperaÃ§Ã£o do Sistema</h4>
                                  <div className="space-y-4">
                                     {systemLogs.map(s => {
                                        const safeDate = s?.created_at ? new Date(s.created_at) : null;
@@ -3019,7 +3094,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 <div className={`w-2 h-2 rounded-full ${s?.nivel === 'ERROR' ? 'bg-red-500 animate-pulse' : s?.nivel === 'WARN' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
                                                 <div>
                                                    <p className="text-xs font-black text-zinc-900 uppercase">{s?.evento || 'Evento'}</p>
-                                                   <p className="text-[10px] text-zinc-400 font-bold">{s?.descricao || 'Sem descrição'}</p>
+                                                   <p className="text-[10px] text-zinc-400 font-bold">{s?.descricao || 'Sem descriÃ§Ã£o'}</p>
                                                 </div>
                                              </div>
                                              <p className="text-[9px] font-mono text-zinc-300 font-black">
@@ -3036,7 +3111,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <thead>
                                     <tr className="bg-zinc-900 text-white text-[9px] font-black uppercase tracking-[0.2em]">
                                        <th className="px-8 py-5">Data/Hora</th>
-                                       <th className="px-8 py-5">Ação</th>
+                                       <th className="px-8 py-5">AÃ§Ã£o</th>
                                        <th className="px-8 py-5">Tabela</th>
                                        <th className="px-8 py-5">Chave Registro</th>
                                     </tr>
@@ -3047,14 +3122,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        return (
                                           <tr key={log?.id || Math.random()} className="text-xs hover:bg-zinc-50 transition-all font-bold group">
                                              <td className="px-8 py-5 font-mono text-zinc-400 text-[10px]">
-                                                {safeDate && !isNaN(safeDate.getTime()) ? safeDate.toLocaleString('pt-PT') : 'Data Inválida'}
+                                                {safeDate && !isNaN(safeDate.getTime()) ? safeDate.toLocaleString('pt-PT') : 'Data InvÃ¡lida'}
                                              </td>
                                              <td className="px-8 py-5">
                                                 <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${log?.acao === 'INSERT' ? 'bg-green-50 text-green-600' :
                                                    log?.acao === 'UPDATE' ? 'bg-sky-50 text-sky-600' :
                                                       'bg-red-50 text-red-600'
                                                    }`}>
-                                                   {log?.acao || 'Ação'}
+                                                   {log?.acao || 'AÃ§Ã£o'}
                                                 </span>
                                              </td>
                                              <td className="px-8 py-5">
@@ -3069,7 +3144,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     {auditLogs.length === 0 && (
                                        <tr>
                                           <td colSpan={4} className="p-20 text-center text-zinc-400 font-bold italic">
-                                             Nenhum log de auditoria encontrado. As alterações serão registadas automaticamente.
+                                             Nenhum log de auditoria encontrado. As alteraÃ§Ãµes serÃ£o registadas automaticamente.
                                           </td>
                                        </tr>
                                     )}
@@ -3085,7 +3160,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                {
                   activeTab === 'folha' && (
                      <div className="space-y-8 animate-in slide-in-from-bottom-4">
-                        {/* Header e Acções Rápidas */}
+                        {/* Header e AcÃ§Ãµes RÃ¡pidas */}
                         <div className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 p-12 rounded-[4rem] text-white shadow-3xl overflow-hidden relative">
                            <div className="absolute top-0 right-0 p-10 opacity-10 pointer-events-none">
                               <Users size={200} />
@@ -3109,7 +3184,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  onClick={() => setShowEmployeeModal(true)}
                                  className="px-8 py-5 bg-white/5 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-3 backdrop-blur-md"
                               >
-                                 <Plus size={20} /> Novo Funcionário
+                                 <Plus size={20} /> Novo FuncionÃ¡rio
                               </button>
                               <button
                                  onClick={runPayroll}
@@ -3132,7 +3207,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  color: 'zinc'
                               },
                               {
-                                 label: 'Total Líquido',
+                                 label: 'Total LÃ­quido',
                                  value: folhas?.filter(f => f.periodo_id === selectedPeriodoId && f.company_id === selectedEmpresaId).reduce((acc, f) => acc + (Number(f.salario_liquido) || 0), 0) || 0,
                                  color: 'sky'
                               },
@@ -3160,11 +3235,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         <div className="bg-white rounded-[3rem] border border-zinc-100 shadow-sm overflow-hidden">
                            <div className="p-8 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/50">
                               <h3 className="text-base font-black text-zinc-900 uppercase tracking-tight flex items-center gap-3">
-                                 <FileText className="text-yellow-500" /> Folhas Processadas no Período
+                                 <FileText className="text-yellow-500" /> Folhas Processadas no PerÃ­odo
                               </h3>
                               <div className="flex gap-2">
                                  <button className="px-4 py-2 bg-white border border-zinc-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 transition-all flex items-center gap-2">
-                                    <Download size={12} /> Exportar Relatório
+                                    <Download size={12} /> Exportar RelatÃ³rio
                                  </button>
                               </div>
                            </div>
@@ -3182,7 +3257,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                              <Users size={28} />
                                           </div>
                                           <div>
-                                             <h4 className="font-black text-zinc-900 text-lg leading-none mb-1">{f?.funcionario_nome || 'Funcionário'}</h4>
+                                             <h4 className="font-black text-zinc-900 text-lg leading-none mb-1">{f?.funcionario_nome || 'FuncionÃ¡rio'}</h4>
                                              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Base: {safeFormatAOA(Number(f?.salario_base) || 0)}</p>
                                           </div>
                                        </div>
@@ -3201,7 +3276,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           </div>
                                        </div>
                                        <div className="text-right mr-8">
-                                          <p className="text-[10px] font-black text-zinc-400 uppercase mb-1">Líquido a Receber</p>
+                                          <p className="text-[10px] font-black text-zinc-400 uppercase mb-1">LÃ­quido a Receber</p>
                                           <p className="text-2xl font-black text-zinc-900">{safeFormatAOA(Number(f?.salario_liquido) || 0)}</p>
                                        </div>
                                        <div className="flex gap-2">
@@ -3233,9 +3308,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </h3>
                            <div className="space-y-4">
                               {[
-                                 { t: 'IVA - Declaração Periódica', d: '2024-03-25', v: (Number(financeReports.receitaTotal) || 0) * ((currentEmpresa?.regime_agt === 'Simplificado' ? 0.07 : (currentEmpresa?.taxa_iva || 14) / 100)) },
+                                 { t: 'IVA - DeclaraÃ§Ã£o PeriÃ³dica', d: '2024-03-25', v: (Number(financeReports.receitaTotal) || 0) * ((currentEmpresa?.regime_agt === 'Simplificado' ? 0.07 : (currentEmpresa?.taxa_iva || 14) / 100)) },
                                  { t: 'INSS - Guia de Pagamento', d: '2024-03-10', v: folhas?.filter(f => f.company_id === selectedEmpresaId && (selectedPeriodoId ? f.periodo_id === selectedPeriodoId : true)).reduce((acc, b) => acc + (Number(b.inss_trabalhador) || 0) + (Number(b.inss_empresa) || 0), 0) || 0 },
-                                 { t: 'IRT - Retenções na Fonte', d: '2024-03-30', v: (currentEmpresa?.incidencia_irt !== false) ? (folhas?.filter(f => f.company_id === selectedEmpresaId && (selectedPeriodoId ? f.periodo_id === selectedPeriodoId : true)).reduce((acc, b) => acc + (Number(b.irt) || 0), 0) || 0) : 0 },
+                                 { t: 'IRT - RetenÃ§Ãµes na Fonte', d: '2024-03-30', v: (currentEmpresa?.incidencia_irt !== false) ? (folhas?.filter(f => f.company_id === selectedEmpresaId && (selectedPeriodoId ? f.periodo_id === selectedPeriodoId : true)).reduce((acc, b) => acc + (Number(b.irt) || 0), 0) || 0) : 0 },
                                  { t: 'II - Imposto Industrial (Estimativa)', d: '2024-05-31', v: (Number(financeReports.lucroLiquido) > 0 ? (Number(financeReports.lucroLiquido) * (currentEmpresa?.taxa_ii || 25) / 100) : 0) },
                               ].map((o, i) => (
                                  <div key={i} className="flex items-center justify-between p-6 bg-zinc-50 rounded-3xl border border-zinc-100">
@@ -3252,7 +3327,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         <div className="bg-zinc-900 p-12 rounded-[4rem] text-white shadow-2xl flex flex-col justify-between overflow-hidden relative print-hidden">
                            <FileText size={180} className="absolute -right-4 -bottom-4 opacity-5" />
                            <div className="space-y-6">
-                              <h3 className="text-xl font-black uppercase tracking-tight">Carga Tributária Estimada</h3>
+                              <h3 className="text-xl font-black uppercase tracking-tight">Carga TributÃ¡ria Estimada</h3>
                               <div className="space-y-8">
                                  <div className="space-y-2">
                                     <div className="flex justify-between text-[10px] font-black uppercase"><span>IVA Estimado</span><span>{safeFormatAOA(financeReports.receitaTotal * ((currentEmpresa?.taxa_iva || 14) / 100))}</span></div>
@@ -3277,7 +3352,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- MODAL RELATÓRIO COMPLETO --- */}
+               {/* --- MODAL RELATÃ“RIO COMPLETO --- */}
                {
                   showReportModal && activeReport && (
                      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
@@ -3302,7 +3377,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <div className="hidden print:flex flex-col mb-10 items-center text-center">
                                  <h1 className="text-3xl font-black uppercase">{activeReport.title}</h1>
                                  <p className="text-sm font-bold text-zinc-500 mt-2">{currentEmpresa?.nome}</p>
-                                 <p className="text-xs text-zinc-400">NIF: {currentEmpresa?.nif} | Período: {periodos.find(p => p.id === selectedPeriodoId)?.mes}/{periodos.find(p => p.id === selectedPeriodoId)?.ano}</p>
+                                 <p className="text-xs text-zinc-400">NIF: {currentEmpresa?.nif} | PerÃ­odo: {periodos.find(p => p.id === selectedPeriodoId)?.mes}/{periodos.find(p => p.id === selectedPeriodoId)?.ano}</p>
                                  <div className="w-full h-1 bg-zinc-900 my-6" />
                               </div>
 
@@ -3311,9 +3386,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <thead>
                                        <tr className="border-b-2 border-zinc-900">
                                           <th className="py-4 px-2 text-[10px] font-black uppercase">Data</th>
-                                          <th className="py-4 px-2 text-[10px] font-black uppercase">Descrição</th>
-                                          <th className="py-4 px-2 text-[10px] font-black uppercase">Débito</th>
-                                          <th className="py-4 px-2 text-[10px] font-black uppercase">Crédito</th>
+                                          <th className="py-4 px-2 text-[10px] font-black uppercase">DescriÃ§Ã£o</th>
+                                          <th className="py-4 px-2 text-[10px] font-black uppercase">DÃ©bito</th>
+                                          <th className="py-4 px-2 text-[10px] font-black uppercase">CrÃ©dito</th>
                                        </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-100">
@@ -3327,7 +3402,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        ))}
                                        {activeReport.data.length === 0 && (
                                           <tr>
-                                             <td colSpan={4} className="py-20 text-center text-zinc-400 font-bold uppercase text-[10px]">Nenhum lançamento encontrado para este período</td>
+                                             <td colSpan={4} className="py-20 text-center text-zinc-400 font-bold uppercase text-[10px]">Nenhum lanÃ§amento encontrado para este perÃ­odo</td>
                                           </tr>
                                        )}
                                     </tbody>
@@ -3339,9 +3414,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <thead>
                                        <tr className="border-b-2 border-zinc-900">
                                           <th className="py-4 px-2 text-[10px] font-black uppercase">Conta</th>
-                                          <th className="py-4 px-2 text-[10px] font-black uppercase">Designação</th>
-                                          <th className="py-4 px-2 text-[10px] font-black uppercase text-right">Somatório Débito</th>
-                                          <th className="py-4 px-2 text-[10px] font-black uppercase text-right">Somatório Crédito</th>
+                                          <th className="py-4 px-2 text-[10px] font-black uppercase">DesignaÃ§Ã£o</th>
+                                          <th className="py-4 px-2 text-[10px] font-black uppercase text-right">SomatÃ³rio DÃ©bito</th>
+                                          <th className="py-4 px-2 text-[10px] font-black uppercase text-right">SomatÃ³rio CrÃ©dito</th>
                                           <th className="py-4 px-2 text-[10px] font-black uppercase text-right">Saldo</th>
                                        </tr>
                                     </thead>
@@ -3372,7 +3447,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
                               )}
 
-                              {activeReport.id === 'razão' && (
+                              {activeReport.id === 'razÃ£o' && (
                                  <div className="space-y-12">
                                     {(activeReport.data || []).map((cuenta: any, i: number) => (
                                        <div key={i} className="space-y-4">
@@ -3384,9 +3459,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                              <thead className="bg-zinc-50">
                                                 <tr>
                                                    <th className="py-2 px-2 text-[9px] font-black uppercase text-zinc-400">Data</th>
-                                                   <th className="py-2 px-2 text-[9px] font-black uppercase text-zinc-400">Descrição</th>
-                                                   <th className="py-2 px-2 text-[9px] font-black uppercase text-zinc-400 text-right">Débito</th>
-                                                   <th className="py-2 px-2 text-[9px] font-black uppercase text-zinc-400 text-right">Crédito</th>
+                                                   <th className="py-2 px-2 text-[9px] font-black uppercase text-zinc-400">DescriÃ§Ã£o</th>
+                                                   <th className="py-2 px-2 text-[9px] font-black uppercase text-zinc-400 text-right">DÃ©bito</th>
+                                                   <th className="py-2 px-2 text-[9px] font-black uppercase text-zinc-400 text-right">CrÃ©dito</th>
                                                 </tr>
                                              </thead>
                                              <tbody className="divide-y divide-zinc-50">
@@ -3408,7 +3483,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               {activeReport.id === 'cashflow' && (
                                  <div className="space-y-8">
                                     <div className="bg-zinc-900 p-8 rounded-[2rem] text-white">
-                                       <h3 className="text-lg font-black uppercase tracking-tight mb-2">Fluxo de Caixa Líquido</h3>
+                                       <h3 className="text-lg font-black uppercase tracking-tight mb-2">Fluxo de Caixa LÃ­quido</h3>
                                        <p className="text-3xl font-black text-yellow-500">{safeFormatAOA(activeReport.data?.find(r => r.tipo === 'T')?.valor || 0)}</p>
                                     </div>
                                     <div className="grid grid-cols-1 gap-4">
@@ -3428,7 +3503,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        <tr className="border-b-2 border-zinc-900">
                                           <th className="py-4 px-2 text-[10px] font-black uppercase">Data</th>
                                           <th className="py-4 px-2 text-[10px] font-black uppercase">Utilizador</th>
-                                          <th className="py-4 px-2 text-[10px] font-black uppercase">Ação</th>
+                                          <th className="py-4 px-2 text-[10px] font-black uppercase">AÃ§Ã£o</th>
                                           <th className="py-4 px-2 text-[10px] font-black uppercase">Tabela</th>
                                        </tr>
                                     </thead>
@@ -3450,27 +3525,27 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- MODAL NOVO LANÇAMENTO (DIÁRIO) --- */}
+               {/* --- MODAL NOVO LANÃ‡AMENTO (DIÃRIO) --- */}
                {
                   showEntryModal && (
                      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
                         <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
                            <div className="p-8 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
                               <h2 className="text-xl font-black text-zinc-900 flex items-center gap-3 uppercase tracking-tight">
-                                 <BookOpen className="text-yellow-500" /> Novo Lançamento Contábil
+                                 <BookOpen className="text-yellow-500" /> Novo LanÃ§amento ContÃ¡bil
                               </h2>
                               <button onClick={() => setShowEntryModal(false)} className="p-3 text-zinc-400 hover:bg-zinc-200 rounded-full transition-all"><X size={24} /></button>
                            </div>
 
-                           {/* Modelos Pré-definidos */}
+                           {/* Modelos PrÃ©-definidos */}
                            {regrasAutomaticas.length > 0 && (
                               <div className="px-8 pt-6 pb-2">
-                                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-3">Modelos Pré-definidos</p>
+                                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-3">Modelos PrÃ©-definidos</p>
                                  <div className="flex flex-wrap gap-2">
                                     {[
                                        { label: 'Venda', debito: '3.1', credito: '6.1' },
                                        { label: 'Compra Stock', debito: '2.1', credito: '3.2' },
-                                       { label: 'Salários', debito: '7.2', credito: '1.1' },
+                                       { label: 'SalÃ¡rios', debito: '7.2', credito: '1.1' },
                                        { label: 'Pagamento Fornecedor', debito: '4.1', credito: '1.1' },
                                        { label: 'Recibo de Cliente', debito: '1.1', credito: '3.1' },
                                        ...regrasAutomaticas.map(r => ({ label: r.nome, debito: r.conta_debito_codigo, credito: r.conta_credito_codigo }))
@@ -3488,15 +3563,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <div className="px-8 pt-4 pb-2">
                               <div
                                  onClick={async () => {
-                                    alert("Funcionalidade de Scanner de Documentos Activa. Seleccione um PDF para análise via Amazing IA.");
+                                    alert("Funcionalidade de Scanner de Documentos Activa. Seleccione um PDF para anÃ¡lise via Amazing IA.");
                                     setTimeout(() => {
                                        setNewEntry({
                                           ...newEntry,
-                                          descricao: 'Factura 2024/042 - Serviços de Consultoria',
+                                          descricao: 'Factura 2024/042 - ServiÃ§os de Consultoria',
                                           valor: 150000,
                                           data: '2024-03-22'
                                        });
-                                       handleAISuggestAccounts('Factura 2024/042 - Serviços de Consultoria');
+                                       handleAISuggestAccounts('Factura 2024/042 - ServiÃ§os de Consultoria');
                                     }, 2000);
                                  }}
                                  className="bg-yellow-50 border-2 border-dashed border-yellow-200 rounded-2xl p-4 flex items-center justify-center gap-3 cursor-pointer hover:bg-yellow-100 transition-all group"
@@ -3507,7 +3582,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                            <form onSubmit={handleNewEntry} className="p-8 space-y-6">
                               <div className="relative group">
-                                 <Input name="descricao" label="Histórico / Descrição" required
+                                 <Input name="descricao" label="HistÃ³rico / DescriÃ§Ã£o" required
                                     value={newEntry.descricao} onChange={e => setNewEntry({ ...newEntry, descricao: e.target.value })}
                                     placeholder="Ex: Pagamento de Fornecedor X"
                                  />
@@ -3528,7 +3603,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     options={planoContas.filter(c => c.natureza === 'Devedora' || c.tipo === 'Despesa').map(c => ({ value: c.codigo, label: `${c.codigo} - ${c.nome}` }))}
                                  />
                                  <Select
-                                    label="Conta de Crédito"
+                                    label="Conta de CrÃ©dito"
                                     value={newEntry.contaCredito}
                                     onChange={(e) => setNewEntry({ ...newEntry, contaCredito: e.target.value })}
                                     options={planoContas.filter(c => c.natureza === 'Credora' || c.codigo === '1.1').map(c => ({ value: c.codigo, label: `${c.codigo} - ${c.nome}` }))}
@@ -3542,7 +3617,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     value={newEntry.data} onChange={e => setNewEntry({ ...newEntry, data: e.target.value })}
                                  />
                               </div>
-                              {/* Indicador de validação D = C em tempo real */}
+                              {/* Indicador de validaÃ§Ã£o D = C em tempo real */}
                               {(() => {
                                  const debitoConta = planoContas.find(c => c.codigo === newEntry.contaDebito);
                                  const creditoConta = planoContas.find(c => c.codigo === newEntry.contaCredito);
@@ -3552,7 +3627,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        <div className="flex items-center gap-2">
                                           <div className={`w-2.5 h-2.5 rounded-full ${valOk ? 'bg-green-500' : 'bg-zinc-300'}`} />
                                           <span className={`text-[9px] font-black uppercase tracking-widest ${valOk ? 'text-green-700' : 'text-zinc-400'}`}>
-                                             {valOk ? 'Débito = Crédito — Lançamento equilibrado' : 'Selecione contas e valor para validar'}
+                                             {valOk ? 'DÃ©bito = CrÃ©dito â€” LanÃ§amento equilibrado' : 'Selecione contas e valor para validar'}
                                           </span>
                                        </div>
                                        {valOk && <span className="text-[9px] font-black text-green-700 bg-green-100 px-2 py-1 rounded-lg">D = C = {safeFormatAOA(newEntry.valor)}</span>}
@@ -3560,7 +3635,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  );
                               })()}
                               <button type="submit" className="w-full py-5 bg-zinc-900 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 hover:bg-zinc-800 transition-all">
-                                 <Save size={18} /> Confirmar Lançamento
+                                 <Save size={18} /> Confirmar LanÃ§amento
                               </button>
                            </form>
                         </div>
@@ -3580,7 +3655,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                            <form onSubmit={handleSaveCompra} className="p-8 space-y-5">
                               <div className="grid grid-cols-2 gap-4">
-                                 <Input name="numero_compra" label="N.º Compra" value={newCompra.numero_compra}
+                                 <Input name="numero_compra" label="N.Âº Compra" value={newCompra.numero_compra}
                                     onChange={e => setNewCompra({ ...newCompra, numero_compra: e.target.value })} placeholder="COMP-001" />
                                  <Input name="data_compra" label="Data" type="date" required value={newCompra.data_compra}
                                     onChange={e => setNewCompra({ ...newCompra, data_compra: e.target.value })} />
@@ -3591,8 +3666,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <Input name="fornecedor_nif" label="NIF Fornecedor" value={newCompra.fornecedor_nif}
                                     onChange={e => setNewCompra({ ...newCompra, fornecedor_nif: e.target.value })} placeholder="000000000" />
                               </div>
-                              <Input name="descricao" label="Descrição / Artigos" value={newCompra.descricao}
-                                 onChange={e => setNewCompra({ ...newCompra, descricao: e.target.value })} placeholder="Ex: Aquisição de materiais de escritório" />
+                              <Input name="descricao" label="DescriÃ§Ã£o / Artigos" value={newCompra.descricao}
+                                 onChange={e => setNewCompra({ ...newCompra, descricao: e.target.value })} placeholder="Ex: AquisiÃ§Ã£o de materiais de escritÃ³rio" />
                               <div className="grid grid-cols-3 gap-4">
                                  <Input name="valor_total" label="Valor Total (AOA)" type="number" required value={newCompra.valor_total}
                                     onChange={e => setNewCompra({ ...newCompra, valor_total: Number(e.target.value) })} />
@@ -3602,18 +3677,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Categoria</label>
                                     <select value={newCompra.categoria} onChange={e => setNewCompra({ ...newCompra, categoria: e.target.value })}
                                        className="w-full border border-zinc-200 rounded-xl p-2.5 text-xs font-bold text-zinc-700 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                                       {['Mercadorias', 'Serviços', 'Imobilizado', 'Matérias-Primas', 'Outros'].map(c => (
+                                       {['Mercadorias', 'ServiÃ§os', 'Imobilizado', 'MatÃ©rias-Primas', 'Outros'].map(c => (
                                           <option key={c} value={c}>{c}</option>
                                        ))}
                                     </select>
                                  </div>
                               </div>
-                              {/* Preview lançamento automático */}
+                              {/* Preview lanÃ§amento automÃ¡tico */}
                               {newCompra.valor_total > 0 && (
                                  <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4">
-                                    <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-2">Lançamento Automático Gerado</p>
+                                    <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-2">LanÃ§amento AutomÃ¡tico Gerado</p>
                                     <div className="flex justify-between text-xs font-bold text-zinc-700">
-                                       <span>D: 2.1 Inventário / Activos</span>
+                                       <span>D: 2.1 InventÃ¡rio / Activos</span>
                                        <span className="text-orange-600">{safeFormatAOA(newCompra.valor_total)}</span>
                                     </div>
                                     <div className="flex justify-between text-xs font-bold text-zinc-700">
@@ -3633,7 +3708,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* ===== MODAL DE FATURAÇÃO ===== */}
+               {/* ===== MODAL DE FATURAÃ‡ÃƒO ===== */}
                {
                   showInvoiceModal && (
                      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in">
@@ -3652,20 +3727,25 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
 
                            <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
-                              {/* Coluna Esquerda: Dados do Cliente e Selecção de Itens */}
+                              {/* Coluna Esquerda: Dados do Cliente e SelecÃ§Ã£o de Itens */}
                               <div className="lg:col-span-7 space-y-8">
                                  <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Tipo de Documento</label>
                                        <select value={invoiceForm.tipo} onChange={e => setInvoiceForm({ ...invoiceForm, tipo: e.target.value as any })}
                                           className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all">
-                                          <option value="Factura">Factura</option>
-                                          <option value="Pró-forma">Pró-forma</option>
+                                          <option value="Factura">Factura (FT)</option>
+                                          <option value="Factura-Recibo">Factura-Recibo (FR)</option>
+                                          <option value="Pró-forma">Pró-forma (PRO)</option>
+                                          <option value="Recibo">Recibo (RE)</option>
+                                          <option value="Nota de Crédito">Nota de Crédito (NC)</option>
+                                          <option value="Nota de Débito">Nota de Débito (ND)</option>
+
                                           <option value="Guia">Guia de Remessa</option>
                                           <option value="Encomenda">Nota de Encomenda</option>
                                        </select>
                                     </div>
-                                    <Input label="Data de Emissão" type="date" value={invoiceForm.data_emissao} onChange={e => setInvoiceForm({ ...invoiceForm, data_emissao: e.target.value })} />
+                                    <Input label="Data de EmissÃ£o" type="date" value={invoiceForm.data_emissao} onChange={e => setInvoiceForm({ ...invoiceForm, data_emissao: e.target.value })} />
                                  </div>
 
                                  <div className="space-y-4">
@@ -3691,13 +3771,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
 
                                  <div className="space-y-4 bg-zinc-50 p-6 rounded-3xl border border-zinc-200">
-                                    <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Adicionar Serviço / Item Manual</h4>
+                                    <h4 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Adicionar ServiÃ§o / Item Manual</h4>
                                     <div className="grid grid-cols-12 gap-4">
                                        <div className="col-span-6">
-                                          <Input placeholder="Nome do Serviço ou Item" value={customItem.nome} onChange={e => setCustomItem({ ...customItem, nome: e.target.value })} />
+                                          <Input placeholder="Nome do ServiÃ§o ou Item" value={customItem.nome} onChange={e => setCustomItem({ ...customItem, nome: e.target.value })} />
                                        </div>
                                        <div className="col-span-3">
-                                          <Input placeholder="Preço" type="number" value={customItem.preco} onChange={e => setCustomItem({ ...customItem, preco: Number(e.target.value) })} />
+                                          <Input placeholder="PreÃ§o" type="number" value={customItem.preco} onChange={e => setCustomItem({ ...customItem, preco: Number(e.target.value) })} />
                                        </div>
                                        <div className="col-span-3">
                                           <button onClick={handleAddCustomItem} className="w-full h-[54px] bg-yellow-500 text-zinc-900 font-black rounded-2xl uppercase text-[9px] tracking-widest hover:bg-yellow-400 transition-all flex items-center justify-center gap-2">
@@ -3709,8 +3789,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                                  <div className="space-y-4">
                                     <div className="flex justify-between items-center">
-                                       <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Catálogo de Itens</label>
-                                       <span className="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full uppercase">{extInventario.length} Disponíveis</span>
+                                       <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">CatÃ¡logo de Itens</label>
+                                       <span className="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full uppercase">{extInventario.length} DisponÃ­veis</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                        {extInventario.map(item => (
@@ -3758,7 +3838,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                          className="w-16 bg-zinc-50 border border-zinc-100 rounded-lg p-2 text-xs font-bold text-zinc-900 focus:outline-none focus:ring-1 focus:ring-yellow-500" />
                                                    </div>
                                                    <div className="flex items-center gap-2">
-                                                      <span className="text-[9px] font-black text-zinc-400 uppercase">Preço:</span>
+                                                      <span className="text-[9px] font-black text-zinc-400 uppercase">PreÃ§o:</span>
                                                       <input type="number" value={it.preco_unitario} onChange={e => handleUpdateInvoiceItem(it.id, 'preco_unitario', e.target.value)}
                                                          className="w-full bg-zinc-50 border border-zinc-100 rounded-lg p-2 text-xs font-bold text-zinc-900 focus:outline-none focus:ring-1 focus:ring-yellow-500" />
                                                    </div>
@@ -3774,20 +3854,20 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           <span>{safeFormatAOA(invoiceForm.itens.reduce((acc, i) => acc + i.total, 0))}</span>
                                        </div>
                                        <div className="flex justify-between text-[11px] font-bold text-zinc-500 uppercase">
-                                          <span>IVA (14%)</span>
-                                          <span>{safeFormatAOA(invoiceForm.itens.reduce((acc, i) => acc + i.total, 0) * 0.14)}</span>
+                                          <span>IVA ({invoiceForm.is_exempt ? '0%' : '14%'})</span>
+                                          <span>{safeFormatAOA(invoiceForm.itens.reduce((acc, i) => acc + i.total, 0) * (invoiceForm.is_exempt ? 0 : 0.14))}</span>
                                        </div>
                                        <div className="flex justify-between text-xl font-black text-zinc-900 pt-2 border-t border-zinc-200">
                                           <span className="uppercase tracking-tighter">Total Geral</span>
-                                          <span className="text-yellow-600">{safeFormatAOA(invoiceForm.itens.reduce((acc, i) => acc + i.total, 0) * 1.14)}</span>
+                                          <span className="text-yellow-600">{safeFormatAOA(invoiceForm.itens.reduce((acc, i) => acc + i.total, 0) * (invoiceForm.is_exempt ? 1 : 1.14))}</span>
                                        </div>
                                     </div>
 
                                     <div className="space-y-2">
-                                       <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Observações</label>
+                                       <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">ObservaÃ§Ãµes</label>
                                        <textarea value={invoiceForm.observacoes} onChange={e => setInvoiceForm({ ...invoiceForm, observacoes: e.target.value })}
                                           className="w-full bg-white border border-zinc-200 rounded-2xl p-4 text-[10px] font-bold text-zinc-700 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                          rows={2} placeholder="Condições de pagamento, notas..." />
+                                          rows={2} placeholder="CondiÃ§Ãµes de pagamento, notas..." />
                                     </div>
                                  </div>
 
@@ -3803,7 +3883,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* ===== PAINEL DE APROVAÇÃO PENDENTE (badge flutuante) ===== */}
+               {/* ===== PAINEL DE APROVAÃ‡ÃƒO PENDENTE (badge flutuante) ===== */}
                {
                   pendingApproval.length > 0 && (
                      <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4">
@@ -3815,36 +3895,36 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  {pendingApproval.length}
                               </span>
                            </div>
-                           {pendingApproval.length} Lançamento{pendingApproval.length > 1 ? 's' : ''} Aguarda{pendingApproval.length === 1 ? '' : 'm'} Aprovação
+                           {pendingApproval.length} LanÃ§amento{pendingApproval.length > 1 ? 's' : ''} Aguarda{pendingApproval.length === 1 ? '' : 'm'} AprovaÃ§Ã£o
                         </button>
                      </div>
                   )
                }
 
-               {/* ===== MODAL DE APROVAÇÃO ===== */}
+               {/* ===== MODAL DE APROVAÃ‡ÃƒO ===== */}
                {
                   showApprovalModal && (
                      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in">
                         <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[85vh] overflow-y-auto">
                            <div className="p-8 border-b border-zinc-100 flex justify-between items-center bg-yellow-50">
                               <h2 className="text-xl font-black text-zinc-900 flex items-center gap-3 uppercase tracking-tight">
-                                 <CheckCircle2 className="text-yellow-500" size={24} /> Aprovação de Lançamentos
+                                 <CheckCircle2 className="text-yellow-500" size={24} /> AprovaÃ§Ã£o de LanÃ§amentos
                               </h2>
                               <button onClick={() => { setShowApprovalModal(false); setApprovalTarget(null); setApprovalObs(''); }} className="p-3 text-zinc-400 hover:bg-zinc-200 rounded-full"><X size={22} /></button>
                            </div>
                            {approvalTarget ? (
-                              // Detalhe do lançamento a aprovar
+                              // Detalhe do lanÃ§amento a aprovar
                               <div className="p-8 space-y-5">
                                  <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-4">
-                                    <p className="text-[9px] font-black text-yellow-700 uppercase tracking-widest mb-1">Lançamento</p>
+                                    <p className="text-[9px] font-black text-yellow-700 uppercase tracking-widest mb-1">LanÃ§amento</p>
                                     <p className="font-black text-zinc-900">{approvalTarget.descricao}</p>
-                                    <p className="text-xs text-zinc-500 mt-1">{approvalTarget.data ? new Date(approvalTarget.data).toLocaleDateString('pt-PT') : ''} · {approvalTarget.tipo_transacao}</p>
+                                    <p className="text-xs text-zinc-500 mt-1">{approvalTarget.data ? new Date(approvalTarget.data).toLocaleDateString('pt-PT') : ''} Â· {approvalTarget.tipo_transacao}</p>
                                  </div>
                                  <div className="space-y-2">
-                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Itens do Lançamento</p>
+                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Itens do LanÃ§amento</p>
                                     {(approvalTarget.itens || []).map((it: any, i: number) => (
                                        <div key={i} className="flex justify-between items-center py-2 border-b border-zinc-50 text-xs">
-                                          <span className="font-bold text-zinc-700">{it.conta_codigo} — {it.conta_nome}</span>
+                                          <span className="font-bold text-zinc-700">{it.conta_codigo} â€” {it.conta_nome}</span>
                                           <span className={`font-black px-2 py-0.5 rounded-lg ${it.tipo === 'D' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
                                              {it.tipo} {safeFormatAOA(it.valor)}
                                           </span>
@@ -3852,10 +3932,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     ))}
                                  </div>
                                  <div>
-                                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2">Observações (Opcional)</label>
+                                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2">ObservaÃ§Ãµes (Opcional)</label>
                                     <textarea value={approvalObs} onChange={e => setApprovalObs(e.target.value)}
                                        className="w-full border border-zinc-200 rounded-2xl p-4 text-xs text-zinc-700 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400" rows={3}
-                                       placeholder="Notas de aprovação..." />
+                                       placeholder="Notas de aprovaÃ§Ã£o..." />
                                  </div>
                                  <div className="grid grid-cols-2 gap-4">
                                     <button onClick={() => handleRejeitarLancamento(approvalTarget)}
@@ -3867,17 +3947,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        {isApprovingId ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Aprovar e Postar
                                     </button>
                                  </div>
-                                 <button onClick={() => { setApprovalTarget(null); setApprovalObs(''); }} className="w-full text-xs text-zinc-400 hover:text-zinc-600 transition-colors">? Voltar à lista</button>
+                                 <button onClick={() => { setApprovalTarget(null); setApprovalObs(''); }} className="w-full text-xs text-zinc-400 hover:text-zinc-600 transition-colors">? Voltar Ã  lista</button>
                               </div>
                            ) : (
-                              // Lista de lançamentos pendentes
+                              // Lista de lanÃ§amentos pendentes
                               <div className="p-8 space-y-3">
-                                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-4">{pendingApproval.length} lançamento(s) aguardam revisão</p>
+                                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-4">{pendingApproval.length} lanÃ§amento(s) aguardam revisÃ£o</p>
                                  {pendingApproval.map(l => (
                                     <div key={l.id} className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-100 hover:bg-yellow-50 hover:border-yellow-200 transition-all cursor-pointer" onClick={() => setApprovalTarget(l)}>
                                        <div>
                                           <p className="text-sm font-black text-zinc-800">{l.descricao}</p>
-                                          <p className="text-[9px] text-zinc-400 font-bold uppercase">{l.tipo_transacao} · {l.data ? new Date(l.data).toLocaleDateString('pt-PT') : ''}</p>
+                                          <p className="text-[9px] text-zinc-400 font-bold uppercase">{l.tipo_transacao} Â· {l.data ? new Date(l.data).toLocaleDateString('pt-PT') : ''}</p>
                                        </div>
                                        <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-[9px] font-black rounded-lg uppercase tracking-widest">Pendente</span>
                                     </div>
@@ -3892,30 +3972,58 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                {/* --- TABELAS DE DOCUMENTOS (FACTURAS, PROFORMAS, GUIAS, ENCOMENDAS) --- */}
                {
-                  ['facturas', 'proformas', 'guias', 'encomendas'].includes(activeTab) && (() => {
-                     const typeMap: any = { 'facturas': 'Factura', 'proformas': 'Pró-forma', 'guias': 'Guia', 'encomendas': 'Encomenda' };
-                     const filtered = extFinanceiroNotas.filter(n => n.tipo?.includes(typeMap[activeTab]) || (activeTab === 'facturas' && n.tipo === 'Venda'));
+                  ['facturas', 'proformas', 'guias', 'encomendas', 'recibos', 'notas'].includes(activeTab) && (() => {
+                     const typeMap: any = {
+                        'facturas': 'Factura',
+                        'proformas': 'Pró-forma',
+                        'recibos': 'Recibo',
+                        'notas': 'Nota',
+                        'guias': 'Guia',
+                        'encomendas': 'Encomenda'
+                     };
+                     const filtered = extFinanceiroNotas.filter(n =>
+                        n.tipo?.includes(typeMap[activeTab]) ||
+                        (activeTab === 'facturas' && n.tipo === 'Venda') ||
+                        (activeTab === 'facturas' && n.tipo === 'Factura-Recibo')
+                     );
 
                      return (
                         <div className="bg-white rounded-[3rem] border border-zinc-100 shadow-sm p-10 space-y-8 animate-in slide-in-from-bottom-4">
                            <div className="flex items-center justify-between">
                               <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Gestão de {sidebarItems.find(i => i.id === activeTab)?.label}</h2>
-                              <button
-                                 onClick={() => {
-                                    const mapping: any = { 'facturas': 'Factura', 'proformas': 'Pró-forma', 'guias': 'Guia', 'encomendas': 'Encomenda' };
-                                    setInvoiceForm(f => ({ ...f, tipo: mapping[activeTab] || 'Factura' }));
-                                    setShowInvoiceModal(true);
-                                 }}
-                                 className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all"
-                              >
-                                 Nova Emissão
-                              </button>
+                              <div className="flex gap-2">
+                                 {activeTab === 'facturas' && (
+                                    <button
+                                       onClick={() => setShowSaftModal(true)}
+                                       className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center gap-2"
+                                    >
+                                       <Download size={14} /> Exportar SAFT-AO
+                                    </button>
+                                 )}
+                                 <button
+                                    onClick={() => {
+                                       const mapping: any = {
+                                          'facturas': 'Factura',
+                                          'proformas': 'Pró-forma',
+                                          'recibos': 'Recibo',
+                                          'notas': 'Nota de Crédito',
+                                          'guias': 'Guia',
+                                          'encomendas': 'Encomenda'
+                                       };
+                                       setInvoiceForm(f => ({ ...f, tipo: mapping[activeTab] || 'Factura' }));
+                                       setShowInvoiceModal(true);
+                                    }}
+                                    className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all"
+                                 >
+                                    Nova Emissão
+                                 </button>
+                              </div>
                            </div>
                            <div className="overflow-x-auto">
                               <table className="w-full text-left">
                                  <thead>
                                     <tr className="border-b border-zinc-100">
-                                       {['Nº Documento', 'Entidade', 'Valor Total', 'Data', 'Status', ''].map(h => (
+                                       {['NÂº Documento', 'Entidade', 'Valor Total', 'Data', 'Status', ''].map(h => (
                                           <th key={h} className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest text-zinc-400">{h}</th>
                                        ))}
                                     </tr>
@@ -3970,7 +4078,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      <div className="space-y-10 animate-in slide-in-from-bottom-4">
                         <div className="flex items-center justify-between bg-white p-10 rounded-[3rem] border border-zinc-100 shadow-sm transition-all hover:shadow-xl">
                            <div className="space-y-1">
-                              <h2 className="text-3xl font-black text-zinc-900 uppercase tracking-tighter">Gestão de <span className="text-yellow-600">Contactos</span></h2>
+                              <h2 className="text-3xl font-black text-zinc-900 uppercase tracking-tighter">GestÃ£o de <span className="text-yellow-600">Contactos</span></h2>
                               <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Base de Dados CRM Integrada</p>
                            </div>
                            <button
@@ -4037,14 +4145,71 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                }
 
                {/* --- ITENS --- */}
+               {/* ===== MODAL EXPORTAÃ‡ÃƒO SAFT-AO ===== */}
+               {
+                  showSaftModal && (
+                     <div className="fixed inset-0 z-[130] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in">
+                        <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 flex flex-col">
+                           <div className="p-8 border-b border-zinc-100 flex justify-between items-center bg-blue-600 text-white">
+                              <div className="flex items-center gap-4">
+                                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <Download size={20} />
+                                 </div>
+                                 <div>
+                                    <h2 className="text-lg font-black uppercase tracking-tight">Exportar SAFT-AO</h2>
+                                    <p className="text-[9px] font-bold text-blue-100 uppercase tracking-widest">Ficheiro de Auditoria TributÃ¡ria</p>
+                                 </div>
+                              </div>
+                              <button onClick={() => setShowSaftModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-all"><X size={20} /></button>
+                           </div>
+
+                           <div className="p-8 space-y-6">
+                              <div className="grid grid-cols-2 gap-4">
+                                 <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">MÃªs</label>
+                                    <select value={saftMonth} onChange={e => setSaftMonth(Number(e.target.value))}
+                                       className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                                          <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('pt-PT', { month: 'long' }).toUpperCase()}</option>
+                                       ))}
+                                    </select>
+                                 </div>
+                                 <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ano</label>
+                                    <select value={saftYear} onChange={e => setSaftYear(Number(e.target.value))}
+                                       className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                                       {[2024, 2025, 2026].map(y => (
+                                          <option key={y} value={y}>{y}</option>
+                                       ))}
+                                    </select>
+                                 </div>
+                              </div>
+
+                              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                                 <p className="text-[10px] text-blue-800 leading-relaxed">
+                                    <strong>Nota:</strong> O ficheiro gerado contÃ©m todas as faturas, clientes e produtos movimentados no perÃ­odo selecionado, de acordo com as normas da AGT v1.01.
+                                 </p>
+                              </div>
+
+                              <button onClick={handleExportSaft} disabled={isExportingSaft}
+                                 className="w-full py-5 bg-zinc-900 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                                 {isExportingSaft ? <RefreshCw className="animate-spin" size={16} /> : <Download size={16} />}
+                                 {isExportingSaft ? 'A Gerar XML...' : 'Descarregar SAFT-AO'}
+                              </button>
+                           </div>
+                        </div>
+                     </div>
+                  )
+               }
+
                {
                   activeTab === 'itens' && (
                      <div className="space-y-8 animate-in slide-in-from-bottom-4">
-                        {/* Header e Acções Rápidas */}
+                        {/* Header e AcÃ§Ãµes RÃ¡pidas */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[3rem] border border-zinc-100 shadow-sm">
                            <div>
-                              <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Gestão de Inventário</h2>
-                              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Controlo de stock, categorias e alertas críticos</p>
+                              <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">GestÃ£o de InventÃ¡rio</h2>
+                              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Controlo de stock, categorias e alertas crÃ­ticos</p>
                            </div>
                            <div className="flex items-center gap-3">
                               <button
@@ -4106,12 +4271,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           )}
                                        </div>
                                        <h3 className="text-sm font-black text-zinc-900 uppercase tracking-tight leading-tight">{item.nome}</h3>
-                                       <p className="text-[9px] font-bold text-zinc-400 uppercase line-clamp-1">{item.descricao || 'Sem descrição'}</p>
+                                       <p className="text-[9px] font-bold text-zinc-400 uppercase line-clamp-1">{item.descricao || 'Sem descriÃ§Ã£o'}</p>
                                     </div>
 
                                     <div className="mt-6 pt-6 border-t border-zinc-50 flex items-center justify-between">
                                        <div>
-                                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Preço Un.</p>
+                                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">PreÃ§o Un.</p>
                                           <p className="text-base font-black text-zinc-900">{safeFormatAOA(item.preco_unitario || item.preco_venda)}</p>
                                        </div>
                                        <div className="text-right">
@@ -4127,7 +4292,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- RELATÓRIOS DASHBOARD --- */}
+               {/* --- RELATÃ“RIOS DASHBOARD --- */}
                {
                   activeTab === 'relatorios' && (
                      <div className="space-y-10 animate-in slide-in-from-bottom-4">
@@ -4135,23 +4300,23 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 p-12 rounded-[3.5rem] text-white relative overflow-hidden shadow-2xl">
                            <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-500/20 rounded-full -mr-48 -mt-48 blur-3xl animate-pulse" />
                            <div className="relative z-10 space-y-4">
-                              <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter">Central de <span className="text-yellow-500">Inteligência</span></h2>
+                              <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter">Central de <span className="text-yellow-500">InteligÃªncia</span></h2>
                               <p className="text-zinc-400 font-bold text-sm lg:text-base uppercase tracking-widest max-w-2xl">
-                                 Gere demonstrações financeiras, balancetes e relatórios analíticos com um clique. Dados exportáveis em PDF e Excel.
+                                 Gere demonstraÃ§Ãµes financeiras, balancetes e relatÃ³rios analÃ­ticos com um clique. Dados exportÃ¡veis em PDF e Excel.
                               </p>
                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                            {[
-                              { id: 'balanco', title: 'Balanço Patrimonial', desc: 'Posição financeira detalhada de ativos e passivos.', icon: <LayoutList size={28} className="text-blue-500" />, color: 'bg-blue-50' },
-                              { id: 'dre', title: 'Demonstração de Resultados', desc: 'Análise de lucro e prejuízo por período seleccionado.', icon: <TrendingUp size={28} className="text-green-500" />, color: 'bg-green-50 text-green-700' },
-                              { id: 'balancete', title: 'Balancete de Verificação', desc: 'Verificação de débitos e créditos de todas as contas.', icon: <CheckCircle2 size={28} className="text-purple-500" />, color: 'bg-purple-50 text-purple-700' },
-                              { id: 'diario', title: 'Diário de Lançamentos', desc: 'Listagem cronológica de todos os movimentos.', icon: <BookOpen size={28} className="text-orange-500" />, color: 'bg-orange-50 text-orange-700' },
-                              { id: 'razão', title: 'Livro Razão', desc: 'Movimentação individualizada por conta contabilística.', icon: <FileText size={28} className="text-sky-500" />, color: 'bg-sky-50 text-sky-700' },
-                              { id: 'cashflow', title: 'Fluxo de Caixa', desc: 'Origem e aplicação de recursos financeiros.', icon: <Landmark size={28} className="text-yellow-600" />, color: 'bg-yellow-50 text-yellow-700' },
-                              { id: 'fiscal', title: 'Relatório Fiscal (IVA/IRT)', desc: 'Apuramento de impostos para submissão à AGT.', icon: <FileCheck size={28} className="text-red-500" />, color: 'bg-red-50 text-red-700' },
-                              { id: 'auditoria', title: 'Trilhas de Auditoria', desc: 'Histórico completo de alterações e logs do sistema.', icon: <ShieldCheck size={28} className="text-zinc-500" />, color: 'bg-zinc-100 text-zinc-700' },
+                              { id: 'balanco', title: 'BalanÃ§o Patrimonial', desc: 'PosiÃ§Ã£o financeira detalhada de ativos e passivos.', icon: <LayoutList size={28} className="text-blue-500" />, color: 'bg-blue-50' },
+                              { id: 'dre', title: 'DemonstraÃ§Ã£o de Resultados', desc: 'AnÃ¡lise de lucro e prejuÃ­zo por perÃ­odo seleccionado.', icon: <TrendingUp size={28} className="text-green-500" />, color: 'bg-green-50 text-green-700' },
+                              { id: 'balancete', title: 'Balancete de VerificaÃ§Ã£o', desc: 'VerificaÃ§Ã£o de dÃ©bitos e crÃ©ditos de todas as contas.', icon: <CheckCircle2 size={28} className="text-purple-500" />, color: 'bg-purple-50 text-purple-700' },
+                              { id: 'diario', title: 'DiÃ¡rio de LanÃ§amentos', desc: 'Listagem cronolÃ³gica de todos os movimentos.', icon: <BookOpen size={28} className="text-orange-500" />, color: 'bg-orange-50 text-orange-700' },
+                              { id: 'razÃ£o', title: 'Livro RazÃ£o', desc: 'MovimentaÃ§Ã£o individualizada por conta contabilÃ­stica.', icon: <FileText size={28} className="text-sky-500" />, color: 'bg-sky-50 text-sky-700' },
+                              { id: 'cashflow', title: 'Fluxo de Caixa', desc: 'Origem e aplicaÃ§Ã£o de recursos financeiros.', icon: <Landmark size={28} className="text-yellow-600" />, color: 'bg-yellow-50 text-yellow-700' },
+                              { id: 'fiscal', title: 'RelatÃ³rio Fiscal (IVA/IRT)', desc: 'Apuramento de impostos para submissÃ£o Ã  AGT.', icon: <FileCheck size={28} className="text-red-500" />, color: 'bg-red-50 text-red-700' },
+                              { id: 'auditoria', title: 'Trilhas de Auditoria', desc: 'HistÃ³rico completo de alteraÃ§Ãµes e logs do sistema.', icon: <ShieldCheck size={28} className="text-zinc-500" />, color: 'bg-zinc-100 text-zinc-700' },
                            ].map((rep) => (
                               <div key={rep.id} className="bg-white p-8 rounded-[3rem] border border-zinc-100 shadow-sm hover:shadow-2xl hover:scale-[1.02] transition-all group flex flex-col justify-between h-[320px]">
                                  <div>
@@ -4168,7 +4333,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        className="flex-1 py-4 bg-zinc-900 text-white font-black rounded-2xl text-[9px] uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all flex items-center justify-center gap-2"
                                     >
                                        {isGeneratingReport ? <RefreshCw className="animate-spin" size={14} /> : <Printer size={14} />}
-                                       {isGeneratingReport ? 'Gerando...' : 'Gerar Relatório'}
+                                       {isGeneratingReport ? 'Gerando...' : 'Gerar RelatÃ³rio'}
                                     </button>
                                     <button className="p-4 bg-zinc-50 text-zinc-400 rounded-2xl hover:bg-zinc-100 transition-all">
                                        <Share2 size={16} />
@@ -4181,16 +4346,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- ABA: FONTES DE DADOS (INTEGRAÇÃO AUTOMÁTICA) --- */}
+               {/* --- ABA: FONTES DE DADOS (INTEGRAÃ‡ÃƒO AUTOMÃTICA) --- */}
                {
                   activeTab === 'fontes' && (() => {
 
-                     // --- Métricas por Módulo ---
+                     // --- MÃ©tricas por MÃ³dulo ---
                      const totalFaturas = extFaturas.reduce((s, f) => s + (Number(f.valor_total) || 0), 0);
                      const faturasPagas = extFaturas.filter(f => f.status === 'pago' || f.status === 'Paga').length;
                      const totalTesouraria = extTesouraria.reduce((s, t) => s + (Number(t.valor) || 0), 0);
                      const entradas = extTesouraria.filter(t => t.tipo === 'Entrada' || t.tipo === 'entrada' || t.tipo === 'receita').reduce((s, t) => s + (Number(t.valor) || 0), 0);
-                     const saidas = extTesouraria.filter(t => t.tipo === 'Saída' || t.tipo === 'saida' || t.tipo === 'despesa').reduce((s, t) => s + (Number(t.valor) || 0), 0);
+                     const saidas = extTesouraria.filter(t => t.tipo === 'SaÃ­da' || t.tipo === 'saida' || t.tipo === 'despesa').reduce((s, t) => s + (Number(t.valor) || 0), 0);
                      const totalSalarios = extRhRecibos.reduce((s, r) => s + (Number(r.liquido) || 0), 0);
                      const totalBruto = extRhRecibos.reduce((s, r) => s + (Number(r.bruto) || 0), 0);
                      const totalInventarioValor = extInventario.reduce((s, i) => s + (Number(i.quantidade_atual) || 0) * (Number(i.preco_unitario) || 0), 0);
@@ -4213,7 +4378,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                      const modulos = [
                         {
-                           nome: 'Faturação', icon: <FileText size={22} className="text-blue-500" />, bg: 'bg-blue-50 border-blue-100',
+                           nome: 'FaturaÃ§Ã£o', icon: <FileText size={22} className="text-blue-500" />, bg: 'bg-blue-50 border-blue-100',
                            badge: `${extFaturas.length} faturas`,
                            stats: [
                               { label: 'Total Faturado', value: safeFormatAOA(totalFaturas), color: 'text-blue-600' },
@@ -4221,7 +4386,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               { label: 'Pendentes', value: `${extFaturas.length - faturasPagas}`, color: 'text-yellow-500' },
                            ],
                            items: extFaturas.slice(0, 5).map(f => ({
-                              label: f.numero_fatura || f.cliente_nome || '—',
+                              label: f.numero_fatura || f.cliente_nome || 'â€”',
                               value: safeFormatAOA(f.valor_total),
                               sub: f.status || '',
                               date: f.data_emissao || '',
@@ -4234,10 +4399,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            stats: [
                               { label: 'Total Movimentos', value: safeFormatAOA(totalTesouraria), color: 'text-green-600' },
                               { label: 'Entradas', value: safeFormatAOA(entradas), color: 'text-green-600' },
-                              { label: 'Saídas', value: safeFormatAOA(saidas), color: 'text-red-500' },
+                              { label: 'SaÃ­das', value: safeFormatAOA(saidas), color: 'text-red-500' },
                            ],
                            items: extTesouraria.slice(0, 5).map(t => ({
-                              label: t.descricao || t.categoria || '—',
+                              label: t.descricao || t.categoria || 'â€”',
                               value: safeFormatAOA(t.valor),
                               sub: t.tipo || '',
                               date: t.data || '',
@@ -4245,10 +4410,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            }))
                         },
                         {
-                           nome: 'RH / Salários', icon: <Users size={22} className="text-purple-500" />, bg: 'bg-purple-50 border-purple-100',
+                           nome: 'RH / SalÃ¡rios', icon: <Users size={22} className="text-purple-500" />, bg: 'bg-purple-50 border-purple-100',
                            badge: `${extRhRecibos.length} recibos`,
                            stats: [
-                              { label: 'Total Líquido', value: safeFormatAOA(totalSalarios), color: 'text-purple-600' },
+                              { label: 'Total LÃ­quido', value: safeFormatAOA(totalSalarios), color: 'text-purple-600' },
                               { label: 'Total Bruto', value: safeFormatAOA(totalBruto), color: 'text-zinc-600' },
                               { label: 'Recibos', value: `${extRhRecibos.length}`, color: 'text-purple-600' },
                            ],
@@ -4261,15 +4426,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            }))
                         },
                         {
-                           nome: 'Inventário', icon: <FileCheck size={22} className="text-orange-500" />, bg: 'bg-orange-50 border-orange-100',
+                           nome: 'InventÃ¡rio', icon: <FileCheck size={22} className="text-orange-500" />, bg: 'bg-orange-50 border-orange-100',
                            badge: `${extInventario.length} itens`,
                            stats: [
                               { label: 'Valor Stock', value: safeFormatAOA(totalInventarioValor), color: 'text-orange-600' },
                               { label: 'SKUs', value: `${extInventario.length}`, color: 'text-zinc-600' },
-                              { label: 'Críticos (Stock Mín.)', value: `${itensCriticos}`, color: itensCriticos > 0 ? 'text-red-500' : 'text-green-600' },
+                              { label: 'CrÃ­ticos (Stock MÃ­n.)', value: `${itensCriticos}`, color: itensCriticos > 0 ? 'text-red-500' : 'text-green-600' },
                            ],
                            items: extInventario.slice(0, 5).map(i => ({
-                              label: i.nome || '—',
+                              label: i.nome || 'â€”',
                               onAutoLaunch: undefined
                            }))
                         },
@@ -4277,14 +4442,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                      return (
                         <div className="space-y-8 animate-in slide-in-from-bottom-4 text-left">
-                           {/* Header com botão de sincronização */}
+                           {/* Header com botÃ£o de sincronizaÃ§Ã£o */}
                            <div className="flex flex-wrap items-center justify-between gap-4 bg-zinc-900 p-8 rounded-[3rem] text-white shadow-2xl">
                               <div>
                                  <h2 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
                                     <Share2 className="text-yellow-500" size={26} /> Fontes de Dados Integradas
                                  </h2>
                                  <p className="text-zinc-400 text-xs font-bold mt-1 uppercase tracking-widest">
-                                    Dados recebidos automaticamente dos módulos activos do ERP
+                                    Dados recebidos automaticamente dos mÃ³dulos activos do ERP
                                  </p>
                               </div>
                               <div className="flex flex-col items-end gap-2">
@@ -4295,7 +4460,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </button>
                                  {lastSyncAt && (
                                     <p className="text-[9px] text-zinc-500 font-bold">
-                                       Última Sinc: {lastSyncAt.toLocaleTimeString()}
+                                       Ãšltima Sinc: {lastSyncAt.toLocaleTimeString()}
                                     </p>
                                  )}
                               </div>
@@ -4328,7 +4493,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 <div className="w-2 h-2 rounded-full bg-zinc-200 group-hover:bg-yellow-500 transition-colors" />
                                                 <div>
                                                    <p className="text-[10px] font-black text-zinc-800 uppercase leading-none">{it.label}</p>
-                                                   <p className="text-[8px] font-bold text-zinc-400 uppercase mt-1">{it.date} {it.sub ? `• ${it.sub}` : ''}</p>
+                                                   <p className="text-[8px] font-bold text-zinc-400 uppercase mt-1">{it.date} {it.sub ? `â€¢ ${it.sub}` : ''}</p>
                                                 </div>
                                              </div>
                                              <div className="flex items-center gap-4">
@@ -4349,13 +4514,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            {/* Movimentos de Stock Recentes */}
                            <div className="bg-white rounded-[3rem] border border-zinc-100 shadow-sm p-10 space-y-8">
                               <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
-                                 <RefreshCw size={24} className="text-yellow-500" /> Movimentos de Inventário em Tempo Real
+                                 <RefreshCw size={24} className="text-yellow-500" /> Movimentos de InventÃ¡rio em Tempo Real
                               </h3>
                               <div className="overflow-x-auto">
                                  <table className="w-full text-left">
                                     <thead>
                                        <tr className="border-b border-zinc-100">
-                                          {['Tipo', 'Responsável', 'Referência', 'Quantidade', 'Data'].map(h => (
+                                          {['Tipo', 'ResponsÃ¡vel', 'ReferÃªncia', 'Quantidade', 'Data'].map(h => (
                                              <th key={h} className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest text-zinc-400">{h}</th>
                                           ))}
                                        </tr>
@@ -4367,7 +4532,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${m.tipo === 'entrada' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>{m.tipo}</span>
                                              </td>
                                              <td className="py-4 px-4 text-[11px] font-black text-zinc-800 uppercase tracking-tight">{m.entidade || 'Sistema'}</td>
-                                             <td className="py-4 px-4 text-[10px] font-bold text-zinc-500 uppercase">{m.referencia || '—'}</td>
+                                             <td className="py-4 px-4 text-[10px] font-bold text-zinc-500 uppercase">{m.referencia || 'â€”'}</td>
                                              <td className="py-4 px-4 text-[11px] font-black text-zinc-900">{m.quantidade}</td>
                                              <td className="py-4 px-4 text-[10px] font-bold text-zinc-400">{new Date(m.created_at).toLocaleDateString()}</td>
                                           </tr>
@@ -4381,7 +4546,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   })()
                }
 
-               {/* --- CONSOLIDAÇÃO MULTIEMPRESA --- */}
+               {/* --- CONSOLIDAÃ‡ÃƒO MULTIEMPRESA --- */}
                {
                   activeTab === 'consolidacao' && (() => {
                      const consolidadoPorEmpresa = empresas.map(emp => {
@@ -4411,10 +4576,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      };
                      const maxReceita = Math.max(...consolidadoPorEmpresa.map(e => e.receita), 1);
 
-                     // Estado local de eliminações mock (até o form ser implementado)
+                     // Estado local de eliminaÃ§Ãµes mock (atÃ© o form ser implementado)
                      const eliminacoesExemplo = [
-                        { id: '1', tipo: 'Receita Interna', valor: 50000, descricao: 'Prestação de serviços interna', origem: empresas[0]?.nome || '—', destino: empresas[1]?.nome || '—' },
-                        { id: '2', tipo: 'Empréstimo', valor: 200000, descricao: 'Financiamento entre afiliadas', origem: empresas[1]?.nome || '—', destino: empresas[0]?.nome || '—' },
+                        { id: '1', tipo: 'Receita Interna', valor: 50000, descricao: 'PrestaÃ§Ã£o de serviÃ§os interna', origem: empresas[0]?.nome || 'â€”', destino: empresas[1]?.nome || 'â€”' },
+                        { id: '2', tipo: 'EmprÃ©stimo', valor: 200000, descricao: 'Financiamento entre afiliadas', origem: empresas[1]?.nome || 'â€”', destino: empresas[0]?.nome || 'â€”' },
                      ].filter(e => empresas.length >= 2);
 
                      const totalEliminacoes = eliminacoesExemplo.reduce((a, e) => a + e.valor, 0);
@@ -4427,18 +4592,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <div className="flex items-center justify-between bg-zinc-900 p-8 rounded-[3rem] text-white shadow-2xl">
                               <div>
                                  <h2 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
-                                    <Building2 className="text-yellow-500" size={28} /> Consolidação do Grupo
+                                    <Building2 className="text-yellow-500" size={28} /> ConsolidaÃ§Ã£o do Grupo
                                  </h2>
                                  <p className="text-zinc-400 text-xs font-bold mt-1 uppercase tracking-widest">
-                                    {empresas.length} Entidade{empresas.length !== 1 ? 's' : ''} · Dados calculados automaticamente
+                                    {empresas.length} Entidade{empresas.length !== 1 ? 's' : ''} Â· Dados calculados automaticamente
                                  </p>
                               </div>
                               <div className="text-right">
-                                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Lucro Líquido Consolidado</p>
+                                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Lucro LÃ­quido Consolidado</p>
                                  <p className={`text-4xl font-black ${lucroConsolidado >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
                                     {safeFormatAOA(lucroConsolidado)}
                                  </p>
-                                 <p className="text-[9px] text-zinc-500 font-bold mt-1">Após eliminações de {safeFormatAOA(totalEliminacoes)}</p>
+                                 <p className="text-[9px] text-zinc-500 font-bold mt-1">ApÃ³s eliminaÃ§Ãµes de {safeFormatAOA(totalEliminacoes)}</p>
                               </div>
                            </div>
 
@@ -4457,14 +4622,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               ))}
                            </div>
 
-                           {/* Comparação Financeira entre Empresas */}
+                           {/* ComparaÃ§Ã£o Financeira entre Empresas */}
                            <div className="bg-white rounded-[3rem] border border-sky-100 shadow-sm p-8">
                               <div className="flex items-center justify-between mb-6">
                                  <h3 className="text-base font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
-                                    <BarChart2 size={18} className="text-yellow-500" /> Comparação Financeira entre Entidades
+                                    <BarChart2 size={18} className="text-yellow-500" /> ComparaÃ§Ã£o Financeira entre Entidades
                                  </h3>
                                  <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-zinc-50 text-zinc-500 hover:bg-zinc-100 rounded-xl text-[9px] font-black uppercase tracking-widest border border-zinc-100 transition-all">
-                                    <Printer size={14} /> Relatório
+                                    <Printer size={14} /> RelatÃ³rio
                                  </button>
                               </div>
 
@@ -4485,7 +4650,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 </div>
                                                 <div>
                                                    <p className="font-black text-sm text-zinc-900">{emp.nome}</p>
-                                                   <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{emp.lancamentos} lançamento{emp.lancamentos !== 1 ? 's' : ''}</p>
+                                                   <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{emp.lancamentos} lanÃ§amento{emp.lancamentos !== 1 ? 's' : ''}</p>
                                                 </div>
                                              </div>
                                              <div className="flex gap-6 text-right">
@@ -4507,10 +4672,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 </div>
                                              </div>
                                           </div>
-                                          {/* Barra de participação na receita do grupo */}
+                                          {/* Barra de participaÃ§Ã£o na receita do grupo */}
                                           <div>
                                              <div className="flex justify-between items-center mb-1">
-                                                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Contribuição para Receita do Grupo</p>
+                                                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">ContribuiÃ§Ã£o para Receita do Grupo</p>
                                                 <p className="text-[9px] font-black text-zinc-600">{maxReceita > 0 ? ((emp.receita / Math.max(totalGrupo.receita, 1)) * 100).toFixed(1) : 0}%</p>
                                              </div>
                                              <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
@@ -4524,11 +4689,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               )}
                            </div>
 
-                           {/* Eliminações Intercompany */}
+                           {/* EliminaÃ§Ãµes Intercompany */}
                            <div className="bg-white rounded-[3rem] border border-sky-100 shadow-sm p-8">
                               <div className="flex items-center justify-between mb-6">
                                  <h3 className="text-base font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
-                                    <ArrowDownLeft size={18} className="text-yellow-500" /> Eliminações Intercompany
+                                    <ArrowDownLeft size={18} className="text-yellow-500" /> EliminaÃ§Ãµes Intercompany
                                  </h3>
                                  <span className="text-[9px] font-black text-zinc-400 px-3 py-1.5 bg-zinc-50 rounded-xl border border-zinc-100 uppercase tracking-widest">
                                     Total: {safeFormatAOA(totalEliminacoes)}
@@ -4537,18 +4702,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                               {empresas.length < 2 ? (
                                  <div className="text-center py-10 bg-zinc-50 rounded-2xl">
-                                    <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">São necessárias pelo menos 2 empresas no grupo para registar eliminações.</p>
+                                    <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">SÃ£o necessÃ¡rias pelo menos 2 empresas no grupo para registar eliminaÃ§Ãµes.</p>
                                  </div>
                               ) : eliminacoesExemplo.length === 0 ? (
                                  <div className="text-center py-10 bg-zinc-50 rounded-2xl">
-                                    <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Nenhuma eliminação intercompany registada.</p>
+                                    <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Nenhuma eliminaÃ§Ã£o intercompany registada.</p>
                                  </div>
                               ) : (
                                  <div className="overflow-x-auto">
                                     <table className="w-full text-left">
                                        <thead>
                                           <tr className="border-b border-zinc-100">
-                                             {['Tipo', 'Descrição', 'Origem', 'Destino', 'Valor'].map(h => (
+                                             {['Tipo', 'DescriÃ§Ã£o', 'Origem', 'Destino', 'Valor'].map(h => (
                                                 <th key={h} className="pb-3 px-4 text-[9px] font-black uppercase tracking-widest text-zinc-400">{h}</th>
                                              ))}
                                           </tr>
@@ -4597,10 +4762,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                            <form onSubmit={handleCreateAccount} className="p-8 space-y-6">
                               <div className="grid grid-cols-2 gap-6">
-                                 <Input name="codigo" label="Código PGC (Ex: 1.1.2)" required
+                                 <Input name="codigo" label="CÃ³digo PGC (Ex: 1.1.2)" required
                                     value={newAccount.codigo} onChange={e => setNewAccount({ ...newAccount, codigo: e.target.value })}
                                  />
-                                 <Input name="nome" label="Descrição da Conta" required
+                                 <Input name="nome" label="DescriÃ§Ã£o da Conta" required
                                     value={newAccount.nome} onChange={e => setNewAccount({ ...newAccount, nome: e.target.value })}
                                  />
                               </div>
@@ -4610,7 +4775,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     options={[
                                        { value: 'Ativo', label: 'Ativo' },
                                        { value: 'Passivo', label: 'Passivo' },
-                                       { value: 'Capital', label: 'Capital Próprio' },
+                                       { value: 'Capital', label: 'Capital PrÃ³prio' },
                                        { value: 'Receita', label: 'Receita' },
                                        { value: 'Despesa', label: 'Despesa' }
                                     ]}
@@ -4624,12 +4789,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  />
                               </div>
                               <div className="grid grid-cols-2 gap-6">
-                                 <Select name="aceita_lancamentos" label="Tipo de Lançamento"
+                                 <Select name="aceita_lancamentos" label="Tipo de LanÃ§amento"
                                     value={newAccount.aceita_lancamentos ? 'true' : 'false'}
                                     onChange={e => setNewAccount({ ...newAccount, aceita_lancamentos: e.target.value === 'true' })}
                                     options={[
-                                       { value: 'true', label: 'Analítica (Aceita Movimentos)' },
-                                       { value: 'false', label: 'Sintética (Apenas Grupos)' }
+                                       { value: 'true', label: 'AnalÃ­tica (Aceita Movimentos)' },
+                                       { value: 'false', label: 'SintÃ©tica (Apenas Grupos)' }
                                     ]}
                                  />
                                  <Select name="centro_custo_id" label="Centro de Custo Associado"
@@ -4642,7 +4807,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               </div>
                               <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
                                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 font-mono">Hierarchy Preview</p>
-                                 <p className="text-xs font-bold text-zinc-600">Nível detectado automaticamente: <span className="text-zinc-900">{newAccount.codigo.split('.').length}</span></p>
+                                 <p className="text-xs font-bold text-zinc-600">NÃ­vel detectado automaticamente: <span className="text-zinc-900">{newAccount.codigo.split('.').length}</span></p>
                               </div>
                               <button type="submit" className="w-full py-5 bg-zinc-900 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 hover:bg-yellow-500 hover:text-zinc-900 transition-all shadow-xl">
                                  <Save size={18} /> Registrar no Estatuto
@@ -4666,7 +4831,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                            <form onSubmit={handleCreateCentro} className="p-8 space-y-6">
                               <div className="grid grid-cols-2 gap-6">
-                                 <Input name="cc_codigo" label="Código do Centro" required
+                                 <Input name="cc_codigo" label="CÃ³digo do Centro" required
                                     value={newCentroCusto.codigo} onChange={e => setNewCentroCusto({ ...newCentroCusto, codigo: e.target.value })}
                                     placeholder="Ex: ADM, PRD"
                                  />
@@ -4682,7 +4847,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     { value: 'Misto', label: 'Misto / Operacional' }
                                  ]}
                               />
-                              <Input name="cc_desc" label="Breve Descrição"
+                              <Input name="cc_desc" label="Breve DescriÃ§Ã£o"
                                  value={newCentroCusto.descricao} onChange={e => setNewCentroCusto({ ...newCentroCusto, descricao: e.target.value })}
                               />
                               <button type="submit" className="w-full py-5 bg-zinc-900 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 hover:bg-zinc-800 transition-all">
@@ -4706,7 +4871,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
                                  <div>
                                     <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Novo Contacto</h2>
-                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Registo de Parceiro de Negócio</p>
+                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Registo de Parceiro de NegÃ³cio</p>
                                  </div>
                               </div>
                               <button onClick={() => setShowContactModal(false)} className="p-3 text-zinc-400 hover:bg-zinc-200 rounded-full transition-all"><X size={24} /></button>
@@ -4714,7 +4879,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <form onSubmit={handleCreateContact} className="p-8 space-y-6">
                               <div className="grid grid-cols-2 gap-6">
                                  <div className="col-span-2">
-                                    <Input label="Nome Completo / Razão Social" required placeholder="Ex: Amazing Corporation Lda"
+                                    <Input label="Nome Completo / RazÃ£o Social" required placeholder="Ex: Amazing Corporation Lda"
                                        value={newContact.nome} onChange={(e: any) => setNewContact({ ...newContact, nome: e.target.value })}
                                     />
                                  </div>
@@ -4743,7 +4908,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     value={newContact.telefone} onChange={(e: any) => setNewContact({ ...newContact, telefone: e.target.value })}
                                  />
                                  <div className="col-span-2">
-                                    <Input label="Morada / Localização" placeholder="Cidade, Bairro, Rua..."
+                                    <Input label="Morada / LocalizaÃ§Ã£o" placeholder="Cidade, Bairro, Rua..."
                                        value={newContact.morada} onChange={(e: any) => setNewContact({ ...newContact, morada: e.target.value })}
                                     />
                                  </div>
@@ -4761,7 +4926,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- MODAL NOVA CATEGORIA (INVENTÁRIO) --- */}
+               {/* --- MODAL NOVA CATEGORIA (INVENTÃRIO) --- */}
                {
                   showCategoryModal && (
                      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
@@ -4773,21 +4938,21 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
                                  <div>
                                     <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Nova Categoria</h2>
-                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Organização de Itens e Stock</p>
+                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">OrganizaÃ§Ã£o de Itens e Stock</p>
                                  </div>
                               </div>
                               <button onClick={() => setShowCategoryModal(false)} className="p-3 text-zinc-400 hover:bg-zinc-200 rounded-full transition-all"><X size={24} /></button>
                            </div>
                            <form onSubmit={handleCreateCategory} className="p-8 space-y-6">
                               <div className="space-y-4">
-                                 <Input label="Nome da Categoria" required placeholder="Ex: Informática, Bebidas..."
+                                 <Input label="Nome da Categoria" required placeholder="Ex: InformÃ¡tica, Bebidas..."
                                     value={newCategory.nome} onChange={(e: any) => setNewCategory({ ...newCategory, nome: e.target.value })}
                                  />
-                                 <Input label="Descrição Curta" placeholder="Opcional..."
+                                 <Input label="DescriÃ§Ã£o Curta" placeholder="Opcional..."
                                     value={newCategory.descricao} onChange={(e: any) => setNewCategory({ ...newCategory, descricao: e.target.value })}
                                  />
                                  <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Cor de Identificação</label>
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Cor de IdentificaÃ§Ã£o</label>
                                     <div className="flex gap-3">
                                        {['#fbbf24', '#3b82f6', '#ef4444', '#10b981', '#a855f7', '#6366f1'].map(color => (
                                           <button
@@ -4814,7 +4979,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- MODAL NOVO ITEM (INVENTÁRIO) --- */}
+               {/* --- MODAL NOVO ITEM (INVENTÃRIO) --- */}
                {
                   showItemModal && (
                      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
@@ -4825,8 +4990,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <Plus size={24} />
                                  </div>
                                  <div>
-                                    <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Novo Item no Catálogo</h2>
-                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Registo de Produto ou Serviço</p>
+                                    <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Novo Item no CatÃ¡logo</h2>
+                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Registo de Produto ou ServiÃ§o</p>
                                  </div>
                               </div>
                               <button onClick={() => setShowItemModal(false)} className="p-3 text-zinc-400 hover:bg-zinc-200 rounded-full transition-all"><X size={24} /></button>
@@ -4834,7 +4999,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <form onSubmit={handleCreateItem} className="p-8 space-y-6">
                               <div className="grid grid-cols-2 gap-6">
                                  <div className="col-span-2">
-                                    <Input label="Nome do Item / Serviço" required placeholder="Ex: Consultoria Fiscal, Resma A4..."
+                                    <Input label="Nome do Item / ServiÃ§o" required placeholder="Ex: Consultoria Fiscal, Resma A4..."
                                        value={newInventoryItem.nome} onChange={(e: any) => setNewInventoryItem({ ...newInventoryItem, nome: e.target.value })}
                                     />
                                  </div>
@@ -4850,19 +5015,19 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        required
                                     />
                                  </div>
-                                 <Input label="Código/SKU" placeholder="Ex: SERV-001"
+                                 <Input label="CÃ³digo/SKU" placeholder="Ex: SERV-001"
                                     value={newInventoryItem.codigo} onChange={(e: any) => setNewInventoryItem({ ...newInventoryItem, codigo: e.target.value })}
                                  />
                               </div>
 
                               <div className="grid grid-cols-3 gap-6 pt-4 border-t border-zinc-50">
-                                 <Input label="Preço Unitário" type="number"
+                                 <Input label="PreÃ§o UnitÃ¡rio" type="number"
                                     value={newInventoryItem.preco_unitario} onChange={(e: any) => setNewInventoryItem({ ...newInventoryItem, preco_unitario: Number(e.target.value) })}
                                  />
                                  <Input label="Qtd. Inicial" type="number"
                                     value={newInventoryItem.quantidade_atual} onChange={(e: any) => setNewInventoryItem({ ...newInventoryItem, quantidade_atual: Number(e.target.value) })}
                                  />
-                                 <Input label="Stock Mínimo" type="number"
+                                 <Input label="Stock MÃ­nimo" type="number"
                                     value={newInventoryItem.quantidade_minima} onChange={(e: any) => setNewInventoryItem({ ...newInventoryItem, quantidade_minima: Number(e.target.value) })}
                                  />
                               </div>
@@ -4874,7 +5039,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     />
                                  </div>
                                  <div className="flex-1">
-                                    <Input label="Referência Interna" placeholder="Opcional..."
+                                    <Input label="ReferÃªncia Interna" placeholder="Opcional..."
                                        value={newInventoryItem.referencia} onChange={(e: any) => setNewInventoryItem({ ...newInventoryItem, referencia: e.target.value })}
                                     />
                                  </div>
@@ -4883,7 +5048,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <div className="pt-6">
                                  <button type="submit" disabled={isSavingItem} className="w-full py-6 bg-zinc-900 hover:bg-zinc-800 text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-4">
                                     {isSavingItem ? <RefreshCw className="animate-spin text-yellow-500" /> : <Save className="text-yellow-500" />}
-                                    {isSavingItem ? 'A Processar...' : 'Adicionar ao Catálogo'}
+                                    {isSavingItem ? 'A Processar...' : 'Adicionar ao CatÃ¡logo'}
                                  </button>
                               </div>
                            </form>
@@ -4891,7 +5056,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      </div>
                   )
                }
-               {/* --- MODAL NOVO FUNCIONÁRIO --- */}
+               {/* --- MODAL NOVO FUNCIONÃRIO --- */}
                {
                   showEmployeeModal && (
                      <div className="fixed inset-0 z-[130] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in">
@@ -4909,44 +5074,44 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <button onClick={() => setShowEmployeeModal(false)} className="p-3 text-white/50 hover:bg-white/10 rounded-full transition-all"><X size={24} /></button>
                            </div>
                            <form onSubmit={handleSaveEmployee} className="p-10 space-y-10">
-                              {/* Bloco 1: Identificação e Base */}
+                              {/* Bloco 1: IdentificaÃ§Ã£o e Base */}
                               <div className="space-y-4">
-                                 <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 pb-2">Informação Base e Identificação</h4>
+                                 <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 pb-2">InformaÃ§Ã£o Base e IdentificaÃ§Ã£o</h4>
                                  <div className="grid grid-cols-3 gap-6">
                                     <div className="col-span-1">
-                                       <Input label="Nome Completo" required value={newEmployee.nome} onChange={e => setNewEmployee({ ...newEmployee, nome: e.target.value })} placeholder="Ex: João Manuel dos Santos" />
+                                       <Input label="Nome Completo" required value={newEmployee.nome} onChange={e => setNewEmployee({ ...newEmployee, nome: e.target.value })} placeholder="Ex: JoÃ£o Manuel dos Santos" />
                                     </div>
-                                    <Input label="Função / Cargo" required value={newEmployee.funcao} onChange={e => setNewEmployee({ ...newEmployee, funcao: e.target.value })} placeholder="Ex: Contabilista Sénior" />
+                                    <Input label="FunÃ§Ã£o / Cargo" required value={newEmployee.funcao} onChange={e => setNewEmployee({ ...newEmployee, funcao: e.target.value })} placeholder="Ex: Contabilista SÃ©nior" />
                                     <Input label="NIF" value={newEmployee.nif} onChange={e => setNewEmployee({ ...newEmployee, nif: e.target.value })} placeholder="000000000LA000" />
                                     <Input label="Bilhete de Identidade" value={newEmployee.bilhete} onChange={e => setNewEmployee({ ...newEmployee, bilhete: e.target.value })} placeholder="000000000" />
                                     <Input label="Telefone" value={newEmployee.telefone} onChange={e => setNewEmployee({ ...newEmployee, telefone: e.target.value })} placeholder="900 000 000" />
 
-                                    <Input label="Salário Base (AOA)" type="number" required value={newEmployee.salario_base} onChange={e => setNewEmployee({ ...newEmployee, salario_base: Number(e.target.value) })} />
-                                    <Input label="N.º Segurança Social" value={newEmployee.numero_ss} onChange={e => setNewEmployee({ ...newEmployee, numero_ss: e.target.value })} placeholder="00000000000" />
+                                    <Input label="SalÃ¡rio Base (AOA)" type="number" required value={newEmployee.salario_base} onChange={e => setNewEmployee({ ...newEmployee, salario_base: Number(e.target.value) })} />
+                                    <Input label="N.Âº SeguranÃ§a Social" value={newEmployee.numero_ss} onChange={e => setNewEmployee({ ...newEmployee, numero_ss: e.target.value })} placeholder="00000000000" />
                                     <div className="flex items-end pb-1">
                                        <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 w-full">
-                                          <p className="text-[9px] font-bold text-zinc-400 uppercase">Cálculo Estimado</p>
-                                          <p className="text-xs font-black text-zinc-900">IRT/INSS Automático</p>
+                                          <p className="text-[9px] font-bold text-zinc-400 uppercase">CÃ¡lculo Estimado</p>
+                                          <p className="text-xs font-black text-zinc-900">IRT/INSS AutomÃ¡tico</p>
                                        </div>
                                     </div>
                                  </div>
                               </div>
 
-                              {/* Bloco 2: Subsídios Mensais e Anuais (Lado a Lado) */}
+                              {/* Bloco 2: SubsÃ­dios Mensais e Anuais (Lado a Lado) */}
                               <div className="grid grid-cols-2 gap-8">
                                  <div className="p-6 bg-zinc-50/50 rounded-3xl border border-zinc-100 space-y-6">
-                                    <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-200 pb-2">Subsídios Mensais Fixos</h4>
+                                    <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-200 pb-2">SubsÃ­dios Mensais Fixos</h4>
                                     <div className="grid grid-cols-2 gap-4">
-                                       <Input label="Alimentação" type="number" value={newEmployee.subsidio_alimentacao} onChange={e => setNewEmployee({ ...newEmployee, subsidio_alimentacao: Number(e.target.value) })} />
+                                       <Input label="AlimentaÃ§Ã£o" type="number" value={newEmployee.subsidio_alimentacao} onChange={e => setNewEmployee({ ...newEmployee, subsidio_alimentacao: Number(e.target.value) })} />
                                        <Input label="Transporte" type="number" value={newEmployee.subsidio_transporte} onChange={e => setNewEmployee({ ...newEmployee, subsidio_transporte: Number(e.target.value) })} />
                                     </div>
                                  </div>
 
                                  <div className="p-6 bg-yellow-50/30 rounded-3xl border border-yellow-100 space-y-6">
-                                    <h4 className="text-[10px] font-black text-yellow-600 uppercase tracking-widest border-b border-yellow-200 pb-2">Bónus e Descontos</h4>
+                                    <h4 className="text-[10px] font-black text-yellow-600 uppercase tracking-widest border-b border-yellow-200 pb-2">BÃ³nus e Descontos</h4>
                                     <div className="grid grid-cols-2 gap-4">
                                        <Input label="Horas Extras (Valor)" type="number" value={newEmployee.valor_hora_extra_base} onChange={e => setNewEmployee({ ...newEmployee, valor_hora_extra_base: Number(e.target.value) })} />
-                                       <Input label="Adiantamento Padrão" type="number" value={newEmployee.adiantamento_padrao} onChange={e => setNewEmployee({ ...newEmployee, adiantamento_padrao: Number(e.target.value) })} />
+                                       <Input label="Adiantamento PadrÃ£o" type="number" value={newEmployee.adiantamento_padrao} onChange={e => setNewEmployee({ ...newEmployee, adiantamento_padrao: Number(e.target.value) })} />
                                        <Input label="Outros Descontos" type="number" value={newEmployee.outros_descontos_base} onChange={e => setNewEmployee({ ...newEmployee, outros_descontos_base: Number(e.target.value) })} />
                                        <div className="flex flex-col gap-2 pt-2">
                                           <label className="flex items-center gap-2 cursor-pointer">
@@ -4958,10 +5123,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                              <span className="text-[10px] font-bold text-zinc-600 uppercase">Aplicar IRT</span>
                                           </label>
                                        </div>
-                                       <Input label="Base Férias" type="number" value={newEmployee.subsidio_ferias_base} onChange={e => setNewEmployee({ ...newEmployee, subsidio_ferias_base: Number(e.target.value) })} />
+                                       <Input label="Base FÃ©rias" type="number" value={newEmployee.subsidio_ferias_base} onChange={e => setNewEmployee({ ...newEmployee, subsidio_ferias_base: Number(e.target.value) })} />
                                        <Input label="Base Natal" type="number" value={newEmployee.subsidio_natal_base} onChange={e => setNewEmployee({ ...newEmployee, subsidio_natal_base: Number(e.target.value) })} />
                                        <div className="col-span-2">
-                                          <Input label="Gratificações Mensais" type="number" value={newEmployee.outras_bonificacoes_base} onChange={e => setNewEmployee({ ...newEmployee, outras_bonificacoes_base: Number(e.target.value) })} />
+                                          <Input label="GratificaÃ§Ãµes Mensais" type="number" value={newEmployee.outras_bonificacoes_base} onChange={e => setNewEmployee({ ...newEmployee, outras_bonificacoes_base: Number(e.target.value) })} />
                                        </div>
                                     </div>
                                  </div>
@@ -4970,7 +5135,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <div className="pt-4">
                                  <button type="submit" disabled={isProcessingPayroll} className="w-full py-6 bg-zinc-900 hover:bg-zinc-800 text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-4">
                                     {isProcessingPayroll ? <RefreshCw className="animate-spin text-yellow-500" /> : <Save className="text-yellow-500" />}
-                                    {isProcessingPayroll ? 'Processando...' : 'Confirmar Registo do Funcionário'}
+                                    {isProcessingPayroll ? 'Processando...' : 'Confirmar Registo do FuncionÃ¡rio'}
                                  </button>
                               </div>
                            </form>
@@ -4979,7 +5144,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
 
-               {/* --- MODAL RECIBO DE SALÁRIO --- */}
+               {/* --- MODAL RECIBO DE SALÃRIO --- */}
                {
                   selectedFolha && (
                      <div className="fixed inset-0 z-[140] flex items-center justify-center bg-zinc-950/90 backdrop-blur-xl p-4 animate-in fade-in">
@@ -4990,11 +5155,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
 
                            <div className="p-16 space-y-12">
-                              {/* Cabeçalho do Recibo */}
+                              {/* CabeÃ§alho do Recibo */}
                               <div className="flex justify-between items-start border-b-4 border-zinc-900 pb-10">
                                  <div>
-                                    <h2 className="text-4xl font-black uppercase tracking-tighter text-zinc-900 leading-none mb-2">Recibo de Salário</h2>
-                                    <p className="text-lg font-bold text-zinc-400 uppercase tracking-widest">Mês de Referência: {selectedFolha.mes_referencia}</p>
+                                    <h2 className="text-4xl font-black uppercase tracking-tighter text-zinc-900 leading-none mb-2">Recibo de SalÃ¡rio</h2>
+                                    <p className="text-lg font-bold text-zinc-400 uppercase tracking-widest">MÃªs de ReferÃªncia: {selectedFolha.mes_referencia}</p>
                                  </div>
                                  <div className="text-right">
                                     <p className="text-xl font-black text-zinc-900 uppercase">{currentEmpresa?.nome}</p>
@@ -5002,37 +5167,37 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
                               </div>
 
-                              {/* Dados do Funcionário */}
+                              {/* Dados do FuncionÃ¡rio */}
                               <div className="grid grid-cols-2 gap-10">
                                  <div className="p-8 bg-zinc-50 rounded-[2.5rem] border border-zinc-100">
                                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Colaborador</p>
                                     <p className="text-2xl font-black text-zinc-900 uppercase tracking-tighter">{selectedFolha.funcionario_nome}</p>
                                  </div>
                                  <div className="p-8 bg-zinc-50 rounded-[2.5rem] border border-zinc-100">
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Cargo / Função</p>
-                                    <p className="text-xl font-black text-zinc-700 uppercase tracking-tighter">Funcionário Activo</p>
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Cargo / FunÃ§Ã£o</p>
+                                    <p className="text-xl font-black text-zinc-700 uppercase tracking-tighter">FuncionÃ¡rio Activo</p>
                                  </div>
                               </div>
 
                               {/* Tabela de Vencimentos e Descontos */}
                               <div className="space-y-4">
                                  <div className="grid grid-cols-12 gap-4 px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 pb-2">
-                                    <div className="col-span-6">Descrição</div>
+                                    <div className="col-span-6">DescriÃ§Ã£o</div>
                                     <div className="col-span-3 text-right">Vencimentos</div>
                                     <div className="col-span-3 text-right">Descontos</div>
                                  </div>
                                  <div className="space-y-2">
                                     {[
-                                       { d: 'Salário Base', v: Number(selectedFolha.salario_base), type: 'V' },
-                                       { d: 'Subsídios (Alim./Transp.)', v: Number(selectedFolha.subsidios), type: 'V' },
+                                       { d: 'SalÃ¡rio Base', v: Number(selectedFolha.salario_base), type: 'V' },
+                                       { d: 'SubsÃ­dios (Alim./Transp.)', v: Number(selectedFolha.subsidios), type: 'V' },
                                        { d: 'Horas Extras', v: Number((selectedFolha as any).horas_extras || 0), type: 'V' },
-                                       { d: 'Subsídio de Férias', v: Number((selectedFolha as any).subsidio_ferias || 0), type: 'V' },
-                                       { d: 'Subsídio de Natal', v: Number((selectedFolha as any).subsidio_natal || 0), type: 'V' },
-                                       { d: 'Bónus e Gratificações', v: Number((selectedFolha as any).outras_bonificacoes || 0), type: 'V' },
+                                       { d: 'SubsÃ­dio de FÃ©rias', v: Number((selectedFolha as any).subsidio_ferias || 0), type: 'V' },
+                                       { d: 'SubsÃ­dio de Natal', v: Number((selectedFolha as any).subsidio_natal || 0), type: 'V' },
+                                       { d: 'BÃ³nus e GratificaÃ§Ãµes', v: Number((selectedFolha as any).outras_bonificacoes || 0), type: 'V' },
                                        { d: 'INSS (3%)', v: Number(selectedFolha.inss_trabal_ador || selectedFolha.inss_trabalhador), type: 'D' },
                                        { d: 'IRT / Taxa Fiscal', v: Number(selectedFolha.irt), type: 'D' },
                                        { d: 'Desconto Atrasos/Faltas', v: Number((selectedFolha as any).desconto_atrasos || 0), type: 'D' },
-                                       { d: 'Desconto Férias', v: Number((selectedFolha as any).desconto_ferias || 0), type: 'D' },
+                                       { d: 'Desconto FÃ©rias', v: Number((selectedFolha as any).desconto_ferias || 0), type: 'D' },
                                        { d: 'Adiantamento Salarial', v: Number((selectedFolha as any).adiantamento_salarial || 0), type: 'D' },
                                     ].filter(item => item.v > 0 || item.type === 'D').map((item, idx) => (
                                        <div key={idx} className="grid grid-cols-12 gap-4 px-6 py-4 rounded-2xl hover:bg-zinc-50 transition-colors">
@@ -5055,7 +5220,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <p className="text-xl font-bold text-red-500">-{safeFormatAOA(Number((selectedFolha as any).total_descontos) || (Number(selectedFolha.inss_trabalhador) + Number(selectedFolha.irt)))}</p>
                                  </div>
                                  <div className="text-center">
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Salário a Receber</p>
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">SalÃ¡rio a Receber</p>
                                     <p className="text-3xl font-black text-green-600">{safeFormatAOA(Number(selectedFolha.salario_liquido))}</p>
                                  </div>
                               </div>
@@ -5066,7 +5231,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <div className="w-64 h-px bg-zinc-200"></div>
                                  </div>
                                  <div className="text-right">
-                                    <p className="text-[8px] font-black text-zinc-300 uppercase tracking-widest">Processado via Amazing ContábilExpert ERP</p>
+                                    <p className="text-[8px] font-black text-zinc-300 uppercase tracking-widest">Processado via Amazing ContÃ¡bilExpert ERP</p>
                                  </div>
                               </div>
                            </div>
@@ -5074,6 +5239,108 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      </div>
                   )
                }
+               {/* Print Template (Hidden) */}
+               <div style={{ display: 'none' }}>
+                  <div ref={invoicePrintRef} className="p-10 bg-white text-zinc-900 font-serif" style={{ width: '210mm', minHeight: '297mm' }}>
+                     <div className="flex justify-between items-start mb-10 pb-10 border-b-2 border-zinc-100">
+                        <div>
+                           <h1 className="text-4xl font-black uppercase text-zinc-900 mb-2">{user?.company_name}</h1>
+                           <p className="text-sm font-bold text-zinc-400">NIF: {user?.nif || '999999999'}</p>
+                           <p className="text-sm text-zinc-400">{user?.address || 'Angola'}</p>
+                        </div>
+                        <div className="text-right">
+                           <div className="bg-zinc-900 text-white px-6 py-4 rounded-2xl mb-4">
+                              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 m-0">Documento</p>
+                              <h2 className="text-xl font-black">{lastCreatedDoc?.tipo || 'FACTURA'} {lastCreatedDoc?.numero_fatura}</h2>
+                           </div>
+                           <p className="text-xs font-bold text-zinc-400">PÃ¡gina 1 de 1</p>
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-20 mb-16">
+                        <div className="space-y-4">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Exmo.(s) Senhor(es)</p>
+                           <div className="p-8 bg-zinc-50 rounded-3xl border border-zinc-100 min-h-[160px]">
+                              <h3 className="text-xl font-black uppercase text-zinc-800">{lastCreatedDoc?.cliente_nome}</h3>
+                              <p className="text-sm text-zinc-500 mt-2">NIF: {lastCreatedDoc?.metadata?.customer_nif || lastCreatedDoc?.customer_nif || '999999999'}</p>
+                           </div>
+                        </div>
+                        <div className="space-y-4">
+                           <div className="grid grid-cols-2 gap-6">
+                              <div>
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300 mb-1">Data/Hora de EmissÃ£o</p>
+                                 <p className="text-sm font-black">
+                                    {lastCreatedDoc?.created_at ?
+                                       new Date(lastCreatedDoc.created_at).toLocaleString('pt-AO', {
+                                          day: '2-digit', month: '2-digit', year: 'numeric',
+                                          hour: '2-digit', minute: '2-digit'
+                                       }) : lastCreatedDoc?.data_emissao}
+                                 </p>
+                              </div>
+                              <div>
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300 mb-1">Moeda</p>
+                                 <p className="text-sm font-black">{user?.currency || 'AOA'}</p>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+
+                     <table className="w-full mb-20 border-collapse">
+                        <thead>
+                           <tr className="border-b-2 border-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                              <th className="py-4 text-left">Ref.</th>
+                              <th className="py-4 text-left">DescriÃ§Ã£o</th>
+                              <th className="py-4 text-right">Qtd</th>
+                              <th className="py-4 text-right">UnitÃ¡rio</th>
+                              <th className="py-4 text-right">Taxa (14%)</th>
+                              <th className="py-4 text-right">Total</th>
+                           </tr>
+                        </thead>
+                        <tbody className="text-sm">
+                           {(lastCreatedDoc?.metadata?.items || []).map((it: any, i: number) => (
+                              <tr key={i} className="border-b border-zinc-50">
+                                 <td className="py-6 text-zinc-400">S{i + 1}</td>
+                                 <td className="py-6 font-bold text-zinc-800">{it.nome}</td>
+                                 <td className="py-6 text-right font-bold">{it.qtd}</td>
+                                 <td className="py-6 text-right font-bold">{safeFormatAOA(it.preco_unitario)}</td>
+                                 <td className="py-6 text-right text-zinc-400">14%</td>
+                                 <td className="py-6 text-right font-black">{safeFormatAOA(it.total)}</td>
+                              </tr>
+                           ))}
+                        </tbody>
+                     </table>
+
+                     <div className="flex justify-end mb-20">
+                        <div className="w-80 space-y-4">
+                           <div className="flex justify-between text-sm py-2">
+                              <span className="text-zinc-400 font-bold uppercase">Total LÃ­quido</span>
+                              <span className="font-black">{safeFormatAOA(lastCreatedDoc?.metadata?.subtotal)}</span>
+                           </div>
+                           <div className="flex justify-between text-sm py-2">
+                              <span className="text-zinc-400 font-bold uppercase">Total Imposto</span>
+                              <span className="font-black">{safeFormatAOA(lastCreatedDoc?.metadata?.iva)}</span>
+                           </div>
+                           <div className="flex justify-between text-2xl py-6 border-t-2 border-zinc-900">
+                              <span className="font-black uppercase tracking-tighter">Total Geral</span>
+                              <span className="font-black text-zinc-900">{safeFormatAOA(lastCreatedDoc?.valor_total)}</span>
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="mt-auto border-t border-zinc-100 pt-10 text-[10px] text-zinc-400">
+                        <div className="flex justify-between items-center bg-zinc-50 p-6 rounded-2xl">
+                           <div>
+                              <p className="font-black text-zinc-600 mb-1">{lastCreatedDoc?.hash?.substring(0, 4)}-Processado por Programas Validados</p>
+                              <p className="font-bold">Software de GestÃ£o Multi-Empresa - Venda Plus</p>
+                           </div>
+                           <div className="text-right">
+                              <p className="font-bold uppercase tracking-widest">Os bens foram colocados Ã  disposiÃ§Ã£o</p>
+                              <p className="font-bold uppercase tracking-widest">Luanda | {new Date().toLocaleDateString()}</p>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
             </div >
          </main >
       </div >
@@ -5081,3 +5348,4 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 };
 
 export default AccountingPage;
+
