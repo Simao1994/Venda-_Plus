@@ -6,14 +6,21 @@ import path from "path";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { supabase } from "./src/lib/supabase";
-import { syncDatabaseSchema } from "./src/lib/database-sync";
+import { supabase } from "./src/lib/supabase.ts";
+import { syncDatabaseSchema } from "./src/lib/database-sync.ts";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-erp-key";
 import { runMigration } from "./src/lib/migrations-manager.ts";
 import crypto from "crypto";
 
 // --- HELPERS ---
+// AGT Hash Generation: Number|Date|Total|CompanyNIF
+const prepareHashString = (invoiceNo: string, date: string, total: number, nif: string) => {
+  // Total must be formatted with 2 decimal places and dot separator
+  const formattedTotal = Number(total || 0).toFixed(2);
+  return `${invoiceNo}|${date}|${formattedTotal}|${nif}`;
+};
+
 const generateHash = (data: string, prevHash: string = '') => {
   // Using SHA256 for maximum data integrity and AGT compliance
   // The hash chains the current document data with the previous one
@@ -84,9 +91,9 @@ async function startServer() {
     `);
 
     // AGT Compliance Columns Migration (using rpc for more complex alterations if needed, or just direct SQL)
-    await supabase.rpc('exec_sql', { sql: `ALTER TABLE sales ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
-    await supabase.rpc('exec_sql', { sql: `ALTER TABLE payments ADD COLUMN IF NOT EXISTS document_number TEXT, ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE` });
-    await supabase.rpc('exec_sql', { sql: `ALTER TABLE contabil_faturas ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS type_prefix TEXT, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
+    await supabase.rpc('exec_sql', { sql_query: `ALTER TABLE sales ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
+    await supabase.rpc('exec_sql', { sql_query: `ALTER TABLE payments ADD COLUMN IF NOT EXISTS document_number TEXT, ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE` });
+    await supabase.rpc('exec_sql', { sql_query: `ALTER TABLE contabil_faturas ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS type_prefix TEXT, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
     console.log('Compliance and Tax migrations applied.');
 
   }).catch(err => {
@@ -1186,8 +1193,14 @@ async function startServer() {
       .limit(1)
       .maybeSingle();
 
+    // Fetch company NIF for Hash
+    const { data: companyData } = await supabase.from("companies").select("nif").eq("id", req.user.company_id).single();
+    const companyNif = companyData?.nif || '999999999';
+
     const prevHash = lastSaleForHash?.hash || '';
-    const currentHash = generateHash(`${invoice_number}|${total}|${new Date().toISOString()}`, prevHash);
+    const hashDate = new Date().toISOString();
+    const hashString = prepareHashString(invoice_number, hashDate, total, companyNif);
+    const currentHash = generateHash(hashString, prevHash);
 
     try {
       // 1. Create Sale
@@ -1317,8 +1330,14 @@ async function startServer() {
         .limit(1)
         .maybeSingle();
 
+      // Fetch company NIF for Hash
+      const { data: companyData } = await supabase.from("companies").select("nif").eq("id", req.user.company_id).single();
+      const companyNif = companyData?.nif || '999999999';
+
       const prevHash = lastSaleForHash?.hash || '';
-      const currentHash = generateHash(`${document_number}|${sale.total}|${new Date().toISOString()}`, prevHash);
+      const hashDate = new Date().toISOString();
+      const hashString = prepareHashString(document_number, hashDate, sale.total, companyNif);
+      const currentHash = generateHash(hashString, prevHash);
 
       // 3. Update Sale Status
       await supabase
@@ -1462,8 +1481,14 @@ async function startServer() {
         .limit(1)
         .maybeSingle();
 
+      // Fetch company NIF for Hash
+      const { data: companyData } = await supabase.from("companies").select("nif").eq("id", req.user.company_id).single();
+      const companyNif = companyData?.nif || '999999999';
+
       const prevHash = lastPaymentForHash?.hash || '';
-      const currentHash = generateHash(`${document_number}|${amount}|${new Date().toISOString()}`, prevHash);
+      const hashDate = new Date().toISOString();
+      const hashString = prepareHashString(document_number, hashDate, amount, companyNif);
+      const currentHash = generateHash(hashString, prevHash);
 
       // 2. Record payment with Document info and Hash
       const { error: payError } = await supabase
@@ -2028,7 +2053,43 @@ async function startServer() {
     const iva = subtotal * 0.14;
     const total = subtotal + iva;
     const troco = valor_entregue ? valor_entregue - total : 0;
-    const numero_factura = `FR-FARM-${Date.now()}`;
+    const { data: activeSeries } = await supabase
+      .from("billing_series")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("doc_type", "FR")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    let numero_factura;
+    if (activeSeries) {
+      const currentYear = new Date().getFullYear();
+      let nextNumber = (activeSeries.last_number || 0) + 1;
+      const lastUpdateYear = activeSeries.updated_at ? new Date(activeSeries.updated_at).getFullYear() : currentYear;
+      if (lastUpdateYear < currentYear) nextNumber = 1;
+      const paddedNumber = String(nextNumber).padStart(3, '0');
+      numero_factura = `FR-FARM-${currentYear}/${paddedNumber}`;
+      await supabase.from("billing_series").update({ last_number: nextNumber, updated_at: new Date().toISOString() }).eq("id", activeSeries.id);
+    } else {
+      numero_factura = `FR-FARM-${Date.now()}`;
+    }
+
+    // AGT Compliance: Hash for Pharmacy Sale
+    const { data: lastPharmSale } = await supabase
+      .from("vendas_farmacia")
+      .select("hash")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: companyData } = await supabase.from("companies").select("nif").eq("id", companyId).single();
+    const companyNif = companyData?.nif || '999999999';
+
+    const prevHash = lastPharmSale?.hash || '';
+    const hashDate = new Date().toISOString();
+    const hashString = prepareHashString(numero_factura, hashDate, total, companyNif);
+    const currentHash = generateHash(hashString, prevHash);
 
     let branchId = req.user.branch_id;
     if (!branchId) {
@@ -2073,7 +2134,11 @@ async function startServer() {
         total,
         valor_entregue: valor_entregue || total,
         troco,
-        forma_pagamento: forma_pagamento || 'dinheiro'
+        forma_pagamento: forma_pagamento || 'dinheiro',
+        // AGT Compliance fields
+        hash: currentHash,
+        prev_hash: prevHash,
+        is_certified: true
       }])
       .select("id")
       .single();
@@ -3213,10 +3278,16 @@ async function startServer() {
         .eq('company_id', company_id || req.user.company_id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      // Fetch company NIF for Hash
+      const { data: companyData } = await supabase.from("companies").select("nif").eq("id", company_id || req.user.company_id).single();
+      const companyNif = companyData?.nif || '999999999';
 
       const prevHash = lastDoc?.hash || '';
-      const hash = generateHash(`${docNumber};${finalTotal};${prevHash}`);
+      const hashDate = new Date().toISOString();
+      const hashString = prepareHashString(docNumber, hashDate, finalTotal, companyNif);
+      const hash = generateHash(hashString, prevHash);
 
       const { data: doc, error: dError } = await supabase.from('contabil_faturas').insert({
         numero_fatura: docNumber,

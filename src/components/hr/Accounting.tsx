@@ -4030,7 +4030,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </thead>
                                  <tbody className="divide-y divide-zinc-50">
                                     {filtered.map((n, i) => (
-                                       <tr key={i} className="hover:bg-zinc-50 transition-colors group">
+                                       <tr key={i} onClick={() => handlePrintFatura(n)} className="hover:bg-zinc-50 transition-colors group cursor-pointer">
                                           <td className="py-5 px-4">
                                              <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500">
@@ -5319,6 +5319,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <div className="flex justify-between text-sm py-2">
                               <span className="text-zinc-400 font-bold uppercase">Total Imposto</span>
                               <span className="font-black">{safeFormatAOA(lastCreatedDoc?.metadata?.iva)}</span>
+                           </div>
+                           <div className="flex justify-between text-sm py-2 border-t border-zinc-50">
+                              <span className="text-zinc-400 font-bold uppercase">Desconto</span>
+                              <span className="font-black text-red-500">{safeFormatAOA(lastCreatedDoc?.metadata?.discount || 0)}</span>
                            </div>
                            <div className="flex justify-between text-2xl py-6 border-t-2 border-zinc-900">
                               <span className="font-black uppercase tracking-tighter">Total Geral</span>

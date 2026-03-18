@@ -1,7 +1,7 @@
 -- Create billing_series table
 CREATE TABLE IF NOT EXISTS billing_series (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
     doc_type TEXT NOT NULL, -- 'FAC', 'PRO', 'NC', etc.
     series_name TEXT NOT NULL, -- e.g., '2026'
     last_number INTEGER DEFAULT 0,
