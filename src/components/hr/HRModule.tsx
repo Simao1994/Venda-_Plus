@@ -47,7 +47,6 @@ import Employees from './Employees';
 import Departments from './Departments';
 import Attendance from './Attendance';
 import Payroll from './Payroll';
-import Accounting from './Accounting';
 import BankAccountsTab from './BankAccountsTab';
 import VagasAdminTab from './VagasAdminTab';
 import PerformanceTab from './PerformanceTab';
@@ -65,7 +64,6 @@ export default function HRModule() {
     { id: 'payroll', label: 'Folha Salarial', icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'] },
     { id: 'performance', label: 'Performance', icon: Target, roles: ['admin', 'manager', 'master'] },
     { id: 'passes', label: 'Passes PVC', icon: IdCard, roles: ['admin', 'manager', 'master'] },
-    { id: 'accounting', label: 'Contabilidade', icon: FileText, roles: ['admin', 'manager', 'master'] },
     { id: 'bank', label: 'Contas Bancárias', icon: FileText, roles: ['admin', 'manager', 'master'] },
     { id: 'vagas', label: 'Vagas', icon: FileText, roles: ['admin', 'manager', 'master'] },
   ];
@@ -103,7 +101,6 @@ export default function HRModule() {
           {activeTab === 'payroll' && <Payroll />}
           {activeTab === 'performance' && <PerformanceTab />}
           {activeTab === 'passes' && <PassesTab />}
-          {activeTab === 'accounting' && <Accounting user={user as any} />}
           {activeTab === 'bank' && <BankAccountsTab user={user as any} funcionarioId={null} />}
           {activeTab === 'vagas' && <VagasAdminTab />}
         </ErrorBoundary>

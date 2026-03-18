@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import {
+  Calculator,
   LayoutDashboard,
   ShoppingCart,
   Package,
@@ -32,6 +33,7 @@ import Settings from './components/Settings';
 import PharmacyModule from './components/pharmacy/PharmacyModule';
 import SalesModule from './components/sales/SalesModule';
 import HRModule from './components/hr/HRModule';
+import Accounting from './components/accounting/Accounting';
 import MobileApp from './components/MobileApp';
 import PublicHome from './components/PublicHome';
 import Marketing from './components/Marketing';
@@ -345,6 +347,7 @@ export default function App() {
     { id: 'sales', label: "Vendas", icon: Briefcase, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'sales' },
     { id: 'pharmacy', label: "Farmácia", icon: Cross, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'pharmacy' },
     { id: 'hr', label: "RH", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
+    { id: 'accounting', label: "Contabilidade", icon: Calculator, roles: ['admin', 'manager', 'master'], feature: 'sales' },
     { id: 'marketing', label: "Marketing", icon: Smartphone, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'blog', label: "Blog Corporativo", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'subscription', label: "Gestão de Assinatura", icon: CreditCard, roles: ['admin', 'manager'], feature: 'settings' },
@@ -501,6 +504,7 @@ export default function App() {
           {activeTab === 'sales' && <SalesModule />}
           {activeTab === 'pharmacy' && <PharmacyModule />}
           {activeTab === 'hr' && <HRModule />}
+          {activeTab === 'accounting' && <Accounting user={user as any} />}
           {activeTab === 'marketing' && <Marketing />}
           {activeTab === 'blog' && <BlogPage user={user as any} />}
           {activeTab === 'subscription' && <SubscriptionManagement />}
