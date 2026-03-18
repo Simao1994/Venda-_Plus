@@ -1,103 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { AlertTriangle, Clock, PackageX } from 'lucide-react';
+import { AlertTriangle, Clock, PackageX, CheckCircle2 } from 'lucide-react';
 
 export default function Alertas() {
   const { token } = useAuth();
-  const [alertas, setAlertas] = useState({ stockBaixo: [], validadeProxima: [] });
+  const [alertas, setAlertas] = useState<{ stockBaixo: any[]; validadeProxima: any[] }>({
+    stockBaixo: [],
+    validadeProxima: [],
+  });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     try {
       const res = await fetch('/api/farmacia/alertas', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setAlertas(data);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">A carregar alertas...</div>;
-
   return (
-    <div className="p-6 space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-gray-900">Alertas do Sistema</h1>
-        <p className="text-gray-500">Monitorização de stock e validades.</p>
+    <div className="p-8 max-w-7xl mx-auto relative z-10">
+      {/* Header */}
+      <header className="mb-10">
+        <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
+          Alertas do <span style={{ background: 'linear-gradient(135deg, #f87171, #ef4444)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Sistema</span>
+        </h1>
+        <p className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em] mt-2 italic">Monitorização de stock e validades em tempo real</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Alertas de Stock Baixo */}
-        <div className="bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
-          <div className="p-4 border-b border-red-100 bg-red-50 flex items-center gap-3">
-            <PackageX className="text-red-600" size={24} />
-            <h2 className="font-bold text-red-900 text-lg">Stock Baixo / Esgotado</h2>
-            <span className="ml-auto bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs font-bold">
-              {alertas.stockBaixo.length}
-            </span>
+      {loading ? (
+        <div className="flex items-center justify-center py-32">
+          <div className="w-12 h-12 border-4 border-red-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* ── Stock Baixo ── */}
+          <div className="glass-panel rounded-[40px] border border-red-500/10 overflow-hidden shadow-2xl">
+            <div className="p-8 border-b border-red-500/10 bg-red-500/[0.02] flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+                  <PackageX size={22} />
+                </div>
+                <div>
+                  <h2 className="font-black text-white text-sm uppercase tracking-widest italic">Stock Baixo / Esgotado</h2>
+                  <p className="text-[9px] text-white/20 uppercase tracking-widest mt-0.5">Medicamentos abaixo do mínimo</p>
+                </div>
+              </div>
+              <span className="px-4 py-2 bg-red-500/10 text-red-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-red-500/20">
+                {alertas.stockBaixo.length} alertas
+              </span>
+            </div>
+            <div className="p-6 space-y-3">
+              {alertas.stockBaixo.length === 0 ? (
+                <div className="flex flex-col items-center py-12 text-white/10 gap-4">
+                  <CheckCircle2 size={32} className="text-emerald-400/30" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em]">Stock dentro dos limites</p>
+                </div>
+              ) : alertas.stockBaixo.map((item: any) => (
+                <div key={item.id} className="glass-panel flex justify-between items-center p-5 rounded-2xl border border-red-500/10 hover:border-red-500/20 transition-all group">
+                  <div>
+                    <p className="font-black text-white text-xs uppercase tracking-tight group-hover:text-red-400 transition-colors">{item.nome_medicamento}</p>
+                    <p className="text-[9px] font-black text-white/20 mt-1 uppercase tracking-widest">Mínimo: {item.estoque_minimo} uni.</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-1">Stock Atual</p>
+                    <p className="font-black text-red-400 text-2xl tabular-nums">{item.stock_total}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="p-4">
-            {alertas.stockBaixo.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">Nenhum alerta de stock.</p>
-            ) : (
-              <div className="space-y-3">
-                {alertas.stockBaixo.map((item: any) => (
-                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+
+          {/* ── Validade Próxima ── */}
+          <div className="glass-panel rounded-[40px] border border-amber-500/10 overflow-hidden shadow-2xl">
+            <div className="p-8 border-b border-amber-500/10 bg-amber-500/[0.02] flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-500/10 text-amber-400 rounded-2xl flex items-center justify-center border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+                  <Clock size={22} />
+                </div>
+                <div>
+                  <h2 className="font-black text-white text-sm uppercase tracking-widest italic">Validade Próxima</h2>
+                  <p className="text-[9px] text-white/20 uppercase tracking-widest mt-0.5">Lotes a vencer em menos de 90 dias</p>
+                </div>
+              </div>
+              <span className="px-4 py-2 bg-amber-500/10 text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-500/20">
+                {alertas.validadeProxima.length} lotes
+              </span>
+            </div>
+            <div className="p-6 space-y-3">
+              {alertas.validadeProxima.length === 0 ? (
+                <div className="flex flex-col items-center py-12 text-white/10 gap-4">
+                  <CheckCircle2 size={32} className="text-emerald-400/30" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em]">Todos os lotes válidos</p>
+                </div>
+              ) : alertas.validadeProxima.map((item: any) => {
+                const diasRestantes = Math.ceil((new Date(item.data_validade).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                const isUrgent = diasRestantes <= 30;
+                return (
+                  <div key={item.id} className={`glass-panel flex justify-between items-center p-5 rounded-2xl border transition-all group ${isUrgent ? 'border-red-500/20 hover:border-red-500/30' : 'border-amber-500/10 hover:border-amber-500/20'}`}>
                     <div>
-                      <div className="font-bold text-gray-900">{item.nome_medicamento}</div>
-                      <div className="text-xs text-gray-500">Mínimo exigido: {item.estoque_minimo}</div>
+                      <p className={`font-black text-white text-xs uppercase tracking-tight transition-colors group-hover:${isUrgent ? 'text-red-400' : 'text-amber-400'}`}>{item.nome_medicamento}</p>
+                      <p className="text-[9px] font-black text-white/20 mt-1 uppercase tracking-widest">Lote: {item.numero_lote} • Qtd: {item.quantidade_atual}</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-gray-500">Stock Atual</div>
-                      <div className="font-black text-red-600 text-lg">{item.stock_total}</div>
+                      <p className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-1">Vence em</p>
+                      <p className={`font-black text-2xl tabular-nums ${isUrgent ? 'text-red-400' : 'text-amber-400'}`}>{diasRestantes}<span className="text-sm ml-1 font-bold opacity-60">dias</span></p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </div>
         </div>
-
-        {/* Alertas de Validade */}
-        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
-          <div className="p-4 border-b border-orange-100 bg-orange-50 flex items-center gap-3">
-            <Clock className="text-orange-600" size={24} />
-            <h2 className="font-bold text-orange-900 text-lg">Validade Próxima (&lt; 90 dias)</h2>
-            <span className="ml-auto bg-orange-200 text-orange-800 py-1 px-3 rounded-full text-xs font-bold">
-              {alertas.validadeProxima.length}
-            </span>
-          </div>
-          <div className="p-4">
-            {alertas.validadeProxima.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">Nenhum alerta de validade.</p>
-            ) : (
-              <div className="space-y-3">
-                {alertas.validadeProxima.map((item: any) => {
-                  const diasRestantes = Math.ceil((new Date(item.data_validade).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
-                  return (
-                    <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div>
-                        <div className="font-bold text-gray-900">{item.nome_medicamento}</div>
-                        <div className="text-xs text-gray-500">Lote: {item.numero_lote} • Qtd: {item.quantidade_atual}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">Vence em</div>
-                        <div className={`font-black text-lg ${diasRestantes <= 30 ? 'text-red-600' : 'text-orange-600'}`}>
-                          {diasRestantes} dias
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

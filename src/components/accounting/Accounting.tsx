@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import React, { useState, useMemo, useEffect } from 'react';
 import {
    Calculator, BarChart2, BarChart3, BarChart as LucideBarChart, Receipt, Users, Landmark, Scale,
@@ -1646,7 +1646,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             const { data: head, error: hErr } = await supabase.from('acc_lancamentos').insert([{
                data: newCompra.data_compra,
                periodo_id: selectedPeriodoId,
-               descricao: `Compra ${newCompra.numero_compra || ''} â€” ${newCompra.fornecedor_nome || 'Fornecedor'}`,
+               descricao: `Compra ${newCompra.numero_compra || ''} — ${newCompra.fornecedor_nome || 'Fornecedor'}`,
                company_id: selectedEmpresaId,
                usuario_id: null,
                status: 'Postado',
@@ -1792,7 +1792,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }]).select().single();
          if (hError) throw hError;
 
-         // 2. Inserir itens D e C (valores iguais â€” soma D = soma C garantida)
+         // 2. Inserir itens D e C (valores iguais — soma D = soma C garantida)
          await supabase.from('acc_lancamento_itens').insert([
             { lancamento_id: head.id, conta_codigo: debito!.codigo, conta_nome: debito!.nome, tipo: 'D', valor: Number(newEntry.valor), company_id: selectedEmpresaId },
             { lancamento_id: head.id, conta_codigo: credito!.codigo, conta_nome: credito!.nome, tipo: 'C', valor: Number(newEntry.valor), company_id: selectedEmpresaId }
@@ -2072,7 +2072,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                {/* --- DASHBOARD PREMIUM --- */}
                {activeTab === 'dashboard' && (() => {
-                  // === CÃLCULOS PREMIUM DINÃ‚MICOS ===
+                  // === CÃLCULOS PREMIUM DINÂMICOS ===
                   const receita = Number(financeReports.receitaTotal) || 0;
                   const despesa = Number(financeReports.despesaTotal) || 0;
                   const lucro = Number(financeReports.lucroLiquido) || 0;
@@ -2092,7 +2092,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   const roe = capital > 0 ? (lucro / capital) * 100 : 0;
                   const ratioEndividamento = ativos > 0 ? (passivos / ativos) * 100 : 0;
 
-                  // Score Financeiro (0â€“10) â€” algoritmo dinÃ¢mico
+                  // Score Financeiro (0â€“10) — algoritmo dinÃ¢mico
                   // let score = 5.0; // This line is now replaced by the new score calculation above
                   // if (margemLiquida > 20) score += 2;
                   // else if (margemLiquida > 10) score += 1;
@@ -2116,14 +2116,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      alertas.push({ nivel: 'danger', msg: 'Ruptura de Stock', sub: `${lowStockCount} itens atingiram o nível crítico de stock.` });
                   }
 
-                  if (lucro < 0) alertas.push({ nivel: 'danger', msg: 'Resultado Negativo', sub: `Prejuízo de ${safeFormatAOA(Math.abs(lucro))} no período.` });
-                  if (liquidezCorrente < 1 && ativos > 0) alertas.push({ nivel: 'danger', msg: 'Risco de Liquidez', sub: `Activos cobrem apenas ${(liquidezCorrente * 100).toFixed(0)}% do passivo.` });
-                  if (ratioEndividamento > 70 && ativos > 0) alertas.push({ nivel: 'warn', msg: 'Alto Endividamento', sub: `${ratioEndividamento.toFixed(0)}% dos activos financiados por dívida.` });
-                  if (margemLiquida > 0 && margemLiquida < 10) alertas.push({ nivel: 'warn', msg: 'Margem Comprimida', sub: `Margem líquida de ${margemLiquida.toFixed(1)}% â€” abaixo do ideal (>10%).` });
+                  if (lucro < 0) alertas.push({ nivel: 'danger', msg: 'Prejuízo no Período', sub: `A empresa está a gastar mais do que ganha (${safeFormatAOA(Math.abs(lucro))}).` });
+                  if (liquidezCorrente < 1 && ativos > 0) alertas.push({ nivel: 'danger', msg: 'Dificuldade de Pagamento', sub: `O dinheiro disponível cobre apenas ${(liquidezCorrente * 100).toFixed(0)}% das dívidas imediatas.` });
+                  if (ratioEndividamento > 80 && ativos > 0) alertas.push({ nivel: 'warn', msg: 'Dívida Muito Alta', sub: `Mais de 80% do que a empresa possui pertence a terceiros/bancos.` });
+                  if (margemLiquida > 0 && margemLiquida < 5) alertas.push({ nivel: 'warn', msg: 'Margem de Lucro Baixa', sub: `Apenas ${margemLiquida.toFixed(1)}% da venda sobra como lucro real.` });
                   const ivaEstimado = receita * 0.14;
-                  if (ivaEstimado > 0) alertas.push({ nivel: 'warn', msg: 'IVA Estimado Pendente', sub: `${safeFormatAOA(ivaEstimado)} (14% sobre receita) â€” verificar agenda fiscal.` });
-                  if (lucro > 0 && margemLiquida >= 10) alertas.push({ nivel: 'ok', msg: 'Desempenho Sólido', sub: `Margem de ${margemLiquida.toFixed(1)}% com resultado positivo.` });
-                  if (liquidezCorrente >= 1.5) alertas.push({ nivel: 'ok', msg: 'Liquidez Confortável', sub: `Cobertura de ${liquidezCorrente.toFixed(2)}x sobre as obrigações.` });
+                  if (ivaEstimado > 0) alertas.push({ nivel: 'warn', msg: 'Reserva para IVA (14%)', sub: `Deverá prever cerca de ${safeFormatAOA(ivaEstimado)} para obrigações fiscais.` });
+                  if (lucro > 0 && margemLiquida >= 10) alertas.push({ nivel: 'ok', msg: 'Excelente Performance', sub: `Margem de lucro saudável e operação sustentável.` });
+                  if (liquidezCorrente >= 1.2) alertas.push({ nivel: 'ok', msg: 'Caixa Confortável', sub: `A empresa tem folga para pagar os seus compromissos.` });
                   const alertasToShow = alertas.slice(0, 4);
 
                   // Previsão de Fluxo de Caixa (próximos 6 meses por tendência simples)
@@ -2175,7 +2175,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <div className="absolute top-2 right-2 w-24 h-24 rounded-full bg-gold-primary blur-2xl" />
                               </div>
                               <p className="text-[9px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest mb-1">Score Financeiro</p>
-                              <p className={`text-5xl font-black uppercase tracking-widest mt-1 ${scoreColor}`}>{receita > 0 ? score.toFixed(1) : 'â€”'}</p>
+                              <p className={`text-5xl font-black uppercase tracking-widest mt-1 ${scoreColor}`}>{receita > 0 ? score.toFixed(1) : '—'}</p>
                               <p className={`text-[9px] font-black uppercase tracking-widest mt-2 ${scoreColor}`}>{receita > 0 ? scoreLabel : 'Sem Dados'}</p>
                               <div className="w-full mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
                                  <div className="h-full bg-gold-primary transition-all duration-1000 rounded-full"
@@ -2195,33 +2195,33 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {[
                                  {
-                                    label: 'Liquidez Corrente', value: receita > 0 ? liquidezCorrente.toFixed(2) : 'â€”', unit: 'x',
-                                    info: 'Activo / Passivo. Ideal > 1.5',
-                                    color: liquidezCorrente >= 1.5 ? 'bg-green-50 border-green-100 text-green-600' : liquidezCorrente >= 1 ? 'bg-yellow-50 border-yellow-100 text-gold-primary' : 'bg-red-50 border-red-100 text-red-600',
-                                    status: liquidezCorrente >= 1.5 ? '? Saudável' : liquidezCorrente >= 1 ? '? Aceitável' : '? Risco'
+                                    label: 'Capacidade de Pagamento', value: receita > 0 ? liquidezCorrente.toFixed(2) : '—', unit: 'x',
+                                    info: 'Poder de cobrir dívidas curto prazo',
+                                    color: liquidezCorrente >= 1.2 ? 'bg-green-50/10 border-green-500/20 text-green-400' : liquidezCorrente >= 1 ? 'bg-yellow-50/10 border-yellow-500/20 text-gold-primary' : 'bg-red-50/10 border-red-500/20 text-red-400',
+                                    status: liquidezCorrente >= 1.2 ? '✅ Confortável' : liquidezCorrente >= 1 ? '⚠️ Atenção' : '🔴 Crítico'
                                  },
                                  {
-                                    label: 'Solvência', value: receita > 0 ? solvencia.toFixed(2) : 'â€”', unit: 'x',
-                                    info: 'Activo / (Passivo+Capital). Ideal > 1',
-                                    color: solvencia >= 1 ? 'bg-green-50 border-green-100 text-green-600' : 'bg-red-50 border-red-100 text-red-600',
-                                    status: solvencia >= 1 ? '? Solvente' : '? Insolvente'
+                                    label: 'Solidez Financeira', value: receita > 0 ? solvencia.toFixed(2) : '—', unit: 'x',
+                                    info: 'Garantia de capital vs obrigações',
+                                    color: solvencia >= 1 ? 'bg-green-50/10 border-green-500/20 text-green-400' : 'bg-red-50/10 border-red-500/20 text-red-400',
+                                    status: solvencia >= 1 ? '✅ Solvente' : '🔴 Em Risco'
                                  },
                                  {
-                                    label: 'ROE', value: receita > 0 ? roe.toFixed(1) : 'â€”', unit: '%',
-                                    info: 'Retorno sobre Capital Próprio',
-                                    color: roe >= 15 ? 'bg-green-50 border-green-100 text-green-600' : roe >= 5 ? 'bg-yellow-50 border-yellow-100 text-gold-primary' : 'bg-bg-deep border-white/5 text-white/40',
-                                    status: roe >= 15 ? '? Excelente' : roe >= 5 ? '? Moderado' : 'â€” Neutro'
+                                    label: 'Retorno p/ Sócio', value: receita > 0 ? roe.toFixed(1) : '—', unit: '%',
+                                    info: 'Rendimento do investimento',
+                                    color: roe >= 10 ? 'bg-green-50/10 border-green-500/20 text-green-400' : roe >= 2 ? 'bg-yellow-50/10 border-yellow-500/20 text-gold-primary' : 'bg-white/5 border-white/10 text-white/40',
+                                    status: roe >= 10 ? '✅ Saudável' : roe >= 2 ? '⚠️ Baixo' : '— Estável'
                                  },
                                  {
-                                    label: 'Endividamento', value: receita > 0 ? ratioEndividamento.toFixed(0) : 'â€”', unit: '%',
-                                    info: 'Passivo / Activo. Ideal < 50%',
-                                    color: ratioEndividamento < 40 ? 'bg-green-50 border-green-100 text-green-600' : ratioEndividamento < 70 ? 'bg-yellow-50 border-yellow-100 text-gold-primary' : 'bg-red-50 border-red-100 text-red-600',
-                                    status: ratioEndividamento < 40 ? '? Baixo' : ratioEndividamento < 70 ? '? Moderado' : '? Alto'
+                                    label: 'Nível de Dívida', value: receita > 0 ? ratioEndividamento.toFixed(0) : '—', unit: '%',
+                                    info: 'Percentagem de ativos financiados',
+                                    color: ratioEndividamento < 50 ? 'bg-green-50/10 border-green-500/20 text-green-400' : ratioEndividamento < 80 ? 'bg-yellow-50/10 border-yellow-500/20 text-gold-primary' : 'bg-red-50/10 border-red-500/20 text-red-400',
+                                    status: ratioEndividamento < 50 ? '✅ Controlado' : ratioEndividamento < 80 ? '⚠️ Elevado' : '🔴 Muito Alto'
                                  },
                               ].map((ind, i) => (
                                  <div key={i} className={`p-5 rounded-2xl border ${ind.color} flex flex-col gap-1`}>
                                     <p className="text-[9px] font-black uppercase tracking-widest opacity-70">{ind.label}</p>
-                                    <p className="text-3xl font-black uppercase tracking-widest">{ind.value}<span className="text-sm">{ind.value !== 'â€”' ? ind.unit : ''}</span></p>
+                                    <p className="text-3xl font-black uppercase tracking-widest">{ind.value}<span className="text-sm">{ind.value !== '—' ? ind.unit : ''}</span></p>
                                     <p className="text-[9px] font-bold opacity-60">{ind.info}</p>
                                     <p className="text-[9px] font-black uppercase tracking-widest mt-1">{ind.status}</p>
                                  </div>
@@ -2238,7 +2238,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <h3 className="text-lg font-black uppercase tracking-widest uppercase tracking-tight flex items-center gap-2">
                                        <LucideBarChart className="text-gold-primary" size={18} /> Comparativo Financeiro
                                     </h3>
-                                    <p className="text-xs text-white/30 font-bold mt-1 uppercase tracking-widest">Análise por Período Â· {currentEmpresa?.nome || ''}</p>
+                                    <p className="text-xs text-white/30 font-bold mt-1 uppercase tracking-widest">Análise por Período • {currentEmpresa?.nome || ''}</p>
                                  </div>
                                  <button onClick={handleExportChart} className="p-2 bg-bg-deep hover:bg-white/5 rounded-xl text-white/30 hover:text-white transition-colors" title="Exportar">
                                     <Download size={16} />
@@ -2266,7 +2266,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <h3 className="text-lg font-black uppercase tracking-widest uppercase tracking-tight flex items-center gap-2">
                                        <ArrowUpRight className="text-gold-primary" size={18} /> Previsão de Fluxo de Caixa
                                     </h3>
-                                    <p className="text-xs text-white/30 font-bold mt-1 uppercase tracking-widest">Projecção próximos 6 meses Â· Baseada em tendência real</p>
+                                    <p className="text-xs text-white/30 font-bold mt-1 uppercase tracking-widest">Projecção próximos 6 meses • Baseada em tendência real</p>
                                  </div>
                                  <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${tendencia >= 0 ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
                                     Tendência {tendencia >= 0 ? `+${(tendencia * 100 * 0.1).toFixed(1)}%` : `${(tendencia * 100 * 0.1).toFixed(1)}%`} /mês
@@ -2461,7 +2461,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                    title="Criar Estorno" className="p-2 bg-bg-deep hover:bg-red-50 hover:text-red-600 text-white/30 rounded-xl transition-all disabled:opacity-40">
                                                    {isEstornandoId === l.id ? <RefreshCw size={14} className="animate-spin" /> : <RotateCcw size={14} />}
                                                 </button>
-                                             ) : <span className="text-zinc-200">â€”</span>}
+                                             ) : <span className="text-zinc-200">—</span>}
                                           </td>
                                        </tr>
                                     ))
@@ -3021,7 +3021,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        : <ShieldAlert size={32} className="text-red-400" />}
                               </div>
                               <div>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest">Ledger Imutável â€” Verificação de Integridade</p>
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest">Ledger Imutável — Verificação de Integridade</p>
                                  {integrityResult ? (
                                     <>
                                        <p className={`text-2xl font-black uppercase tracking-widest mt-1 ${integrityResult.status === 'OK' ? 'text-green-400' : 'text-red-400'}`}>
@@ -3031,7 +3031,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           {integrityResult.unbalanced_entries === 0
                                              ? 'Todos os lançamentos estão em equilíbrio (D=C).'
                                              : `${integrityResult.unbalanced_entries} lançamento(s) com D?C encontrado(s).`
-                                          } Â· {new Date(integrityResult.check_date).toLocaleString('pt-PT')}
+                                          } • {new Date(integrityResult.check_date).toLocaleString('pt-PT')}
                                        </p>
                                     </>
                                  ) : (
@@ -3054,7 +3054,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <div className="bg-white/5 rounded-[3rem] shadow-[0_0_30px_rgba(212,175,55,0.05)] border border-white/10 overflow-hidden">
                               <div className="p-8 border-b border-white/5 bg-bg-deep/50">
                                  <h4 className="text-sm font-black uppercase tracking-widest text-white uppercase tracking-widest flex items-center gap-2">
-                                    <Lock size={16} className="text-gold-primary" /> Blockchain Contábil â€” Ãšltimos {ledgerEntries.length} Blocos
+                                    <Lock size={16} className="text-gold-primary" /> Blockchain Contábil — Ãšltimos {ledgerEntries.length} Blocos
                                  </h4>
                               </div>
                               <div className="divide-y divide-zinc-50">
@@ -3629,7 +3629,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        <div className="flex items-center gap-2">
                                           <div className={`w-2.5 h-2.5 rounded-full ${valOk ? 'bg-green-500' : 'bg-zinc-300'}`} />
                                           <span className={`text-[9px] font-black uppercase tracking-widest ${valOk ? 'text-green-700' : 'text-white/30'}`}>
-                                             {valOk ? 'Débito = Crédito â€” Lançamento equilibrado' : 'Selecione contas e valor para validar'}
+                                             {valOk ? 'Débito = Crédito — Lançamento equilibrado' : 'Selecione contas e valor para validar'}
                                           </span>
                                        </div>
                                        {valOk && <span className="text-[9px] font-black uppercase tracking-widest text-green-700 bg-green-100 px-2 py-1 rounded-lg">D = C = {safeFormatAOA(newEntry.valor)}</span>}
@@ -3920,13 +3920,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-4">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-yellow-700 uppercase tracking-widest mb-1">Lançamento</p>
                                     <p className="font-black uppercase tracking-widest text-white">{approvalTarget.descricao}</p>
-                                    <p className="text-xs text-white/40 mt-1">{approvalTarget.data ? new Date(approvalTarget.data).toLocaleDateString('pt-PT') : ''} Â· {approvalTarget.tipo_transacao}</p>
+                                    <p className="text-xs text-white/40 mt-1">{approvalTarget.data ? new Date(approvalTarget.data).toLocaleDateString('pt-PT') : ''} • {approvalTarget.tipo_transacao}</p>
                                  </div>
                                  <div className="space-y-2">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest">Itens do Lançamento</p>
                                     {(approvalTarget.itens || []).map((it: any, i: number) => (
                                        <div key={i} className="flex justify-between items-center py-2 border-b border-zinc-50 text-xs">
-                                          <span className="font-bold text-white/80">{it.conta_codigo} â€” {it.conta_nome}</span>
+                                          <span className="font-bold text-white/80">{it.conta_codigo} — {it.conta_nome}</span>
                                           <span className={`font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${it.tipo === 'D' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
                                              {it.tipo} {safeFormatAOA(it.valor)}
                                           </span>
@@ -3959,7 +3959,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <div key={l.id} className="flex items-center justify-between p-4 bg-bg-deep rounded-2xl border border-white/5 hover:bg-yellow-50 hover:border-gold-primary/40 transition-all cursor-pointer" onClick={() => setApprovalTarget(l)}>
                                        <div>
                                           <p className="text-sm font-black uppercase tracking-widest text-white/90">{l.descricao}</p>
-                                          <p className="text-[9px] text-white/30 font-bold uppercase">{l.tipo_transacao} Â· {l.data ? new Date(l.data).toLocaleDateString('pt-PT') : ''}</p>
+                                          <p className="text-[9px] text-white/30 font-bold uppercase">{l.tipo_transacao} • {l.data ? new Date(l.data).toLocaleDateString('pt-PT') : ''}</p>
                                        </div>
                                        <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-[9px] font-black uppercase tracking-widest rounded-lg uppercase tracking-widest">Pendente</span>
                                     </div>
@@ -4388,7 +4388,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               { label: 'Pendentes', value: `${extFaturas.length - faturasPagas}`, color: 'text-gold-primary' },
                            ],
                            items: extFaturas.slice(0, 5).map(f => ({
-                              label: f.numero_fatura || f.cliente_nome || 'â€”',
+                              label: f.numero_fatura || f.cliente_nome || '—',
                               value: safeFormatAOA(f.valor_total),
                               sub: f.status || '',
                               date: f.data_emissao || '',
@@ -4404,7 +4404,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               { label: 'Saídas', value: safeFormatAOA(saidas), color: 'text-red-500' },
                            ],
                            items: extTesouraria.slice(0, 5).map(t => ({
-                              label: t.descricao || t.categoria || 'â€”',
+                              label: t.descricao || t.categoria || '—',
                               value: safeFormatAOA(t.valor),
                               sub: t.tipo || '',
                               date: t.data || '',
@@ -4436,7 +4436,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               { label: 'Críticos (Stock Mín.)', value: `${itensCriticos}`, color: itensCriticos > 0 ? 'text-red-500' : 'text-green-600' },
                            ],
                            items: extInventario.slice(0, 5).map(i => ({
-                              label: i.nome || 'â€”',
+                              label: i.nome || '—',
                               onAutoLaunch: undefined
                            }))
                         },
@@ -4534,7 +4534,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                 <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${m.tipo === 'entrada' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>{m.tipo}</span>
                                              </td>
                                              <td className="py-4 px-4 text-[11px] font-black uppercase tracking-widest text-white/90 uppercase tracking-tight">{m.entidade || 'Sistema'}</td>
-                                             <td className="py-4 px-4 text-[10px] font-bold text-white/40 uppercase">{m.referencia || 'â€”'}</td>
+                                             <td className="py-4 px-4 text-[10px] font-bold text-white/40 uppercase">{m.referencia || '—'}</td>
                                              <td className="py-4 px-4 text-[11px] font-black uppercase tracking-widest text-white">{m.quantidade}</td>
                                              <td className="py-4 px-4 text-[10px] font-bold text-white/30">{new Date(m.created_at).toLocaleDateString()}</td>
                                           </tr>
@@ -4580,8 +4580,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                      // Estado local de eliminações mock (até o form ser implementado)
                      const eliminacoesExemplo = [
-                        { id: '1', tipo: 'Receita Interna', valor: 50000, descricao: 'Prestação de serviços interna', origem: empresas[0]?.nome || 'â€”', destino: empresas[1]?.nome || 'â€”' },
-                        { id: '2', tipo: 'Empréstimo', valor: 200000, descricao: 'Financiamento entre afiliadas', origem: empresas[1]?.nome || 'â€”', destino: empresas[0]?.nome || 'â€”' },
+                        { id: '1', tipo: 'Receita Interna', valor: 50000, descricao: 'Prestação de serviços interna', origem: empresas[0]?.nome || '—', destino: empresas[1]?.nome || '—' },
+                        { id: '2', tipo: 'Empréstimo', valor: 200000, descricao: 'Financiamento entre afiliadas', origem: empresas[1]?.nome || '—', destino: empresas[0]?.nome || '—' },
                      ].filter(e => empresas.length >= 2);
 
                      const totalEliminacoes = eliminacoesExemplo.reduce((a, e) => a + e.valor, 0);
@@ -4597,7 +4597,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <Building2 className="text-gold-primary" size={28} /> Consolidação do Grupo
                                  </h2>
                                  <p className="text-white/30 text-xs font-bold mt-1 uppercase tracking-widest">
-                                    {empresas.length} Entidade{empresas.length !== 1 ? 's' : ''} Â· Dados calculados automaticamente
+                                    {empresas.length} Entidade{empresas.length !== 1 ? 's' : ''} • Dados calculados automaticamente
                                  </p>
                               </div>
                               <div className="text-right">

@@ -37,6 +37,18 @@ DECLARE
     v_conta_vendas_nome TEXT;
     v_conta_iva_nome TEXT;
 BEGIN
+    -- Se for um UPDATE, verificar se o status mudou para 'paid'
+    -- Se for um INSERT, verificar se o status é 'paid'
+    IF (TG_OP = 'UPDATE') THEN
+        IF (NEW.status != 'paid' OR OLD.status = 'paid') THEN
+            RETURN NEW;
+        END IF;
+    ELSIF (TG_OP = 'INSERT') THEN
+        IF (NEW.status != 'paid') THEN
+            RETURN NEW;
+        END IF;
+    END IF;
+
     -- Obter/Criar período
     v_periodo_id := get_or_create_periodo(NEW.company_id, NEW.created_at::DATE);
 
@@ -104,7 +116,6 @@ DROP TRIGGER IF EXISTS trigger_auto_accounting_sales ON public.sales;
 CREATE TRIGGER trigger_auto_accounting_sales
 AFTER INSERT OR UPDATE ON public.sales
 FOR EACH ROW
-WHEN (NEW.status = 'paid' AND (OLD.status IS NULL OR OLD.status != 'paid'))
 EXECUTE FUNCTION trg_auto_post_sale_to_accounting();
 
 -- 4. GARANTIR CONTAS BÁSICAS PARA TODAS AS EMPRESAS ATUAIS

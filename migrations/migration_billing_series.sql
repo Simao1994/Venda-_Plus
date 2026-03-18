@@ -16,15 +16,13 @@ ALTER TABLE billing_series ENABLE ROW LEVEL SECURITY;
 
 -- Policies
 CREATE POLICY "Users can view their own company's billing series"
-    ON billing_series FOR SELECT
     USING (auth.uid() IN (
-        SELECT id FROM users WHERE company_id = billing_series.company_id
+        SELECT auth_user_id FROM users WHERE company_id = billing_series.company_id
     ));
 
 CREATE POLICY "Admins can manage their own company's billing series"
-    ON billing_series FOR ALL
     USING (auth.uid() IN (
-        SELECT id FROM users WHERE company_id = billing_series.company_id AND role = 'admin'
+        SELECT auth_user_id FROM users WHERE company_id = billing_series.company_id AND role = 'admin'
     ));
 
 -- Add trigger for updated_at

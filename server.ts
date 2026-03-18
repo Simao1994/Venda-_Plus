@@ -70,126 +70,7 @@ async function startServer() {
   syncDatabaseSchema().then(async () => {
     console.log('✅ Database Schema Sync Complete');
 
-    // Core migrations for requested features
-    await runMigration('add_discount_and_proforma_to_sales_20260315', `
-      ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount REAL DEFAULT 0;
-      ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_pro_forma BOOLEAN DEFAULT FALSE;
-    `);
-
-    // AGT Compliance Columns Migration
-    await runMigration('add_agt_compliance_columns_20260317', `
-      -- Sales
-      ALTER TABLE sales ADD COLUMN IF NOT EXISTS hash TEXT;
-      ALTER TABLE sales ADD COLUMN IF NOT EXISTS prev_hash TEXT;
-      ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT FALSE;
-      
-      -- Payments (Receipts)
-      ALTER TABLE payments ADD COLUMN IF NOT EXISTS document_number TEXT;
-      ALTER TABLE payments ADD COLUMN IF NOT EXISTS hash TEXT;
-      ALTER TABLE payments ADD COLUMN IF NOT EXISTS prev_hash TEXT;
-      ALTER TABLE payments ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT FALSE;
-    `);
-
-    // AGT Compliance Columns Migration (using rpc for more complex alterations if needed, or just direct SQL)
-    await supabase.rpc('exec_sql', { sql_query: `ALTER TABLE sales ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
-    await supabase.rpc('exec_sql', { sql_query: `ALTER TABLE payments ADD COLUMN IF NOT EXISTS document_number TEXT, ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE` });
-    await supabase.rpc('exec_sql', { sql_query: `ALTER TABLE contabil_faturas ADD COLUMN IF NOT EXISTS hash TEXT, ADD COLUMN IF NOT EXISTS prev_hash TEXT, ADD COLUMN IF NOT EXISTS is_certified BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS type_prefix TEXT, ADD COLUMN IF NOT EXISTS is_exempt BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS exemption_reason TEXT` });
-    // Accounting Integration (Sales -> Ledger)
-    await runMigration('accounting_integration_20260318', `
-      -- 1. Function for Account Selection/Creation
-      CREATE OR REPLACE FUNCTION get_or_create_periodo(p_company_id INTEGER, p_date DATE)
-      RETURNS UUID AS $$
-      DECLARE
-          v_mes INTEGER := EXTRACT(MONTH FROM p_date);
-          v_ano INTEGER := EXTRACT(YEAR FROM p_date);
-          v_periodo_id UUID;
-      BEGIN
-          SELECT id INTO v_periodo_id 
-          FROM public.contabil_periodos 
-          WHERE company_id = p_company_id AND mes = v_mes AND ano = v_ano;
-
-          IF v_periodo_id IS NULL THEN
-              INSERT INTO public.contabil_periodos (company_id, mes, ano, status)
-              VALUES (p_company_id, v_mes, v_ano, 'Aberto')
-              RETURNING id INTO v_periodo_id;
-          END IF;
-
-          RETURN v_periodo_id;
-      END;
-      $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-      -- 2. Trigger Function
-      CREATE OR REPLACE FUNCTION trg_auto_post_sale_to_accounting()
-      RETURNS TRIGGER AS $$
-      DECLARE
-          v_periodo_id UUID;
-          v_lancamento_id UUID;
-          v_conta_caixa_id UUID;
-          v_conta_vendas_id UUID;
-          v_conta_iva_id UUID;
-          v_conta_caixa_nome TEXT;
-          v_conta_vendas_nome TEXT;
-          v_conta_iva_nome TEXT;
-      BEGIN
-          v_periodo_id := get_or_create_periodo(NEW.company_id, NEW.created_at::DATE);
-
-          SELECT id, nome INTO v_conta_caixa_id, v_conta_caixa_nome FROM public.contabil_plano_contas WHERE company_id = NEW.company_id AND (codigo = '11' OR (codigo LIKE '11.%' AND nivel = 2)) LIMIT 1;
-          SELECT id, nome INTO v_conta_vendas_id, v_conta_vendas_nome FROM public.contabil_plano_contas WHERE company_id = NEW.company_id AND (codigo = '71' OR (codigo LIKE '71.%' AND nivel = 2)) LIMIT 1;
-          SELECT id, nome INTO v_conta_iva_id, v_conta_iva_nome FROM public.contabil_plano_contas WHERE company_id = NEW.company_id AND (codigo = '243' OR (codigo LIKE '243.%' AND nivel = 2)) LIMIT 1;
-
-          IF v_conta_caixa_id IS NULL OR v_conta_vendas_id IS NULL THEN
-              RETURN NEW; 
-          END IF;
-
-          INSERT INTO public.contabil_lancamentos (
-              company_id, periodo_id, data, descricao, status, tipo_transacao
-          ) VALUES (
-              NEW.company_id, v_periodo_id, NEW.created_at::DATE,
-              'Automático - Venda ' || NEW.invoice_number, 'Validado', 'Venda'
-          ) RETURNING id INTO v_lancamento_id;
-
-          INSERT INTO public.contabil_lancamento_itens (
-              company_id, lancamento_id, conta_codigo, conta_nome, tipo, valor
-          ) VALUES (NEW.company_id, v_lancamento_id, '11', v_conta_caixa_nome, 'D', NEW.total);
-
-          INSERT INTO public.contabil_lancamento_itens (
-              company_id, lancamento_id, conta_codigo, conta_nome, tipo, valor
-          ) VALUES (NEW.company_id, v_lancamento_id, '71', v_conta_vendas_nome, 'C', NEW.subtotal);
-
-          IF NEW.tax > 0 THEN
-              INSERT INTO public.contabil_lancamento_itens (
-                  company_id, lancamento_id, conta_codigo, conta_nome, tipo, valor
-              ) VALUES (NEW.company_id, v_lancamento_id, '243', COALESCE(v_conta_iva_nome, 'Estado - IVA'), 'C', NEW.tax);
-          END IF;
-
-          RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-      DROP TRIGGER IF EXISTS trigger_auto_accounting_sales ON public.sales;
-      CREATE TRIGGER trigger_auto_accounting_sales
-      AFTER INSERT OR UPDATE ON public.sales
-      FOR EACH ROW
-      WHEN (NEW.status = 'paid' AND (OLD.status IS NULL OR OLD.status != 'paid'))
-      EXECUTE FUNCTION trg_auto_post_sale_to_accounting();
-
-      -- Seed basic accounts for all companies
-      DO $seed$ 
-      DECLARE 
-          comp RECORD;
-      BEGIN
-          FOR comp IN SELECT id FROM public.companies LOOP
-              INSERT INTO public.contabil_plano_contas (company_id, codigo, nome, tipo, e_analitica)
-              VALUES (comp.id, '11', 'Caixa Geral', 'Ativo', TRUE) ON CONFLICT DO NOTHING;
-              INSERT INTO public.contabil_plano_contas (company_id, codigo, nome, tipo, e_analitica)
-              VALUES (comp.id, '71', 'Vendas de Mercadorias', 'Proveito', TRUE) ON CONFLICT DO NOTHING;
-              INSERT INTO public.contabil_plano_contas (company_id, codigo, nome, tipo, e_analitica)
-              VALUES (comp.id, '243', 'IVA Liquidado', 'Passivo', TRUE) ON CONFLICT DO NOTHING;
-          END LOOP;
-      END $seed$;
-    `);
-
-    console.log('Compliance and Tax migrations applied.');
+    console.log('✅ Base migrations checked.');
 
   }).catch(err => {
     console.error('❌ Database Schema Sync Failed:', err.message);
@@ -658,14 +539,17 @@ async function startServer() {
     try {
       const isMaster = req.user.role === 'master';
 
-      // 1. Check DB Connectivity
-      const { error: dbError } = await supabase.from('companies').select('id', { count: 'exact', head: true }).limit(1);
+      // 1. Get stats and user count in a single RPC call (Highly Optimized)
+      const { data: statsData, error: statsError } = await supabase.rpc('get_system_stats', {
+        p_company_id: req.user.company_id,
+        p_is_master: isMaster
+      });
 
-      // 2. User Statistics
-      let userQuery = supabase.from("users").select('*', { count: 'exact', head: true });
-      if (!isMaster) userQuery = userQuery.eq('company_id', req.user.company_id);
-      const { count: currentUsers } = await userQuery;
+      if (statsError) throw statsError;
 
+      const results = statsData as any || { table_stats: {}, total_tables: 0, current_users: 0 };
+
+      // 2. User Limit (Subscription based)
       let userLimit = 1;
       if (!isMaster) {
         const { data: subscription } = await supabase
@@ -677,57 +561,25 @@ async function startServer() {
         userLimit = subscription?.saas_plans?.user_limit || 1;
       }
 
-      // 3. Dynamic Table Discovery
-      const { data: tableMeta, error: metaError } = await supabase.rpc('query_sql', {
-        sql_query: `
-          SELECT 
-            t.table_name,
-            EXISTS (
-              SELECT 1 FROM information_schema.columns c 
-              WHERE c.table_name = t.table_name 
-              AND c.table_schema = t.table_schema 
-              AND c.column_name = 'company_id'
-            ) as has_company_id
-          FROM information_schema.tables t
-          WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
-          ORDER BY t.table_name
-        `
-      });
-
-      if (metaError) throw metaError;
-
-      const tablesList = tableMeta as any[];
-      const tableCounts: any = {};
-
-      for (const table of tablesList) {
-        let query = supabase.from(table.table_name).select('*', { count: 'exact', head: true });
-
-        // Filter by company_id if not master and the table has the column
-        if (!isMaster && table.has_company_id) {
-          query = query.eq('company_id', req.user.company_id);
-        }
-
-        // Skip tables without company_id for standard users (except companies info)
-        if (!isMaster && !table.has_company_id && table.table_name !== 'companies') {
-          continue;
-        }
-
-        const { count, error } = await query;
-        if (!error) tableCounts[table.table_name] = count;
-      }
-
       res.json({
-        db_status: dbError ? 'Offline' : 'Online',
+        db_status: 'Online',
         system_status: 'Operacional',
-        current_users: currentUsers || 0,
-        user_limit: isMaster ? 'Limitado por Infraestrutura' : userLimit,
-        total_tables: Object.keys(tableCounts).length,
-        table_stats: tableCounts,
+        current_users: results.current_users || 0,
+        user_limit: isMaster ? 'Ilimitado (Master)' : userLimit,
+        total_tables: results.total_tables,
+        table_stats: results.table_stats,
         is_master_mode: isMaster
       });
     } catch (err: any) {
-      console.error('Erro no diagnóstico:', err.message);
-      res.status(500).json({ error: "Falha ao obter estado do sistema" });
+      console.error('❌ Erro no diagnóstico:', err.message);
+      res.json({
+        db_status: 'Offline',
+        system_status: 'Erro de Ligação',
+        current_users: 0,
+        total_tables: 0,
+        table_stats: {},
+        error: err.message
+      });
     }
   });
 

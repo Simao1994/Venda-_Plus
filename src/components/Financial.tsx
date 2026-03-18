@@ -31,7 +31,7 @@ interface Supplier {
 
 export default function Financial() {
   const { token, user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'receivable' | 'payable'>('receivable');
+  const [activeTab, setActiveTab] = useState<'receivable' | 'payable' | 'cashflow'>('receivable');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all');
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -99,7 +99,14 @@ export default function Financial() {
         search
       });
 
-      if (activeTab === 'payable') {
+      if (activeTab === 'cashflow') {
+        const [expRes, recRes] = await Promise.all([
+          fetch(`/api/expenses?${queryParams}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/financial/receivable?${queryParams}`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setExpenses(await expRes.json());
+        setReceivables(await recRes.json());
+      } else if (activeTab === 'payable') {
         const res = await fetch(`/api/expenses?${queryParams}`, { headers: { Authorization: `Bearer ${token}` } });
         setExpenses(await res.json());
       } else {
@@ -388,14 +395,23 @@ export default function Financial() {
         >
           Contas a Pagar
         </button>
+        <button
+          onClick={() => setActiveTab('cashflow')}
+          className={`px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'cashflow'
+            ? 'bg-gold-primary text-white shadow-lg shadow-gold-primary/20'
+            : 'bg-white text-gray-400 hover:text-gray-600 border border-gray-100'
+            }`}
+        >
+          Fluxo de Caixa
+        </button>
       </div>
 
       {/* Content */}
       <div ref={printRef} className="glass-panel rounded-[40px] border border-white/5 shadow-3xl overflow-hidden print:shadow-none print:bg-white print:border-none relative z-10 transition-all">
         <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02] print:bg-white print:border-b-2 print:border-bg-deep">
           <h2 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-4 italic italic">
-            <div className={`w-2 h-2 rounded-full ${activeTab === 'receivable' ? 'bg-emerald-500 shadow-[0_0_10px_#10B981]' : 'bg-red-500 shadow-[0_0_10px_#EF4444]'}`} />
-            {activeTab === 'receivable' ? 'Fluxo de Recebimentos' : 'Fluxo de Obrigações'}
+            <div className={`w-2 h-2 rounded-full ${activeTab === 'receivable' ? 'bg-emerald-500 shadow-[0_0_10px_#10B981]' : activeTab === 'payable' ? 'bg-red-500 shadow-[0_0_10px_#EF4444]' : 'bg-gold-primary shadow-[0_0_10px_#D4AF37]'}`} />
+            {activeTab === 'receivable' ? 'Fluxo de Recebimentos' : activeTab === 'payable' ? 'Fluxo de Obrigações' : 'Mapa de Fluxo de Caixa'}
           </h2>
 
           {activeTab === 'payable' && (
@@ -475,6 +491,56 @@ export default function Financial() {
                   <tr>
                     <td colSpan={6} className="px-8 py-24 text-center">
                       <p className="text-[10px] font-black text-white/10 uppercase tracking-[0.4em]">Protocolo de busca concluído: Nenhum registro localizado</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : activeTab === 'cashflow' ? (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-white/[0.03] text-[9px] font-black text-white/30 uppercase tracking-[0.2em] border-b border-white/5">
+                  <th className="px-8 py-6">DATA</th>
+                  <th className="px-8 py-6">DESCRIÇÃO / ENTIDADE</th>
+                  <th className="px-8 py-6 text-right">ENTRADAS</th>
+                  <th className="px-8 py-6 text-right">SAÍDAS</th>
+                  <th className="px-8 py-6 text-right font-black">SALDO ACUM.</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {[
+                  ...receivables.map(r => ({ date: r.created_at, desc: r.customer_name, ref: r.invoice_number, entrada: r.amount_paid, saida: 0, status: r.amount_paid >= r.total ? 'Liquidado' : 'Pendente' })),
+                  ...expenses.map(e => ({ date: e.due_date, desc: e.description, ref: e.supplier_name, entrada: 0, saida: e.status === 'paid' ? e.amount : 0, status: e.status === 'paid' ? 'Liquidado' : 'Pendente' }))
+                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((m, i, arr) => {
+                    const totalAnterior = arr.slice(i + 1).reduce((acc, curr) => acc + (curr.entrada - curr.saida), 0);
+                    const saldoAcumulado = totalAnterior + (m.entrada - m.saida);
+                    return (
+                      <tr key={i} className="hover:bg-gold-primary/[0.02] transition-colors group">
+                        <td className="px-8 py-6">
+                          <p className="text-[11px] font-black text-white/60 tabular-nums">{new Date(m.date).toLocaleDateString()}</p>
+                        </td>
+                        <td className="px-8 py-6">
+                          <p className="font-black text-white text-xs uppercase tracking-tight group-hover:text-gold-primary transition-colors">{m.desc}</p>
+                          <p className="text-[9px] font-black text-white/20 mt-1 uppercase tracking-widest">{m.ref || 'S/ Ref'}</p>
+                        </td>
+                        <td className="px-8 py-6 text-right font-black text-emerald-400 tabular-nums">
+                          {m.entrada > 0 ? m.entrada.toLocaleString() : '-'}
+                        </td>
+                        <td className="px-8 py-6 text-right font-black text-red-400 tabular-nums">
+                          {m.saida > 0 ? m.saida.toLocaleString() : '-'}
+                        </td>
+                        <td className="px-8 py-6 text-right font-black text-gold-primary tabular-nums bg-gold-primary/[0.02]">
+                          {saldoAcumulado.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })
+                }
+                {receivables.length === 0 && expenses.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-24 text-center">
+                      <p className="text-[10px] font-black text-white/10 uppercase tracking-[0.4em]">Protocolo de busca concluído: Nenhum movimento localizado</p>
                     </td>
                   </tr>
                 )}

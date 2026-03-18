@@ -6,24 +6,30 @@ export async function syncDatabaseSchema() {
     try {
         console.log('🔄 Verificando atualizações da base de dados...');
 
+        // 1. Core Schema (Baseline)
         const schemaPath = path.join(process.cwd(), 'supabase_schema.sql');
-        if (!fs.existsSync(schemaPath)) {
-            console.warn('⚠️ Ficheiro supabase_schema.sql não encontrado. Ignorando sincronização base.');
-        } else {
+        if (fs.existsSync(schemaPath)) {
             const sql = fs.readFileSync(schemaPath, 'utf8');
-            const cleanSql = sql
-                .replace(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, '') // Remove comentários
-                .trim();
+            await runMigration('initial_schema_20260314', sql);
+        }
 
-            if (cleanSql) {
-                // Apply the core schema as a tracked migration "initial_schema_20260314"
-                await runMigration('initial_schema_20260314', cleanSql);
+        // 2. Automated Migrations Discovery
+        const migrationsDir = path.join(process.cwd(), 'migrations');
+        if (fs.existsSync(migrationsDir)) {
+            const files = fs.readdirSync(migrationsDir)
+                .filter(f => f.endsWith('.sql'))
+                .sort(); // Natural sort order
+
+            for (const file of files) {
+                const filePath = path.join(migrationsDir, file);
+                const sql = fs.readFileSync(filePath, 'utf8').trim();
+
+                if (sql) {
+                    // Use filename (without .sql extension) as unique migration key
+                    const migrationName = file.replace('.sql', '');
+                    await runMigration(migrationName, sql);
+                }
             }
-
-            // Migration: Add register_id to sales for turn/shift tracking
-            await runMigration('add_register_id_to_sales_20260315', `
-                ALTER TABLE sales ADD COLUMN IF NOT EXISTS register_id INTEGER REFERENCES cash_registers(id) ON DELETE SET NULL;
-            `);
         }
 
         console.log('✅ Verificação de base de dados concluída.');
