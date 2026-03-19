@@ -35,8 +35,11 @@ export default function PharmacyPOS() {
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
     pageStyle: `
-      @page { size: 80mm auto; margin: 0mm; }
-      @media print { body { margin: 0; padding: 0; } }
+      @page { size: 80mm auto; margin: 0; }
+      @media print { 
+        body { margin: 0; padding: 0; background: #fff; }
+        .recibo { width: 72mm; margin: 0 auto; padding: 0; }
+      }
     `,
   });
 
@@ -217,50 +220,93 @@ export default function PharmacyPOS() {
     <div className="flex h-[calc(100vh-130px)] overflow-hidden">
       {/* ─── Hidden Receipt ─── */}
       <div style={{ display: 'none' }}>
-        <div ref={receiptRef} style={{ fontFamily: 'monospace', fontSize: '12px', padding: '4mm', width: '80mm', background: '#fff', color: '#000' }}>
-          <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
-            <div style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase' }}>{user?.company_name}</div>
-            <div>FARMÁCIA</div>
-            <div>NIF: {user?.nif || '—'}</div>
-            <div>Tel: {user?.phone || '—'}</div>
+        <div ref={receiptRef} className="recibo" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '2mm', background: '#fff', color: '#000' }}>
+          <div style={{ textAlign: 'center', marginBottom: '4mm' }}>
+            <h1 style={{ fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{user?.company_name}</h1>
+            <p style={{ margin: '0', fontSize: '11px' }}>FARMÁCIA</p>
+            <p style={{ margin: '0', fontSize: '11px' }}>NIF: {user?.nif || '—'}</p>
+            <p style={{ margin: '0', fontSize: '11px' }}>Tel: {user?.phone || '—'}</p>
+            <p style={{ margin: '2px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
           </div>
-          <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '3mm 0', marginBottom: '4mm' }}>
-            <div>FATURA-RECIBO: {lastSale?.numero_factura}</div>
-            <div>DATA: {lastSale?.date}</div>
-            <div>CLIENTE: {lastSale?.customer?.name?.toUpperCase() || 'CONSUMIDOR FINAL'}</div>
-            {lastSale?.customer?.nif && <div>NIF: {lastSale?.customer?.nif}</div>}
-            <div>VENDEDOR: {user?.name}</div>
-            <div style={{ fontWeight: 'bold' }}>FORMA PG: {lastSale?.forma_pagamento?.toUpperCase()}</div>
+
+          <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm', fontSize: '11px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Doc:</span><span style={{ fontWeight: 'bold' }}>{lastSale?.numero_factura}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Data:</span><span>{lastSale?.date}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paciente:</span><span style={{ textTransform: 'uppercase' }}>{lastSale?.customer?.name || 'CONSUMIDOR FINAL'}</span></div>
+            {lastSale?.customer?.nif && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>NIF:</span><span>{lastSale?.customer?.nif}</span></div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Vendedor:</span><span>{user?.name}</span></div>
           </div>
-          <table style={{ width: '100%', marginBottom: '4mm', fontSize: '11px' }}>
-            <thead><tr style={{ borderBottom: '1px solid #000' }}>
-              <th style={{ textAlign: 'left' }}>Item</th>
-              <th style={{ textAlign: 'right' }}>Qtd</th>
-              <th style={{ textAlign: 'right' }}>Total</th>
-            </tr></thead>
+
+          <table style={{ width: '100%', marginBottom: '3mm', borderCollapse: 'collapse', fontSize: '11px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <th style={{ textAlign: 'left', padding: '2px 0' }}>Item</th>
+                <th style={{ textAlign: 'center', padding: '2px 0' }}>Qtd</th>
+                <th style={{ textAlign: 'right', padding: '2px 0' }}>Total</th>
+              </tr>
+            </thead>
             <tbody>
               {lastSale?.items?.map((i: any) => (
                 <tr key={i.id}>
-                  <td>{i.nome_medicamento}</td>
-                  <td style={{ textAlign: 'right' }}>{i.quantity}</td>
-                  <td style={{ textAlign: 'right' }}>{(i.quantity * i.preco_venda).toLocaleString('pt-AO')}</td>
+                  <td style={{ padding: '2px 0' }}>
+                    {i.nome_medicamento}
+                    <div style={{ fontSize: '9px', opacity: 0.6 }}>{i.dosagem}</div>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '2px 0' }}>{i.quantity}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 0' }}>{(i.quantity * i.preco_venda).toLocaleString('pt-AO')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div style={{ borderTop: '1px dashed #000', paddingTop: '3mm', fontSize: '11px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal:</span><span>{lastSale?.subtotal?.toLocaleString('pt-AO')}</span></div>
-            {lastSale?.discountAmt > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Desconto:</span><span>-{lastSale?.discountAmt?.toLocaleString('pt-AO')}</span></div>}
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>IVA 14%:</span><span>{lastSale?.tax?.toLocaleString('pt-AO')}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '14px', borderTop: '1px dashed #000', marginTop: '3mm', paddingTop: '3mm' }}>
-              <span>TOTAL:</span><span>{lastSale?.total?.toLocaleString('pt-AO')} {user?.currency}</span>
+
+          <div style={{ borderTop: '1px dashed #000', paddingTop: '2mm', fontSize: '11px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+              <span>Subtotal:</span><span>{lastSale?.subtotal?.toLocaleString('pt-AO')}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2mm' }}><span>Entregue:</span><span>{lastSale?.amountPaid?.toLocaleString('pt-AO')}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}><span>Troco:</span><span>{lastSale?.change?.toLocaleString('pt-AO')}</span></div>
+            {lastSale?.discountAmt > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+                <span>Desconto:</span><span>-{lastSale?.discountAmt?.toLocaleString('pt-AO')}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+              <span>IVA (14%):</span><span>{lastSale?.tax?.toLocaleString('pt-AO')}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '14px', borderTop: '1px solid #000', marginTop: '2mm', paddingTop: '2mm' }}>
+              <span>TOTAL:</span>
+              <span>{lastSale?.total?.toLocaleString('pt-AO')} {user?.currency}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2mm', fontSize: '10px' }}>
+              <span>Pago:</span><span>{lastSale?.amountPaid?.toLocaleString('pt-AO')}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '11px' }}>
+              <span>Troco:</span><span>{lastSale?.change?.toLocaleString('pt-AO')}</span>
+            </div>
           </div>
-          <div style={{ textAlign: 'center', marginTop: '8mm', fontSize: '10px' }}>
-            <p>Obrigado pela preferência!</p>
-            <p>— Venda Plus —</p>
+
+          <div style={{ textAlign: 'center', marginTop: '6mm', padding: '4mm 0', borderTop: '1px dashed #000' }}>
+            <p style={{ fontSize: '9px', margin: '0 0 4mm 0', fontWeight: 'bold' }}>
+              {lastSale?.hash?.substring(0, 4)}-Processado por programa validado n.º 000/AGT/2024
+            </p>
+
+            <div style={{
+              width: '35mm',
+              height: '35mm',
+              border: '1px solid #000',
+              margin: '0 auto 4mm auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '8px',
+              color: '#666'
+            }}>
+              <p style={{ margin: '0' }}>QR CODE</p>
+              <p style={{ margin: '0' }}>SAF-T ANGOLA</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '7px' }}>AGUARDANDO CERTIFICAÇÃO</p>
+            </div>
+
+            <p style={{ fontSize: '10px', fontWeight: 'bold' }}>Obrigado pela preferência!</p>
+            <p style={{ fontSize: '9px', color: '#666' }}>Software de Gestão Multi-Empresa - Venda Plus</p>
           </div>
         </div>
       </div>

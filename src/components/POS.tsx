@@ -46,17 +46,12 @@ export default function POS() {
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
     pageStyle: `
-      @page {
-        size: 80mm auto;
-        margin: 0mm;
+      @page { size: 80mm auto; margin: 0; }
+      @media print { 
+        body { margin: 0; padding: 0; background: #fff; }
+        .print-area { width: 72mm; margin: 0 auto; padding: 0; }
       }
-      @media print {
-        body {
-          margin: 0;
-          padding: 0;
-        }
-      }
-    `
+    `,
   });
 
   useEffect(() => {
@@ -563,7 +558,7 @@ export default function POS() {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="glass-panel p-4 rounded-2xl border border-white/10 focus-within:border-gold-primary/40 transition-all">
+            <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/40 transition-all">
               <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] block mb-2">Desconto (%)</label>
               <input
                 type="number"
@@ -752,7 +747,7 @@ export default function POS() {
                       <div className="absolute top-0 right-0 w-12 h-full bg-gradient-to-l from-red-500/[0.03] to-transparent" />
                       <div className="flex items-center gap-4 text-red-400 mb-4">
                         <AlertTriangle size={20} className="animate-pulse" />
-                        <span className="font-black uppercase tracking-[0.2em] text-[10px]">Security Protocol: Credit Sale</span>
+                        <span className="font-black uppercase tracking-[0.2em]">Security Protocol: Credit Sale</span>
                       </div>
                       <p className="text-xs text-white/40 font-medium leading-relaxed">
                         This transaction will be logged as an outstanding liability for the following entity:
@@ -881,155 +876,93 @@ export default function POS() {
         )
       }
 
+      {/* ─── Hidden Receipt ─── */}
       <div style={{ display: 'none' }}>
-        <div ref={receiptRef} className="receipt-container" style={{
-          width: '80mm',
-          padding: '2mm 4mm',
-          backgroundColor: 'white',
-          color: 'black',
-          fontFamily: "'Times New Roman', Times, serif",
-          fontSize: '12px',
-          lineHeight: '1.5'
-        }}>
-          <div className="text-center" style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {companyProfile?.logo && (
-              <img src={companyProfile.logo} alt="Logo" style={{ maxWidth: '40mm', maxHeight: '15mm', marginBottom: '5px', objectFit: 'contain' }} />
-            )}
-            <h2 style={{
-              fontWeight: '900',
-              fontSize: '14px',
-              textTransform: 'uppercase',
-              margin: '0 0 2px 0',
-              letterSpacing: '-0.5px'
-            }}>{companyProfile?.name || user?.company_name}</h2>
-            <div style={{ fontSize: '12px', opacity: 0.8 }}>
-              <p style={{ margin: 0 }}>NIF: {companyProfile?.nif || '---'}</p>
-              <p style={{ margin: 0 }}>{companyProfile?.address || '---'}</p>
-              <p style={{ margin: 0 }}>Tel: {companyProfile?.phone || '---'}</p>
-            </div>
+        <div ref={receiptRef} className="print-area" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '2mm', background: '#fff', color: '#000' }}>
+          <div style={{ textAlign: 'center', marginBottom: '4mm' }}>
+            <h1 style={{ fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{user?.company_name}</h1>
+            <p style={{ margin: '0', fontSize: '11px' }}>NIF: {user?.nif || '—'}</p>
+            <p style={{ margin: '0', fontSize: '11px' }}>Tel: {user?.phone || '—'}</p>
+            <p style={{ margin: '2px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
           </div>
 
-          <div style={{
-            textAlign: 'center',
-            borderTop: '1px dashed black',
-            borderBottom: '1px dashed black',
-            padding: '3px 0',
-            marginBottom: '8px',
-            fontSize: '12px',
-            fontWeight: 'bold'
-          }}>
-            {lastSale?.invoice_number?.startsWith('PRO') ? 'FACTURA PRO-FORMA' :
-              lastSale?.invoice_number?.startsWith('FR') ? 'FACTURA-RECIBO' : 'FACTURA'}
+          <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm', fontSize: '11px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Doc:</span><span style={{ fontWeight: 'bold' }}>{lastSale?.numero_factura}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Data:</span><span>{lastSale?.date}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Cliente:</span><span style={{ textTransform: 'uppercase' }}>{lastSale?.customer?.name || 'CONSUMIDOR FINAL'}</span></div>
+            {lastSale?.customer?.nif && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>NIF:</span><span>{lastSale?.customer?.nif}</span></div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Vendedor:</span><span>{user?.name}</span></div>
           </div>
 
-          <div style={{ marginBottom: '8px', fontSize: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Nº DOC:</span>
-              <span style={{ fontWeight: 'bold' }}>{lastSale?.invoice_number}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>DATA/HORA:</span>
-              <span style={{ fontWeight: 'bold' }}>
-                {lastSale?.created_at ?
-                  new Date(lastSale.created_at).toLocaleString('pt-AO', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                  }) : lastSale?.date}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>OPERADOR:</span>
-              <span style={{ textTransform: 'uppercase' }}>{user?.name}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '0.5px dashed black', paddingTop: '2px', marginTop: '2px' }}>
-              <span>CLIENTE:</span>
-              <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{lastSale?.customer_name || 'Consumidor Final'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>NIF CLIENTE:</span>
-              <span style={{ fontWeight: 'bold' }}>
-                {lastSale?.customer_nif && lastSale.customer_nif !== '---' ? lastSale.customer_nif : '999999999'}
-              </span>
-            </div>
-          </div>
-
-          <table style={{ width: '100%', marginBottom: '8px', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <table style={{ width: '100%', marginBottom: '3mm', borderCollapse: 'collapse', fontSize: '11px' }}>
             <thead>
-              <tr style={{ borderBottom: '1px dashed black' }}>
-                <th style={{ textAlign: 'left', padding: '1px 0' }}>DESCRIÇÃO</th>
-                <th style={{ textAlign: 'right', padding: '1px 0' }}>QTD</th>
-                <th style={{ textAlign: 'right', padding: '1px 0' }}>TOTAL</th>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <th style={{ textAlign: 'left', padding: '2px 0' }}>Item</th>
+                <th style={{ textAlign: 'center', padding: '2px 0' }}>Qtd</th>
+                <th style={{ textAlign: 'right', padding: '2px 0' }}>Total</th>
               </tr>
             </thead>
             <tbody>
-              {lastSale?.items.map((item: any) => (
-                <tr key={item.id}>
-                  <td style={{ padding: '2px 0', maxWidth: '40mm', wordWrap: 'break-word' }}>{item.name}</td>
-                  <td style={{ textAlign: 'right', padding: '2px 0', verticalAlign: 'top' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'right', padding: '2px 0', verticalAlign: 'top' }}>{(item.quantity * item.sale_price).toLocaleString()}</td>
+              {lastSale?.items?.map((i: any) => (
+                <tr key={i.id}>
+                  <td style={{ padding: '2px 0' }}>{i.name}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 0' }}>{i.quantity}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 0' }}>{(i.quantity * i.price).toLocaleString('pt-AO')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div style={{ borderTop: '1px dashed black', paddingTop: '3px', fontSize: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>SUBTOTAL:</span>
-              <span>{lastSale?.subtotal.toLocaleString()}</span>
+          <div style={{ borderTop: '1px dashed #000', paddingTop: '2mm', fontSize: '11px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+              <span>Subtotal:</span><span>{lastSale?.subtotal?.toLocaleString('pt-AO')}</span>
             </div>
-            {lastSale?.discount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>DESC. ({lastSale.discount}%):</span>
-                <span>- {(lastSale.subtotal * (lastSale.discount / 100)).toLocaleString()}</span>
+            {lastSale?.discountAmt > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+                <span>Desconto:</span><span>-{lastSale?.discountAmt?.toLocaleString('pt-AO')}</span>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>IVA ({taxRate}%):</span>
-              <span>{lastSale?.tax.toLocaleString()}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+              <span>IVA (14%):</span><span>{lastSale?.tax?.toLocaleString('pt-AO')}</span>
             </div>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontWeight: '900',
-              fontSize: '12px',
-              paddingTop: '3px',
-              borderTop: '1px dashed black',
-              marginTop: '3px'
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '14px', borderTop: '1px solid #000', marginTop: '2mm', paddingTop: '2mm' }}>
               <span>TOTAL:</span>
-              <span>{lastSale?.total.toLocaleString()} {user?.currency}</span>
+              <span>{lastSale?.total?.toLocaleString('pt-AO')} {user?.currency}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2mm', fontSize: '10px' }}>
+              <span>Pago:</span><span>{lastSale?.amountPaid?.toLocaleString('pt-AO')}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '11px' }}>
+              <span>Troco:</span><span>{lastSale?.change?.toLocaleString('pt-AO')}</span>
             </div>
           </div>
 
-          {!lastSale?.is_pro_forma && (
-            <div style={{ marginTop: '8px', paddingTop: '3px', fontSize: '12px', borderTop: '0.5px dashed black' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>MÉTODO:</span>
-                <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{lastSale?.payment_method}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>ENTREGUE:</span>
-                <span>{lastSale?.amountPaid.toLocaleString()} {user?.currency}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
-                <span>TROCO:</span>
-                <span>{lastSale?.change.toLocaleString()} {user?.currency}</span>
-              </div>
-            </div>
-          )}
+          {/* AGT Compliance & QR Code */}
+          <div style={{ textAlign: 'center', marginTop: '6mm', padding: '4mm 0', borderTop: '1px dashed #000' }}>
+            <p style={{ fontSize: '9px', margin: '0 0 4mm 0', fontWeight: 'bold' }}>
+              {lastSale?.hash?.substring(0, 4)}-Processado por programa validado n.º 000/AGT/2024
+            </p>
 
-          <div style={{
-            textAlign: 'center',
-            marginTop: '10px',
-            fontSize: '8px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            lineHeight: '1.2'
-          }}>
-            <p style={{ margin: 0, fontWeight: 'bold' }}>Obrigado pela preferência!</p>
-            <p style={{ margin: 0 }}>{lastSale?.is_pro_forma ? 'ORÇAMENTO VÁLIDO POR 15 DIAS' :
-              lastSale?.hash ? `${lastSale.hash.substring(0, 4)}-Processado por Programas Validados` : ''}</p>
-            <p style={{ margin: '3px 0 0 0', opacity: 0.7 }}>Processado por Venda Plus</p>
+            {/* QR Code Placeholder */}
+            <div style={{
+              width: '35mm',
+              height: '35mm',
+              border: '1px solid #000',
+              margin: '0 auto 4mm auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '8px',
+              color: '#666'
+            }}>
+              <p style={{ margin: '0' }}>QR CODE</p>
+              <p style={{ margin: '0' }}>SAF-T ANGOLA</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '7px' }}>AGUARDANDO CERTIFICAÇÃO</p>
+            </div>
+
+            <p style={{ fontSize: '10px', fontWeight: 'bold' }}>Obrigado pela preferência!</p>
+            <p style={{ fontSize: '9px', color: '#666' }}>Software de Gestão Multi-Empresa - Venda Plus</p>
           </div>
         </div>
       </div>

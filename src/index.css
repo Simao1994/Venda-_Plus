@@ -87,3 +87,56 @@ body {
   background: rgba(212, 175, 55, 0.03);
 }
 
+
+/* --- PRINT STYLES (80mm Thermal Printer) --- */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+  html, body {
+    width: 80mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: Arial, sans-serif !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+  }
+  .recibo, .invoice, .print-area {
+    width: 72mm;
+    margin: 0 auto;
+    padding: 0;
+    font-size: 11px;
+    color: #000;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: 2px 0;
+    text-align: left;
+    font-size: 10px;
+  }
+  h1, h2, h3, h4, p {
+    margin: 2px 0;
+    text-align: center;
+  }
+  .text-left {
+    text-align: left;
+  }
+  .text-right {
+    text-align: right;
+  }
+  .text-center {
+    text-align: center;
+  }
+  /* Hide UI elements during print */
+  nav, button, .no-print {
+    display: none !important;
+  }
+}

@@ -5243,107 +5243,77 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                }
                {/* Print Template (Hidden) */}
                <div style={{ display: 'none' }}>
-                  <div ref={invoicePrintRef} className="p-10 bg-white/5 text-white font-serif" style={{ width: '210mm', minHeight: '297mm' }}>
-                     <div className="flex justify-between items-start mb-10 pb-10 border-b-2 border-white/5">
-                        <div>
-                           <h1 className="text-4xl font-black uppercase tracking-widest uppercase text-white mb-2">{user?.company_name}</h1>
-                           <p className="text-sm font-bold text-white/30">NIF: {user?.nif || '999999999'}</p>
-                           <p className="text-sm text-white/30">{user?.address || 'Angola'}</p>
-                        </div>
-                        <div className="text-right">
-                           <div className="bg-gold-primary text-white px-6 py-4 rounded-2xl mb-4">
-                              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 m-0">Documento</p>
-                              <h2 className="text-xl font-black uppercase tracking-widest">{lastCreatedDoc?.tipo || 'FACTURA'} {lastCreatedDoc?.numero_fatura}</h2>
-                           </div>
-                           <p className="text-xs font-bold text-white/30">Página 1 de 1</p>
-                        </div>
+                  <div ref={invoicePrintRef} className="invoice" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', padding: '2mm', background: '#fff', color: '#000' }}>
+                     <div style={{ textAlign: 'center', marginBottom: '4mm' }}>
+                        <h1 style={{ fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{user?.company_name}</h1>
+                        <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '999999999'}</p>
+                        <p style={{ margin: '0', fontSize: '10px' }}>{user?.address || 'Angola'}</p>
+                        <p style={{ margin: '2px 0', fontSize: '10px', fontWeight: 'bold' }}>{lastCreatedDoc?.tipo?.toUpperCase() || 'FACTURA'}</p>
                      </div>
 
-                     <div className="grid grid-cols-2 gap-20 mb-16">
-                        <div className="space-y-4">
-                           <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Exmo.(s) Senhor(es)</p>
-                           <div className="p-8 bg-bg-deep rounded-3xl border border-white/5 min-h-[160px]">
-                              <h3 className="text-xl font-black uppercase tracking-widest uppercase text-white/90">{lastCreatedDoc?.cliente_nome}</h3>
-                              <p className="text-sm text-white/40 mt-2">NIF: {lastCreatedDoc?.metadata?.customer_nif || lastCreatedDoc?.customer_nif || '999999999'}</p>
-                           </div>
-                        </div>
-                        <div className="space-y-4">
-                           <div className="grid grid-cols-2 gap-6">
-                              <div>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-1">Data/Hora de Emissão</p>
-                                 <p className="text-sm font-black uppercase tracking-widest">
-                                    {lastCreatedDoc?.created_at ?
-                                       new Date(lastCreatedDoc.created_at).toLocaleString('pt-AO', {
-                                          day: '2-digit', month: '2-digit', year: 'numeric',
-                                          hour: '2-digit', minute: '2-digit'
-                                       }) : lastCreatedDoc?.data_emissao}
-                                 </p>
-                              </div>
-                              <div>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-1">Moeda</p>
-                                 <p className="text-sm font-black uppercase tracking-widest">{user?.currency || 'AOA'}</p>
-                              </div>
-                           </div>
-                        </div>
+                     <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Doc:</span><span style={{ fontWeight: 'bold' }}>{lastCreatedDoc?.numero_fatura}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Data:</span><span>{lastCreatedDoc?.data_emissao}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Cliente:</span><span style={{ textTransform: 'uppercase' }}>{lastCreatedDoc?.cliente_nome}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>NIF Cli:</span><span>{lastCreatedDoc?.metadata?.customer_nif || '999999999'}</span></div>
                      </div>
 
-                     <table className="w-full mb-20 border-collapse">
+                     <table style={{ width: '100%', marginBottom: '3mm', borderCollapse: 'collapse' }}>
                         <thead>
-                           <tr className="border-b-2 border-zinc-900 text-[10px] font-black uppercase tracking-widest text-white/30">
-                              <th className="py-4 text-left">Ref.</th>
-                              <th className="py-4 text-left">Descrição</th>
-                              <th className="py-4 text-right">Qtd</th>
-                              <th className="py-4 text-right">Unitário</th>
-                              <th className="py-4 text-right">Taxa (14%)</th>
-                              <th className="py-4 text-right">Total</th>
+                           <tr style={{ borderBottom: '1px solid #000' }}>
+                              <th style={{ textAlign: 'left', padding: '1px 0' }}>Item</th>
+                              <th style={{ textAlign: 'center', padding: '1px 0' }}>Qtd</th>
+                              <th style={{ textAlign: 'right', padding: '1px 0' }}>Total</th>
                            </tr>
                         </thead>
-                        <tbody className="text-sm">
+                        <tbody>
                            {(lastCreatedDoc?.metadata?.items || []).map((it: any, i: number) => (
-                              <tr key={i} className="border-b border-zinc-50">
-                                 <td className="py-6 text-white/30">S{i + 1}</td>
-                                 <td className="py-6 font-bold text-white/90">{it.nome}</td>
-                                 <td className="py-6 text-right font-bold">{it.qtd}</td>
-                                 <td className="py-6 text-right font-bold">{safeFormatAOA(it.preco_unitario)}</td>
-                                 <td className="py-6 text-right text-white/30">14%</td>
-                                 <td className="py-6 text-right font-black uppercase tracking-widest">{safeFormatAOA(it.total)}</td>
+                              <tr key={i}>
+                                 <td style={{ padding: '2mm 0' }}>{it.nome}</td>
+                                 <td style={{ textAlign: 'center', padding: '2mm 0' }}>{it.qtd}</td>
+                                 <td style={{ textAlign: 'right', padding: '2mm 0' }}>{safeFormatAOA(it.total)}</td>
                               </tr>
                            ))}
                         </tbody>
                      </table>
 
-                     <div className="flex justify-end mb-20">
-                        <div className="w-80 space-y-4">
-                           <div className="flex justify-between text-sm py-2">
-                              <span className="text-white/30 font-bold uppercase">Total Líquido</span>
-                              <span className="font-black uppercase tracking-widest">{safeFormatAOA(lastCreatedDoc?.metadata?.subtotal)}</span>
-                           </div>
-                           <div className="flex justify-between text-sm py-2">
-                              <span className="text-white/30 font-bold uppercase">Total Imposto</span>
-                              <span className="font-black uppercase tracking-widest">{safeFormatAOA(lastCreatedDoc?.metadata?.iva)}</span>
-                           </div>
-                           <div className="flex justify-between text-sm py-2 border-t border-zinc-50">
-                              <span className="text-white/30 font-bold uppercase">Desconto</span>
-                              <span className="font-black uppercase tracking-widest text-red-500">{safeFormatAOA(lastCreatedDoc?.metadata?.discount || 0)}</span>
-                           </div>
-                           <div className="flex justify-between text-2xl py-6 border-t-2 border-zinc-900">
-                              <span className="font-black uppercase tracking-widest uppercase tracking-tighter">Total Geral</span>
-                              <span className="font-black uppercase tracking-widest text-white">{safeFormatAOA(lastCreatedDoc?.valor_total)}</span>
-                           </div>
+                     <div style={{ borderTop: '1px dashed #000', paddingTop: '2mm' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.subtotal)}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>IVA (14%):</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.iva)}</span></div>
+                        {lastCreatedDoc?.metadata?.discount > 0 && (
+                           <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Desconto:</span><span style={{ color: 'red' }}>-{safeFormatAOA(lastCreatedDoc.metadata.discount)}</span></div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '13px', borderTop: '1px solid #000', marginTop: '2mm', paddingTop: '2mm' }}>
+                           <span>TOTAL:</span><span>{safeFormatAOA(lastCreatedDoc?.valor_total)}</span>
                         </div>
                      </div>
 
-                     <div className="mt-auto border-t border-white/5 pt-10 text-[10px] text-white/30">
-                        <div className="flex justify-between items-center bg-bg-deep p-6 rounded-2xl">
-                           <div>
-                              <p className="font-black uppercase tracking-widest text-white/70 mb-1">{lastCreatedDoc?.hash?.substring(0, 4)}-Processado por Programas Validados</p>
-                              <p className="font-bold">Software de Gestão Multi-Empresa - Venda Plus</p>
-                           </div>
-                           <div className="text-right">
-                              <p className="font-bold uppercase tracking-widest">Os bens foram colocados Ã  disposição</p>
-                              <p className="font-bold uppercase tracking-widest">Luanda | {new Date().toLocaleDateString()}</p>
-                           </div>
+                     {/* AGT Compliance & QR Code */}
+                     <div style={{ textAlign: 'center', marginTop: '6mm', padding: '4mm 0', borderTop: '1px dashed #000' }}>
+                        <p style={{ fontSize: '9px', margin: '0 0 4mm 0', fontWeight: 'bold' }}>
+                           {lastCreatedDoc?.hash?.substring(0, 4)}-Processado por programa validado n.º 000/AGT/2024
+                        </p>
+
+                        {/* QR Code Placeholder */}
+                        <div style={{
+                           width: '35mm',
+                           height: '35mm',
+                           border: '1px solid #000',
+                           margin: '0 auto 4mm auto',
+                           display: 'flex',
+                           flexDirection: 'column',
+                           alignItems: 'center',
+                           justifyContent: 'center',
+                           fontSize: '8px',
+                           color: '#666'
+                        }}>
+                           <p style={{ margin: '0' }}>QR CODE</p>
+                           <p style={{ margin: '0' }}>SAF-T ANGOLA</p>
+                           <p style={{ margin: '4px 0 0 0', fontSize: '7px' }}>AGUARDANDO CERTIFICAÇÃO</p>
                         </div>
+
+                        <p style={{ fontSize: '10px', fontWeight: 'bold' }}>Obrigado pela preferência!</p>
+                        <p style={{ fontSize: '9px', color: '#666' }}>Software de Gestão Multi-Empresa - Venda Plus</p>
                      </div>
                   </div>
                </div>
