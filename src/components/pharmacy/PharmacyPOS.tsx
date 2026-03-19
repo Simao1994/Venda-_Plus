@@ -221,12 +221,12 @@ export default function PharmacyPOS() {
       {/* ─── Hidden Receipt ─── */}
       <div style={{ display: 'none' }}>
         <div ref={receiptRef} className="recibo" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '2mm', background: '#fff', color: '#000' }}>
-          <div style={{ textAlign: 'center', marginBottom: '4mm' }}>
-            <h1 style={{ fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{user?.company_name}</h1>
-            <p style={{ margin: '0', fontSize: '11px' }}>FARMÁCIA</p>
-            <p style={{ margin: '0', fontSize: '11px' }}>NIF: {user?.nif || '—'}</p>
-            <p style={{ margin: '0', fontSize: '11px' }}>Tel: {user?.phone || '—'}</p>
-            <p style={{ margin: '2px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
+          <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
+            <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
+            <p style={{ margin: '0', fontSize: '10px' }}>FARMÁCIA</p>
+            <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '—'}</p>
+            <p style={{ margin: '0', fontSize: '10px' }}>Tel: {user?.phone || '—'}</p>
+            <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
           </div>
 
           <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm', fontSize: '11px' }}>
@@ -237,7 +237,7 @@ export default function PharmacyPOS() {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Vendedor:</span><span>{user?.name}</span></div>
           </div>
 
-          <table style={{ width: '100%', marginBottom: '3mm', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <table style={{ width: '100%', marginBottom: '2mm', borderCollapse: 'collapse', fontSize: '11px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #000' }}>
                 <th style={{ textAlign: 'left', padding: '2px 0' }}>Item</th>

@@ -687,9 +687,9 @@ export default function POS() {
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
 
               <div className="p-8 bg-gold-primary/5 border-b border-white/5 text-center">
-                <h3 className="text-xl font-black text-white italic uppercase tracking-widest">Finalize <span className="text-gold-gradient">Settlement</span></h3>
+                <h3 className="text-xl font-black text-white italic uppercase tracking-widest">Finalizar <span className="text-gold-gradient">Pagamento</span></h3>
                 <div className="mt-2 flex items-center justify-center gap-2">
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Required Assets:</span>
+                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total a Pagar:</span>
                   <span className="text-lg font-black text-gold-primary tracking-tighter italic">{total.toLocaleString()} {user?.currency}</span>
                 </div>
               </div>
@@ -697,9 +697,9 @@ export default function POS() {
               <div className="p-8 space-y-8">
                 <div className="flex p-1.5 bg-white/5 rounded-2xl border border-white/5">
                   {[
-                    { id: 'cash', label: 'Cash' },
-                    { id: 'multicaixa', label: 'Vector' },
-                    { id: 'credit', label: 'Credit' }
+                    { id: 'cash', label: 'Dinheiro' },
+                    { id: 'multicaixa', label: 'Multicaixa' },
+                    { id: 'credit', label: 'Crédito' }
                   ].map(method => (
                     <button
                       key={method.id}
@@ -732,7 +732,7 @@ export default function POS() {
                       <div className="bg-gold-primary/5 p-6 rounded-3xl border border-gold-primary/10 flex justify-between items-center group relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-gold-primary/[0.02] rounded-full -mr-8 -mt-8" />
                         <div>
-                          <span className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em] block mb-1">Asset Return</span>
+                          <span className="text-[9px] font-black text-gold-primary/40 uppercase tracking-[0.3em] block mb-1">Troco</span>
                           <span className="text-3xl font-black text-gold-primary tracking-tighter italic">{change.toLocaleString()} {user?.currency}</span>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-gold-primary/10 border border-gold-primary/20 flex items-center justify-center text-gold-primary">
@@ -784,14 +784,14 @@ export default function POS() {
                     onClick={() => setShowPayment(false)}
                     className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 hover:text-white/60 transition-all font-medium"
                   >
-                    Abort
+                    Cancelar
                   </button>
                   <button
                     onClick={handleCheckout}
                     disabled={paymentMethod === 'credit' && !selectedCustomer}
                     className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all disabled:opacity-20 disabled:grayscale"
                   >
-                    {isProForma ? 'Emit Pro-Forma' : 'Confirm settlement'}
+                    {isProForma ? 'Emitir Pró-Forma' : 'Confirmar Venda'}
                   </button>
                 </div>
               </div>
@@ -808,20 +808,20 @@ export default function POS() {
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
 
               <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02]">
-                <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-center">Register <span className="text-gold-gradient">Entity</span></h3>
-                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-center mt-2">Initialize new customer profile in core database</p>
+                <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-center">Registar <span className="text-gold-gradient">Cliente</span></h3>
+                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-center mt-2">Criar novo perfil de cliente no sistema</p>
               </div>
 
               <div className="p-10 space-y-6 text-left">
                 <div className="grid grid-cols-1 gap-6">
                   <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Entity Name</label>
+                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Nome do Cliente</label>
                     <input
                       type="text"
                       className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
                       value={newCustomer.name}
                       onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                      placeholder="Enter identification"
+                      placeholder="Nome Completo / Empresa"
                     />
                   </div>
                   <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
@@ -835,23 +835,23 @@ export default function POS() {
                     />
                   </div>
                   <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Fiscal Code (NIF)</label>
+                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">NIF (Opcional)</label>
                     <input
                       type="text"
                       className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
                       value={newCustomer.nif}
                       onChange={(e) => setNewCustomer({ ...newCustomer, nif: e.target.value })}
-                      placeholder="Vector identification"
+                      placeholder="Identificação Fiscal"
                     />
                   </div>
                   <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Address Vector</label>
+                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Endereço</label>
                     <input
                       type="text"
                       className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
                       value={newCustomer.address}
                       onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                      placeholder="Location parameters"
+                      placeholder="Província / Cidade / Bairro"
                     />
                   </div>
                 </div>
@@ -861,13 +861,13 @@ export default function POS() {
                     onClick={() => setShowAddCustomer(false)}
                     className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
                   >
-                    Terminate
+                    Cancelar
                   </button>
                   <button
                     onClick={handleSaveNewCustomer}
                     className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all"
                   >
-                    Inject Data
+                    Registar Cliente
                   </button>
                 </div>
               </div>
@@ -879,11 +879,11 @@ export default function POS() {
       {/* ─── Hidden Receipt ─── */}
       <div style={{ display: 'none' }}>
         <div ref={receiptRef} className="print-area" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '2mm', background: '#fff', color: '#000' }}>
-          <div style={{ textAlign: 'center', marginBottom: '4mm' }}>
-            <h1 style={{ fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{user?.company_name}</h1>
-            <p style={{ margin: '0', fontSize: '11px' }}>NIF: {user?.nif || '—'}</p>
-            <p style={{ margin: '0', fontSize: '11px' }}>Tel: {user?.phone || '—'}</p>
-            <p style={{ margin: '2px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
+          <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
+            <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
+            <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '—'}</p>
+            <p style={{ margin: '0', fontSize: '10px' }}>Tel: {user?.phone || '—'}</p>
+            <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
           </div>
 
           <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm', fontSize: '11px' }}>
@@ -894,7 +894,7 @@ export default function POS() {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Vendedor:</span><span>{user?.name}</span></div>
           </div>
 
-          <table style={{ width: '100%', marginBottom: '3mm', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <table style={{ width: '100%', marginBottom: '2mm', borderCollapse: 'collapse', fontSize: '11px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #000' }}>
                 <th style={{ textAlign: 'left', padding: '2px 0' }}>Item</th>
@@ -907,7 +907,7 @@ export default function POS() {
                 <tr key={i.id}>
                   <td style={{ padding: '2px 0' }}>{i.name}</td>
                   <td style={{ textAlign: 'center', padding: '2px 0' }}>{i.quantity}</td>
-                  <td style={{ textAlign: 'right', padding: '2px 0' }}>{(i.quantity * i.price).toLocaleString('pt-AO')}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 0' }}>{(i.quantity * i.sale_price).toLocaleString('pt-AO')}</td>
                 </tr>
               ))}
             </tbody>

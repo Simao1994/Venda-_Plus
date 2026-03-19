@@ -5244,11 +5244,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                {/* Print Template (Hidden) */}
                <div style={{ display: 'none' }}>
                   <div ref={invoicePrintRef} className="invoice" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', padding: '2mm', background: '#fff', color: '#000' }}>
-                     <div style={{ textAlign: 'center', marginBottom: '4mm' }}>
-                        <h1 style={{ fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{user?.company_name}</h1>
+                     <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
+                        <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
                         <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '999999999'}</p>
                         <p style={{ margin: '0', fontSize: '10px' }}>{user?.address || 'Angola'}</p>
-                        <p style={{ margin: '2px 0', fontSize: '10px', fontWeight: 'bold' }}>{lastCreatedDoc?.tipo?.toUpperCase() || 'FACTURA'}</p>
+                        <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>{lastCreatedDoc?.tipo?.toUpperCase() || 'FACTURA'}</p>
                      </div>
 
                      <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm' }}>
@@ -5285,6 +5285,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '13px', borderTop: '1px solid #000', marginTop: '2mm', paddingTop: '2mm' }}>
                            <span>TOTAL:</span><span>{safeFormatAOA(lastCreatedDoc?.valor_total)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2mm', fontSize: '10px' }}>
+                           <span>Pago:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.amount_paid || lastCreatedDoc?.valor_total)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '11px' }}>
+                           <span>Troco:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.change || 0)}</span>
                         </div>
                      </div>
 
