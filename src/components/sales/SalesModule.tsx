@@ -19,6 +19,7 @@ import Customers from '../Customers';
 import Financial from '../Financial';
 import Reports from '../Reports';
 import PurchaseOrders from '../PurchaseOrders';
+import InventorySessions from './InventorySessions';
 
 export default function SalesModule() {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ export default function SalesModule() {
     { id: 'customers', label: 'Clientes', icon: Users, roles: ['admin', 'manager', 'cashier', 'master'] },
     { id: 'financial', label: 'Financeiro', icon: Wallet, roles: ['admin', 'manager', 'master'] },
     { id: 'reports', label: 'Relatórios', icon: BarChart3, roles: ['admin', 'manager', 'master'] },
+    { id: 'inventory', label: 'Inventário', icon: Activity, roles: ['admin', 'manager', 'master'] },
   ];
 
   const tabs = allTabs.filter(tab => user && tab.roles.includes(user.role));
@@ -70,6 +72,7 @@ export default function SalesModule() {
           {activeTab === 'customers' && <Customers />}
           {activeTab === 'financial' && <Financial />}
           {activeTab === 'reports' && <Reports />}
+          {activeTab === 'inventory' && <InventorySessions />}
         </div>
       </div>
     </div>

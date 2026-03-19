@@ -754,7 +754,7 @@ async function startServer() {
   });
 
   app.post("/api/products", authenticate, isAdmin, validateBody(['name', 'sale_price']), async (req: any, res) => {
-    const { name, barcode, category_id, supplier_id, unit, cost_price, sale_price, tax_percentage, stock, min_stock, image } = req.body;
+    const { name, barcode, category_id, supplier_id, unit, cost_price, sale_price, tax_percentage, stock, min_stock, image, expiry_date } = req.body;
     const { data, error } = await supabase
       .from("products")
       .insert([{
@@ -769,7 +769,8 @@ async function startServer() {
         tax_percentage: tax_percentage || 14,
         stock,
         min_stock,
-        image
+        image,
+        expiry_date
       }])
       .select("id")
       .single();
@@ -795,6 +796,118 @@ async function startServer() {
 
     // Log stock update
     await logActivity(req, 'UPDATE', 'PRODUCT', `Stock do produto ID ${req.params.id} atualizado para ${stock}.`, { product_id: req.params.id, new_stock: stock });
+
+    res.json({ success: true });
+  });
+
+  // --- INVENTORY SESSIONS (SALES) ---
+  app.get("/api/inventory/sessions", authenticate, async (req: any, res) => {
+    const { data: sessions, error } = await supabase
+      .from("inventory_sessions")
+      .select("*, users(name)")
+      .eq("company_id", req.user.company_id)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const formatted = sessions?.map((s: any) => ({
+      ...s,
+      user_name: s.users?.name
+    }));
+    res.json(formatted || []);
+  });
+
+  app.post("/api/inventory/sessions", authenticate, async (req: any, res) => {
+    const { notes } = req.body;
+    const { data: session, error } = await supabase
+      .from("inventory_sessions")
+      .insert([{
+        company_id: req.user.company_id,
+        user_id: req.user.id,
+        branch_id: req.user.branch_id,
+        status: 'draft',
+        notes: notes || 'Inventário Geral'
+      }])
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Auto-populate session items with current stock
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, stock, cost_price")
+      .eq("company_id", req.user.company_id);
+
+    if (products && products.length > 0) {
+      const items = products.map(p => ({
+        session_id: session.id,
+        product_id: p.id,
+        expected_quantity: p.stock || 0,
+        cost_price: p.cost_price || 0
+      }));
+      const { error: iError } = await supabase.from("inventory_session_items").insert(items);
+      if (iError) console.error('Error inserting inventory items:', iError.message);
+    }
+
+    res.json(session);
+  });
+
+  app.post("/api/inventory/sessions/:id/counts", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { counts } = req.body; // Record<product_id, quantity>
+
+    for (const productId in counts) {
+      const qty = parseFloat(counts[productId]);
+      await supabase
+        .from("inventory_session_items")
+        .update({
+          counted_quantity: qty
+        })
+        .eq("session_id", id)
+        .eq("product_id", productId);
+    }
+
+    res.json({ success: true });
+  });
+
+  app.post("/api/inventory/sessions/:id/finalize", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+
+    // 1. Get all counted items
+    const { data: items, error: fError } = await supabase
+      .from("inventory_session_items")
+      .select("*")
+      .eq("session_id", id);
+
+    if (fError || !items) return res.status(404).json({ error: "Sessão vazia ou não encontrada." });
+
+    // 2. Update status
+    await supabase.from("inventory_sessions").update({
+      status: 'completed',
+      completed_at: new Date().toISOString()
+    }).eq("id", id);
+
+    // 3. Update product stocks and record movements
+    for (const item of items) {
+      if (item.counted_quantity !== null) {
+        const delta = item.counted_quantity - item.expected_quantity;
+        if (delta !== 0) {
+          // Update product stock
+          await supabase.from("products").update({ stock: item.counted_quantity }).eq("id", item.product_id);
+
+          // Record movement
+          await supabase.from("inventory_movements").insert({
+            company_id: req.user.company_id,
+            product_id: item.product_id,
+            quantity: Math.abs(delta),
+            type: delta > 0 ? 'in' : 'out',
+            reason: 'Reconciliação de Inventário',
+            user_id: req.user.id
+          });
+        }
+      }
+    }
 
     res.json({ success: true });
   });
@@ -2158,6 +2271,161 @@ async function startServer() {
     }
 
     res.json({ success: true, venda_id: venda.id, numero_factura });
+  });
+
+  // --- PHARMACY INVENTORY SESSIONS ---
+  app.get("/api/farmacia/inventory/sessions", authenticate, async (req: any, res) => {
+    const { data: sessions, error } = await supabase
+      .from("pharmacy_inventory_sessions")
+      .select("*, users(name)")
+      .eq("company_id", req.user.company_id)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const formatted = sessions?.map((s: any) => ({
+      ...s,
+      user_name: s.users?.name
+    }));
+    res.json(formatted || []);
+  });
+
+  app.post("/api/farmacia/inventory/sessions", authenticate, async (req: any, res) => {
+    const { notes } = req.body;
+    const { data: session, error } = await supabase
+      .from("pharmacy_inventory_sessions")
+      .insert([{
+        company_id: req.user.company_id,
+        user_id: req.user.id,
+        branch_id: req.user.branch_id,
+        status: 'draft',
+        notes: notes || 'Inventário Farmácia'
+      }])
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Auto-populate with current stock from lotes_medicamentos
+    const { data: lotes } = await supabase
+      .from("lotes_medicamentos")
+      .select("id, quantidade_atual")
+      .eq("company_id", req.user.company_id);
+
+    if (lotes && lotes.length > 0) {
+      const items = lotes.map(l => ({
+        session_id: session.id,
+        lote_id: l.id,
+        expected_quantity: l.quantidade_atual || 0
+      }));
+      await supabase.from("pharmacy_inventory_session_items").insert(items);
+    }
+
+    res.json(session);
+  });
+
+  app.post("/api/farmacia/inventory/sessions/:id/counts", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { counts } = req.body; // Record<lote_id, quantity>
+
+    for (const loteId in counts) {
+      const qty = parseFloat(counts[loteId]);
+      await supabase
+        .from("pharmacy_inventory_session_items")
+        .update({ counted_quantity: qty })
+        .eq("session_id", id)
+        .eq("lote_id", loteId);
+    }
+
+    res.json({ success: true });
+  });
+
+  app.post("/api/farmacia/inventory/sessions/:id/finalize", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+
+    const { data: items, error: fError } = await supabase
+      .from("pharmacy_inventory_session_items")
+      .select("*")
+      .eq("session_id", id);
+
+    if (fError || !items) return res.status(404).json({ error: "Sessão vazia ou não encontrada." });
+
+    await supabase.from("pharmacy_inventory_sessions").update({
+      status: 'completed',
+      completed_at: new Date().toISOString()
+    }).eq("id", id);
+
+    for (const item of items) {
+      if (item.counted_quantity !== null) {
+        const delta = item.counted_quantity - item.expected_quantity;
+        if (delta !== 0) {
+          // Update lot stock
+          await supabase.from("lotes_medicamentos").update({
+            quantidade_atual: item.counted_quantity
+          }).eq("id", item.lote_id);
+
+          // Record movement
+          const { data: loteInfo } = await supabase.from("lotes_medicamentos").select("medicamento_id").eq("id", item.lote_id).single();
+
+          await supabase.from("movimentos_stock_farmacia").insert({
+            company_id: req.user.company_id,
+            medicamento_id: loteInfo?.medicamento_id,
+            lote_id: item.lote_id,
+            quantidade: Math.abs(delta),
+            tipo_movimento: delta > 0 ? 'ajuste_positivo' : 'ajuste_negativo',
+            utilizador_id: req.user.id
+          });
+        }
+      }
+    }
+
+    res.json({ success: true });
+  });
+
+  // --- MOVIMENTOS & AJUSTES FARMÁCIA ---
+  app.get("/api/farmacia/movimentos", authenticate, async (req: any, res) => {
+    const { data: movements, error } = await supabase
+      .from("movimentos_stock_farmacia")
+      .select("*, medicamentos(nome_medicamento), lotes_medicamentos(numero_lote)")
+      .eq("company_id", req.user.company_id)
+      .order("data_movimento", { ascending: false })
+      .limit(100);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const formatted = movements?.map((m: any) => ({
+      ...m,
+      nome_medicamento: m.medicamentos?.nome_medicamento,
+      lote_numero: m.lotes_medicamentos?.numero_lote
+    }));
+
+    res.json(formatted || []);
+  });
+
+  app.post("/api/farmacia/lotes/:id/ajustar", authenticate, isAdmin, async (req: any, res) => {
+    const { id } = req.params;
+    const { tipo, quantidade, motivo, medicamento_id } = req.body;
+
+    const { data: lote } = await supabase.from("lotes_medicamentos").select("quantidade_atual").eq("id", id).single();
+    if (!lote) return res.status(404).json({ error: "Lote não encontrado." });
+
+    const novaQuantidade = tipo === 'entrada' ? lote.quantidade_atual + quantidade : lote.quantidade_atual - quantidade;
+
+    if (novaQuantidade < 0) return res.status(400).json({ error: "Stock insuficiente para este ajuste." });
+
+    await supabase.from("lotes_medicamentos").update({ quantidade_atual: novaQuantidade }).eq("id", id);
+
+    await supabase.from("movimentos_stock_farmacia").insert({
+      company_id: req.user.company_id,
+      medicamento_id,
+      lote_id: id,
+      quantidade,
+      tipo_movimento: tipo === 'entrada' ? 'ajuste_positivo' : 'ajuste_negativo',
+      motivo: motivo || 'Ajuste Manual',
+      utilizador_id: req.user.id
+    });
+
+    res.json({ success: true });
   });
 
   // --- FIM MÓDULO FARMÁCIA APIs ---

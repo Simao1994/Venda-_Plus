@@ -21,7 +21,8 @@ export default function Products() {
     sale_price: '',
     stock: '',
     min_stock: '5',
-    unit: 'un'
+    unit: 'un',
+    expiry_date: ''
   });
 
   const printRef = React.useRef<HTMLDivElement>(null);
@@ -78,6 +79,24 @@ export default function Products() {
     }
   };
 
+  const handleManualAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/inventory/movements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        ...entryData,
+        product_id: parseInt(entryData.product_id),
+        quantity: parseFloat(entryData.quantity)
+      })
+    });
+    if (res.ok) {
+      setShowEntryModal(false);
+      setEntryData({ product_id: '', quantity: '', type: 'out', reason: 'Quebra' });
+      fetchData();
+    }
+  };
+
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,7 +112,7 @@ export default function Products() {
     });
     if (res.ok) {
       setShowModal(false);
-      setFormData({ name: '', barcode: '', category_id: '', cost_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'un' });
+      setFormData({ name: '', barcode: '', category_id: '', cost_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'un', expiry_date: '' });
       fetchData();
     } else {
       const data = await res.json();
@@ -303,6 +322,19 @@ export default function Products() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Protocol Type</label>
+                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                    <select
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight appearance-none"
+                      value={entryData.type}
+                      onChange={e => setEntryData({ ...entryData, type: e.target.value as any, reason: e.target.value === 'in' ? 'Reposição' : 'Quebra' })}
+                    >
+                      <option value="in" className="bg-bg-deep">Absorption (+)</option>
+                      <option value="out" className="bg-bg-deep">Extraction (-)</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
                   <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Magnitude</label>
                   <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
                     <input
@@ -316,31 +348,32 @@ export default function Products() {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Vector Type</label>
-                  <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                    <select
-                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight appearance-none"
-                      value={entryData.type}
-                      onChange={e => setEntryData({ ...entryData, type: e.target.value as any })}
-                    >
-                      <option value="in" className="bg-bg-deep">Absorption (+)</option>
-                      <option value="out" className="bg-bg-deep">Extraction (-)</option>
-                    </select>
-                  </div>
-                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Reasoning Protocol</label>
                 <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
-                  <input
-                    type="text"
-                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
-                    placeholder="Log observation parameter"
+                  <select
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight appearance-none"
                     value={entryData.reason}
                     onChange={e => setEntryData({ ...entryData, reason: e.target.value })}
-                  />
+                  >
+                    {entryData.type === 'in' ? (
+                      <>
+                        <option value="Reposição" className="bg-bg-deep">Reposição de Stock</option>
+                        <option value="Devolução de Cliente" className="bg-bg-deep">Devolução de Cliente</option>
+                        <option value="Ajuste Positivo" className="bg-bg-deep">Ajuste Positivo (Inventário)</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Quebra" className="bg-bg-deep">Quebra / Dano</option>
+                        <option value="Vencimento" className="bg-bg-deep">Produto Vencido</option>
+                        <option value="Uso Interno" className="bg-bg-deep">Uso Interno / Amostra</option>
+                        <option value="Ajuste Negativo" className="bg-bg-deep">Ajuste Negativo (Inventário)</option>
+                        <option value="Roubo/Extravio" className="bg-bg-deep">Roubo ou Extravio</option>
+                      </>
+                    )}
+                  </select>
                 </div>
               </div>
 
@@ -490,6 +523,18 @@ export default function Products() {
                     className="w-full bg-transparent border-none outline-none font-black text-white italic tracking-tighter"
                     value={formData.min_stock}
                     onChange={e => setFormData({ ...formData, min_stock: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Vector Termination (Expiry Date)</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                  <input
+                    type="date"
+                    className="w-full bg-transparent border-none outline-none font-black text-white italic"
+                    value={formData.expiry_date}
+                    onChange={e => setFormData({ ...formData, expiry_date: e.target.value })}
                   />
                 </div>
               </div>

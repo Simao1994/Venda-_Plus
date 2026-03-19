@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Activity, Pill, Boxes, ShoppingCart, Truck,
-  MonitorPlay, FileSignature, Users, Bell, BarChart3
+  MonitorPlay, FileSignature, Users, Bell, BarChart3, DollarSign
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -15,6 +15,9 @@ import Receitas from './Receitas';
 import ClientesFarmacia from './ClientesFarmacia';
 import Alertas from './Alertas';
 import RelatoriosFarmacia from './RelatoriosFarmacia';
+import PharmacyFinance from './PharmacyFinance';
+import PharmacyInventory from './PharmacyInventory';
+import PharmacyStockAdjustment from './PharmacyStockAdjustment';
 
 export default function PharmacyModule() {
   const { user } = useAuth();
@@ -31,6 +34,9 @@ export default function PharmacyModule() {
     { id: 'clientes', label: 'Pacientes', icon: Users, roles: ['admin', 'manager', 'cashier', 'master'] },
     { id: 'alertas', label: 'Alertas', icon: Bell, roles: ['admin', 'manager', 'cashier', 'master'] },
     { id: 'relatorios', label: 'Relatórios', icon: BarChart3, roles: ['admin', 'manager', 'master'] },
+    { id: 'financeiro', label: 'Financeiro', icon: DollarSign, roles: ['admin', 'manager', 'master'] },
+    { id: 'inventario', label: 'Inventário', icon: FileSignature, roles: ['admin', 'manager', 'master'] },
+    { id: 'ajustes', label: 'Ajustes de Stock', icon: Activity, roles: ['admin', 'manager', 'master'] },
   ];
 
   const tabs = allTabs.filter(tab => user && tab.roles.includes(user.role));
@@ -44,8 +50,8 @@ export default function PharmacyModule() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all border ${activeTab === tab.id
-                ? 'bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
-                : 'text-white/40 border-transparent hover:bg-white/5 hover:text-emerald-400/60'
+              ? 'bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
+              : 'text-white/40 border-transparent hover:bg-white/5 hover:text-emerald-400/60'
               }`}
           >
             <tab.icon size={14} className={activeTab === tab.id ? 'animate-pulse' : ''} />
@@ -70,6 +76,9 @@ export default function PharmacyModule() {
           {activeTab === 'clientes' && <ClientesFarmacia />}
           {activeTab === 'alertas' && <Alertas />}
           {activeTab === 'relatorios' && <RelatoriosFarmacia />}
+          {activeTab === 'financeiro' && <PharmacyFinance />}
+          {activeTab === 'inventario' && <PharmacyInventory />}
+          {activeTab === 'ajustes' && <PharmacyStockAdjustment />}
         </div>
       </div>
     </div>

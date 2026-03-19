@@ -20,6 +20,13 @@ export default function PharmacyPOS() {
   const [processing, setProcessing] = useState(false);
   const [discount, setDiscount] = useState('0');
   const [barcodeFlash, setBarcodeFlash] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: '', nif: '', phone: '' });
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [showReadyOnly, setShowReadyOnly] = useState(false);
+
   const barcodeBuffer = useRef('');
   const barcodeTimer = useRef<any>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -33,7 +40,10 @@ export default function PharmacyPOS() {
     `,
   });
 
-  useEffect(() => { fetchMedicamentos(); }, []);
+  useEffect(() => {
+    fetchMedicamentos();
+    fetchCustomers();
+  }, []);
 
   // ── Barcode Scanner Auto-Detect ──
   // Barcode scanners type digits very fast (< 50ms between chars) and end with Enter
@@ -74,6 +84,36 @@ export default function PharmacyPOS() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [medicamentos, showPayment, cart]);
 
+  const fetchCustomers = async () => {
+    try {
+      const res = await fetch('/api/customers', { headers: { Authorization: `Bearer ${token}` } });
+      setCustomers(await res.json());
+    } catch (err) { console.error('Error fetching customers:', err); }
+  };
+
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomer.name) return;
+    setIsCreatingCustomer(true);
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newCustomer),
+      });
+      if (!res.ok) throw new Error('Erro ao criar cliente');
+      const saved = await res.json();
+      setCustomers([...customers, saved]);
+      setSelectedCustomer(saved);
+      setShowCustomerModal(false);
+      setNewCustomer({ name: '', nif: '', phone: '' });
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsCreatingCustomer(false);
+    }
+  };
+
   const fetchMedicamentos = async () => {
     try {
       const res = await fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } });
@@ -81,10 +121,12 @@ export default function PharmacyPOS() {
     } finally { setLoading(false); }
   };
 
-  const filteredMedicamentos = medicamentos.filter(m =>
-    m.nome_medicamento?.toLowerCase().includes(search.toLowerCase()) ||
-    (m.codigo_barras && m.codigo_barras.includes(search))
-  );
+  const filteredMedicamentos = medicamentos.filter(m => {
+    const matchesSearch = m.nome_medicamento?.toLowerCase().includes(search.toLowerCase()) ||
+      (m.codigo_barras && m.codigo_barras.includes(search));
+    const isReady = !showReadyOnly || m.stock_total > 0;
+    return matchesSearch && isReady;
+  });
 
   const addToCart = (med: any) => {
     if (med.stock_total <= 0) return;
@@ -125,6 +167,7 @@ export default function PharmacyPOS() {
     try {
       const payload = {
         itens: cart.map(i => ({ medicamento_id: i.id, quantidade: i.quantity, preco_unitario: i.preco_venda })),
+        customer_id: selectedCustomer?.id,
         forma_pagamento: paymentMethod,
         valor_entregue: amountPaidNum,
         desconto: discountAmt,
@@ -139,9 +182,21 @@ export default function PharmacyPOS() {
         throw new Error(err.error || 'Erro ao finalizar venda');
       }
       const data = await res.json();
-      const saleRecord = { ...data, items: cart, subtotal, discountAmt, tax, total, amountPaid: amountPaidNum, change, date: new Date().toLocaleString('pt-AO') };
+      const saleRecord = {
+        ...data,
+        items: cart,
+        customer: selectedCustomer,
+        subtotal,
+        discountAmt,
+        tax,
+        total,
+        amountPaid: amountPaidNum,
+        change,
+        date: new Date().toLocaleString('pt-AO')
+      };
       setLastSale(saleRecord);
       setCart([]);
+      setSelectedCustomer(null);
       setShowPayment(false);
       setAmountPaid('');
       setDiscount('0');
@@ -170,10 +225,12 @@ export default function PharmacyPOS() {
             <div>Tel: {user?.phone || '—'}</div>
           </div>
           <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '3mm 0', marginBottom: '4mm' }}>
-            <div>FATURA: {lastSale?.numero_factura}</div>
+            <div>FATURA-RECIBO: {lastSale?.numero_factura}</div>
             <div>DATA: {lastSale?.date}</div>
-            <div>OPERADOR: {user?.name}</div>
-            <div>MÉTODO: {lastSale?.forma_pagamento?.toUpperCase()}</div>
+            <div>CLIENTE: {lastSale?.customer?.name?.toUpperCase() || 'CONSUMIDOR FINAL'}</div>
+            {lastSale?.customer?.nif && <div>NIF: {lastSale?.customer?.nif}</div>}
+            <div>VENDEDOR: {user?.name}</div>
+            <div style={{ fontWeight: 'bold' }}>FORMA PG: {lastSale?.forma_pagamento?.toUpperCase()}</div>
           </div>
           <table style={{ width: '100%', marginBottom: '4mm', fontSize: '11px' }}>
             <thead><tr style={{ borderBottom: '1px solid #000' }}>
@@ -228,6 +285,12 @@ export default function PharmacyPOS() {
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-all shrink-0 ${barcodeFlash ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.4)] scale-110' : 'bg-white/5 border-white/5 text-white/20'}`} title="Leitor de código de barras ativo">
               <ScanBarcode size={20} />
             </div>
+            <button
+              onClick={() => setShowReadyOnly(!showReadyOnly)}
+              className={`px-4 py-4 rounded-2xl border font-black text-[9px] uppercase tracking-widest transition-all whitespace-nowrap ${showReadyOnly ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-white/5 border-white/5 text-white/40'}`}
+            >
+              {showReadyOnly ? 'Ver Todos' : 'Prontos'}
+            </button>
           </div>
         </div>
 
@@ -332,6 +395,34 @@ export default function PharmacyPOS() {
 
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {/* Customer Selection */}
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em]">Paciente / Cliente</label>
+              <button
+                onClick={() => setShowCustomerModal(true)}
+                className="text-[8px] font-black text-emerald-400 uppercase tracking-widest hover:underline"
+              >
+                + Novo
+              </button>
+            </div>
+            <select
+              className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-[11px] font-black text-white uppercase tracking-widest outline-none focus:border-emerald-500/30 transition-all custom-scrollbar appearance-none"
+              value={selectedCustomer?.id || ''}
+              onChange={e => {
+                const c = customers.find(c => c.id === parseInt(e.target.value));
+                setSelectedCustomer(c || null);
+              }}
+            >
+              <option value="" className="bg-bg-deep">Consumidor Final</option>
+              {customers.map(c => (
+                <option key={c.id} value={c.id} className="bg-bg-deep">
+                  {c.name} {c.nif ? `(${c.nif})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-white/10 gap-4">
               <ShoppingCart size={48} />
@@ -502,8 +593,23 @@ export default function PharmacyPOS() {
 
                   {/* Quick amounts */}
                   <div className="grid grid-cols-4 gap-2">
+                    {[500, 1000, 2000, 5000].map((v, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          const current = parseFloat(amountPaid) || 0;
+                          setAmountPaid((current + v).toString());
+                        }}
+                        className="glass-panel py-3 rounded-xl text-[9px] font-black text-white/40 hover:text-emerald-400 hover:border-emerald-500/20 border border-white/5 transition-all tabular-nums"
+                      >
+                        +{v.toLocaleString('pt-AO')}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
                     {[Math.ceil(total), Math.ceil(total / 500) * 500 + 500, Math.ceil(total / 1000) * 1000 + 1000, Math.ceil(total / 5000) * 5000].map((v, i) => (
-                      <button key={i} onClick={() => setAmountPaid(v.toString())} className="glass-panel py-3 rounded-xl text-[9px] font-black text-white/40 hover:text-emerald-400 hover:border-emerald-500/20 border border-white/5 transition-all tabular-nums">
+                      <button key={i} type="button" onClick={() => setAmountPaid(v.toString())} className="glass-panel py-3 rounded-xl text-[9px] font-black text-white/40 hover:text-emerald-400 hover:border-emerald-500/20 border border-white/5 transition-all tabular-nums">
                         {v.toLocaleString('pt-AO')}
                       </button>
                     ))}
@@ -540,6 +646,51 @@ export default function PharmacyPOS() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Customer Modal ─── */}
+      {showCustomerModal && (
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
+          <div className="glass-panel rounded-[40px] w-full max-w-sm overflow-hidden shadow-2xl border border-white/10 p-8">
+            <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Novo <span className="text-emerald-400">Paciente</span></h3>
+            <form onSubmit={handleCreateCustomer} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Nome Completo</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
+                  value={newCustomer.name}
+                  onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">NIF (Opcional)</label>
+                <input
+                  type="text"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
+                  value={newCustomer.nif}
+                  onChange={e => setNewCustomer({ ...newCustomer, nif: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Telefone</label>
+                <input
+                  type="text"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
+                  value={newCustomer.phone}
+                  onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowCustomerModal(false)} className="flex-1 py-4 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-white/30 hover:bg-white/5">Cancelar</button>
+                <button type="submit" disabled={isCreatingCustomer} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                  {isCreatingCustomer ? 'A guardar...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
