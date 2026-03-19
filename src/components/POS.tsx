@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet, UserPlus, X, FilePieChart } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet, UserPlus, X, FilePieChart, Calculator as CalcIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useReactToPrint } from 'react-to-print';
 import PaymentModal from './PaymentModal';
+import Calculator from './ui/Calculator';
 
 interface Product {
   id: number;
@@ -40,6 +41,7 @@ export default function POS() {
   const [newCustomer, setNewCustomer] = useState({ name: '', nif: '', phone: '', address: '' });
   const [isExempt, setIsExempt] = useState(false);
   const [exemptionReason, setExemptionReason] = useState('');
+  const [showCalculator, setShowCalculator] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -379,6 +381,14 @@ export default function POS() {
                 Fechar Caixa
               </button>
             )}
+
+            <button
+              onClick={() => setShowCalculator(true)}
+              className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-gold-primary/40 hover:text-gold-primary hover:border-gold-primary/30 transition-all shadow-inner group"
+              title="Calculadora Profissional"
+            >
+              <CalcIcon size={20} className="group-hover:scale-110 transition-transform" />
+            </button>
           </div>
         </div>
 
@@ -1011,6 +1021,20 @@ export default function POS() {
           />
         )
       }
-    </div >
+
+      {
+        showCalculator && (
+          <Calculator
+            onClose={() => setShowCalculator(false)}
+            onValueSelect={(val) => {
+              setAmountPaid(val);
+              setShowCalculator(false);
+            }}
+            accentColor="#D4AF37"
+            title="Terminal de Cálculo"
+          />
+        )
+      }
+    </div>
   );
 }

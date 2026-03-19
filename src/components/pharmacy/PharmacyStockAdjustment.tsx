@@ -22,13 +22,32 @@ export default function PharmacyStockAdjustment() {
     }, []);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const [lotesRes, movRes] = await Promise.all([
                 fetch('/api/farmacia/lotes', { headers: { Authorization: `Bearer ${token}` } }),
                 fetch('/api/farmacia/movimentos', { headers: { Authorization: `Bearer ${token}` } })
             ]);
-            setLotes(await lotesRes.json());
-            setMovements(await movRes.json() || []);
+
+            if (lotesRes.ok) {
+                const data = await lotesRes.json();
+                setLotes(Array.isArray(data) ? data : []);
+            } else {
+                console.error('Failed to fetch lotes');
+                setLotes([]);
+            }
+
+            if (movRes.ok) {
+                const data = await movRes.json();
+                setMovements(Array.isArray(data) ? data : []);
+            } else {
+                console.error('Failed to fetch movements');
+                setMovements([]);
+            }
+        } catch (err) {
+            console.error('Error fetching pharmacy data:', err);
+            setLotes([]);
+            setMovements([]);
         } finally {
             setLoading(false);
         }
@@ -87,9 +106,9 @@ export default function PharmacyStockAdjustment() {
                                     onChange={e => setFormData({ ...formData, lote_id: e.target.value })}
                                 >
                                     <option value="">Selecione o Lote...</option>
-                                    {lotes.map(l => (
+                                    {Array.isArray(lotes) && lotes.map(l => (
                                         <option key={l.id} value={l.id}>
-                                            {l.nome_medicamento} (Lote: {l.numero_lote}) - Val: {new Date(l.data_validade).toLocaleDateString()}
+                                            {l.nome_medicamento} (Lote: {l.numero_lote}) - Val: {l.data_validade ? new Date(l.data_validade).toLocaleDateString() : 'Sem data'}
                                         </option>
                                     ))}
                                 </select>
@@ -199,17 +218,17 @@ export default function PharmacyStockAdjustment() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50 font-medium">
-                                    {movements.map(m => (
+                                    {Array.isArray(movements) && movements.map(m => (
                                         <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
                                             <td className="px-6 py-4 text-[10px] text-gray-400">
-                                                {new Date(m.data_movimento).toLocaleString()}
+                                                {m.data_movimento ? new Date(m.data_movimento).toLocaleString() : '---'}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <p className="text-xs font-bold text-gray-800">{m.nome_medicamento}</p>
-                                                <p className="text-[10px] text-gray-400 font-mono">#{m.lote_numero}</p>
+                                                <p className="text-xs font-bold text-gray-800">{m.nome_medicamento || 'Medicamento Desconhecido'}</p>
+                                                <p className="text-[10px] text-gray-400 font-mono">#{m.lote_numero || 'S/L'}</p>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                {m.tipo === 'entrada' ? (
+                                                {m.tipo_movimento?.includes('positivo') || m.tipo === 'entrada' ? (
                                                     <span className="p-1 px-2 bg-emerald-50 text-emerald-600 rounded-md text-[9px] font-black uppercase tracking-tighter flex items-center gap-1 justify-center w-fit mx-auto">
                                                         <ArrowUpCircle size={12} />
                                                         IN
@@ -225,7 +244,7 @@ export default function PharmacyStockAdjustment() {
                                                 {m.quantidade}
                                             </td>
                                             <td className="px-6 py-4 text-[10px] text-gray-500 uppercase tracking-tight italic">
-                                                {m.motivo}
+                                                {m.motivo || m.tipo_movimento}
                                             </td>
                                         </tr>
                                     ))}

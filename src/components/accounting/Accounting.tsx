@@ -604,7 +604,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [extTesouraria, setExtTesouraria] = useState<any[]>(() => AmazingStorage.get('amazing_ext_tesouraria', []));
    const [extRhRecibos, setExtRhRecibos] = useState<any[]>(() => AmazingStorage.get('amazing_ext_rh_recibos', []));
    const [extInventario, setExtInventario] = useState<any[]>(() => AmazingStorage.get(STORAGE_KEYS.INVENTARIO, []));
-   const [extStockMov, setExtStockMov] = useState<any[]>(() => AmazingStorage.get('amazing_ext_stock_mov', []));
+   const [extVendasFarmacia, setExtVendasFarmacia] = useState<any[]>(() => AmazingStorage.get('amazing_ext_vendas_farmacia', []));
+   const [extSales, setExtSales] = useState<any[]>(() => AmazingStorage.get('amazing_ext_sales', [])); // New: Standard POS Sales
    const [isSyncingModules, setIsSyncingModules] = useState(false);
    const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
 
@@ -756,7 +757,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             AmazingStorage.save(STORAGE_KEYS.ERP_EMPRESAS, emps);
          }
 
-         const effEmpId = selectedEmpresaId || emps?.[0]?.id || user?.company_id;
+         const effEmpId = selectedEmpresaId || emps?.[0]?.company_id || user?.company_id;
          if (!effEmpId) return;
 
          const [funcsRes, dataContasRes, dataPeriodosRes] = await Promise.all([
@@ -794,7 +795,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }
 
          if (emps && emps.length > 0 && !selectedEmpresaId) {
-            setSelectedEmpresaId(emps[0].id);
+            setSelectedEmpresaId(emps[0].company_id);
          }
 
          // 2. Carregar Dados Transacionais em PARALELO (Background)
@@ -814,7 +815,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             invRes,
             comprasRes,
             contactosRes,
-            catsRes
+            catsRes,
+            vendasFarmaciaRes,
+            salesRes
          ] = await Promise.all([
             safeQuery<any[]>(() => supabase.from('acc_lancamentos').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-lnc-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('acc_lancamento_itens').select('*').eq('company_id', effEmpId), { cacheKey: `acc-lnc-items-${effEmpId}`, cacheTTL: 30000 }),
@@ -829,7 +832,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             safeQuery<any[]>(() => supabase.from('inventario').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-inv-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('acc_contactos').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-contactos-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000 })
+            safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000 }),
+            safeQuery<any[]>(() => supabase.from('vendas_farmacia').select('*, clientes_farmacia(nome)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000 }),
+            safeQuery<any[]>(() => supabase.from('sales').select('*, customers(name)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000 })
          ]);
 
          const mergedLnc = (lncRes.data || []).map((l: any) => ({
@@ -882,6 +887,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          if (catsRes.data) {
             setCategorias(catsRes.data);
+         }
+
+         if (vendasFarmaciaRes?.data) {
+            setExtVendasFarmacia(vendasFarmaciaRes.data);
+            AmazingStorage.save('amazing_ext_vendas_farmacia', vendasFarmaciaRes.data);
+         }
+
+         if (salesRes?.data) {
+            setExtSales(salesRes.data);
+            AmazingStorage.save('amazing_ext_sales', salesRes.data);
          }
 
          setLastSyncAt(new Date());
@@ -958,20 +973,64 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
    }, [selectedEmpresaId, periodos, selectedPeriodoId]);
 
-   const currentEmpresa = empresas?.find(e => e.id === selectedEmpresaId) || empresas?.[0];
+   const currentEmpresa = empresas?.find(e => e.company_id === selectedEmpresaId) || empresas?.[0];
 
    // --- DADOS INTEGRADOS (USADOS EM MÃšLTIPLAS ABAS) ---
-   const { extFinanceiroNotas, totalFacturado, totalPendente, totalCaixa, totalEntradas, totalSaidas, totalSalarios, totalBruto, totalInventarioValor, itensCriticos } = useMemo(() => {
+   const { extFinanceiroNotas, totalFacturado, totalFarmacia, totalIva, totalPendente, totalCaixa, totalEntradas, totalSaidas, totalSalarios, totalBruto, totalPOS, totalInventarioValor, itensCriticos } = useMemo(() => {
       const _fat = extFaturas || [];
       const _tes = extTesouraria || [];
       const _rhr = extRhRecibos || [];
       const _inv = extInventario || [];
+      const _farm = extVendasFarmacia || [];
+      const _sales = extSales || [];
+
       const notas = [
-         ..._fat.map(f => ({ ...f, valor: Number(f.valor_total) || 0, entidade: f.cliente_nome, numero: f.numero_fatura, data: f.data_emissao, tipo: 'Venda' })),
-         ..._tes.filter(t => t.documento_contabil).map(t => ({ ...t, valor: Number(t.valor) || 0, entidade: t.entidade || 'Caixa/Banco', numero: t.referencia, data: t.data, tipo: 'Tesouraria' }))
+         ..._fat.map(f => ({
+            ...f,
+            valor: Number(f.valor_total) || 0,
+            iva: Number(f.metadata?.iva) || 0,
+            entidade: f.cliente_nome,
+            numero: f.numero_fatura,
+            data: f.data_emissao,
+            tipo: 'Venda ' + (f.tipo || '')
+         })),
+         ..._tes.filter(t => t.documento_contabil).map(t => ({
+            ...t,
+            valor: Number(t.valor) || 0,
+            iva: 0,
+            entidade: t.entidade || 'Caixa/Banco',
+            numero: t.referencia,
+            data: t.data,
+            tipo: 'Tesouraria'
+         })),
+         ..._farm.map(v => ({
+            ...v,
+            valor: Number(v.total) || 0,
+            iva: Number(v.iva) || 0,
+            entidade: v.clientes_farmacia?.nome || 'Cliente Farmácia',
+            numero: v.numero_factura,
+            data: v.created_at?.split('T')[0],
+            tipo: 'Venda Farmácia'
+         })),
+         ..._sales.map(s => ({
+            ...s,
+            valor: Number(s.total) || 0,
+            iva: Number(s.tax) || 0,
+            entidade: s.customers?.name || 'Cliente POS',
+            numero: s.invoice_number,
+            data: s.created_at?.split('T')[0],
+            tipo: 'Venda POS'
+         }))
       ];
 
-      const facturado = notas.filter(n => n.tipo === 'Venda').reduce((acc, n) => acc + n.valor, 0);
+      const facturado = notas.filter(n =>
+         n.tipo?.includes('Venda') ||
+         n.tipo?.includes('Factura') ||
+         n.tipo?.includes('Recibo')
+      ).reduce((acc, n) => acc + n.valor, 0);
+      const ivaTotal = notas.reduce((acc, n) => acc + (n.iva || 0), 0);
+      const farmaciaTotal = _farm.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+      const posTotal = _sales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
       const pendente = _fat.filter(f => f.status === 'Pendente').reduce((acc, f) => acc + (Number(f.valor_total) || 0), 0);
 
       const caixa = _tes.reduce((acc, t) => {
@@ -990,16 +1049,19 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       return {
          extFinanceiroNotas: notas,
          totalFacturado: facturado,
+         totalFarmacia: farmaciaTotal,
+         totalIva: ivaTotal,
          totalPendente: pendente,
          totalCaixa: caixa,
          totalEntradas: entradas,
          totalSaidas: saidas,
          totalSalarios: salarios,
          totalBruto: bruto,
+         totalPOS: posTotal,
          totalInventarioValor: invValor,
          itensCriticos: criticos
       };
-   }, [extFaturas, extTesouraria, extRhRecibos, extInventario]);
+   }, [extFaturas, extTesouraria, extRhRecibos, extInventario, extSales, extVendasFarmacia]);
 
    // --- LÓGICA DE GRÃFICOS E RELATÓRIOS (ULTRA DEFENSIVA) ---
    const chartData = useMemo(() => {
@@ -1032,6 +1094,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   monthlyStats[mesNome].despesa += valor;
                }
             });
+         });
+
+         // Integrar Vendas Externas (POS/Farmácia) no Gráfico
+         extFinanceiroNotas.forEach(n => {
+            if (!n || !n.data) return;
+            const d = new Date(n.data);
+            if (isNaN(d.getTime())) return;
+            const mesNome = meses[d.getMonth()];
+            if (monthlyStats[mesNome]) {
+               monthlyStats[mesNome].receita += (Number(n.valor) || 0) - (Number(n.iva) || 0);
+            }
          });
 
          const barChartData = meses.map(m => ({
@@ -1566,6 +1639,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('venda')) || {
             conta_debito_codigo: '3.1', conta_credito_codigo: '6.1'
          };
+
+         const vTotal = Number(fatura.valor_total) || 0;
+         const vIva = Number(fatura.metadata?.iva) || 0;
+         const vLiquido = vTotal - vIva;
+
          const { data: head, error } = await supabase.from('acc_lancamentos').insert([{
             data: fatura.data_emissao || new Date().toISOString().split('T')[0],
             periodo_id: selectedPeriodoId,
@@ -1576,10 +1654,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             tipo_transacao: 'Automático'
          }]).select().single();
          if (error) throw error;
-         await supabase.from('acc_lancamento_itens').insert([
-            { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Clientes / Contas a Receber', tipo: 'D', valor: Number(fatura.valor_total) || 0 },
-            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas de Serviços', tipo: 'C', valor: Number(fatura.valor_total) || 0 }
-         ]);
+
+         const itens = [
+            { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Clientes / Contas a Receber', tipo: 'D', valor: vTotal, company_id: selectedEmpresaId },
+            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas de Serviços', tipo: 'C', valor: vLiquido, company_id: selectedEmpresaId }
+         ];
+
+         if (vIva > 0) {
+            itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Cobrado / Liquidado', tipo: 'C', valor: vIva, company_id: selectedEmpresaId });
+         }
+
+         await supabase.from('acc_lancamento_itens').insert(itens);
+
          await fetchAccountingData();
          alert(`Lançamento automático criado para a fatura ${fatura.numero_fatura || ''}!`);
       } catch (err) {
@@ -1621,6 +1707,101 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
    };
 
+   // --- LANÇAMENTOS AUTOMATICOS: FARMÁCIA ---
+   const handleAutoLaunchFromPharmacySale = async (venda: any) => {
+      if (!selectedEmpresaId || !selectedPeriodoId || !venda) {
+         alert('Selecione empresa e período antes de contabilizar.');
+         return;
+      }
+      setIsAutoLaunching(true);
+      try {
+         const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('venda')) || {
+            conta_debito_codigo: '3.1', conta_credito_codigo: '6.1'
+         };
+
+         const vTotal = Number(venda.valor || venda.total) || 0;
+         const vIva = Number(venda.iva || (venda.metadata?.iva)) || 0;
+         const vLiquido = vTotal - vIva;
+
+         const { data: head, error } = await supabase.from('acc_lancamentos').insert([{
+            data: venda.created_at?.split('T')[0] || venda.data || new Date().toISOString().split('T')[0],
+            periodo_id: selectedPeriodoId,
+            descricao: `Venda Farmácia ${venda.numero_factura || venda.numero || ''} - ${venda.entidade || 'Cliente Farmácia'}`,
+            company_id: selectedEmpresaId,
+            usuario_id: null,
+            status: 'Postado',
+            tipo_transacao: 'Automático'
+         }]).select().single();
+         if (error) throw error;
+
+         const itens = [
+            { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Clientes / Contas a Receber', tipo: 'D', valor: vTotal, company_id: selectedEmpresaId },
+            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas (Farmácia)', tipo: 'C', valor: vLiquido, company_id: selectedEmpresaId }
+         ];
+
+         if (vIva > 0) {
+            itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Cobrado / Liquidado', tipo: 'C', valor: vIva, company_id: selectedEmpresaId });
+         }
+
+         await supabase.from('acc_lancamento_itens').insert(itens);
+
+         await fetchAccountingData();
+         alert(`Lançamento automático criado para a venda farmácia ${venda.numero_factura || venda.numero || ''}!`);
+      } catch (err) {
+         console.error(err);
+         alert('Erro ao criar lançamento automático.');
+      } finally {
+         setIsAutoLaunching(false);
+      }
+   };
+
+   const handleAutoLaunchFromPOSSale = async (sale: any) => {
+      if (!selectedEmpresaId || !selectedPeriodoId || !sale) {
+         alert('Selecione empresa e período antes de contabilizar.');
+         return;
+      }
+      setIsAutoLaunching(true);
+      try {
+         const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('venda')) || {
+            conta_debito_codigo: '1.1', conta_credito_codigo: '6.1'
+         };
+
+         const vTotal = Number(sale.total) || 0;
+         const vIva = Number(sale.tax) || 0;
+         const vLiquido = vTotal - vIva;
+
+         const { data: head, error } = await supabase.from('acc_lancamentos').insert([{
+            data: sale.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+            periodo_id: selectedPeriodoId,
+            descricao: `Venda POS ${sale.invoice_number || sale.id || ''}`,
+            company_id: selectedEmpresaId,
+            usuario_id: null,
+            status: 'Postado',
+            tipo_transacao: 'Automático'
+         }]).select().single();
+         if (error) throw error;
+
+         const itens = [
+            { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Disponibilidades / Caixa', tipo: 'D', valor: vTotal, company_id: selectedEmpresaId },
+            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas POS', tipo: 'C', valor: vLiquido, company_id: selectedEmpresaId }
+         ];
+
+         if (vIva > 0) {
+            itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Cobrado / Liquidado', tipo: 'C', valor: vIva, company_id: selectedEmpresaId });
+         }
+
+         await supabase.from('acc_lancamento_itens').insert(itens);
+
+         await fetchAccountingData();
+         alert(`Lançamento automático criado para a venda POS!`);
+      } catch (err) {
+         console.error(err);
+         alert('Erro ao criar lançamento automático.');
+      } finally {
+         setIsAutoLaunching(false);
+      }
+   };
+
    // ============================================================
    // --- COMPRAS: REGISTO + LANÇAMENTO AUTOMÃTICO ---
    // ============================================================
@@ -1640,6 +1821,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          // 2. Criar lançamento automático se a empresa tiver período activo
          if (selectedPeriodoId) {
+            const vTotal = Number(newCompra.valor_total) || 0;
+            const vIva = Number(newCompra.iva) || 0;
+            const vLiquido = vTotal - vIva;
+
             const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('compra')) || {
                conta_debito_codigo: '2.1', conta_credito_codigo: '3.2'
             };
@@ -1653,10 +1838,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                tipo_transacao: 'Automático'
             }]).select().single();
             if (!hErr && head) {
-               await supabase.from('acc_lancamento_itens').insert([
-                  { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Inventário / Activos Circulantes', tipo: 'D', valor: Number(newCompra.valor_total), company_id: selectedEmpresaId },
-                  { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Fornecedores / Contas a Pagar', tipo: 'C', valor: Number(newCompra.valor_total), company_id: selectedEmpresaId }
-               ]);
+               const itens = [
+                  { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Inventário / Activos Circulantes', tipo: 'D', valor: vLiquido, company_id: selectedEmpresaId },
+                  { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Fornecedores / Contas a Pagar', tipo: 'C', valor: vTotal, company_id: selectedEmpresaId }
+               ];
+
+               if (vIva > 0) {
+                  itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Dedutível', tipo: 'D', valor: vIva, company_id: selectedEmpresaId });
+               }
+
+               await supabase.from('acc_lancamento_itens').insert(itens);
                // Marcar compra como contabilizada
                await supabase.from('compras').update({ contabilizado: true, lancamento_id: head.id }).eq('id', compra.id);
             }
@@ -2045,7 +2236,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            className="bg-transparent border-none focus:ring-0 text-[10px] font-black uppercase tracking-widest uppercase text-white/90 pr-8 cursor-pointer outline-none"
                         >
                            {empresas?.map(e => (
-                              <option key={e.id} value={e.id}>{e?.nome || 'Entidade'}</option>
+                              <option key={e.id} value={e.company_id}>{e?.nome || 'Entidade'}</option>
                            ))}
                         </select>
                      </div>
@@ -2072,33 +2263,25 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                {/* --- DASHBOARD PREMIUM --- */}
                {activeTab === 'dashboard' && (() => {
-                  // === CÃLCULOS PREMIUM DINÂMICOS ===
-                  const receita = Number(financeReports.receitaTotal) || 0;
-                  const despesa = Number(financeReports.despesaTotal) || 0;
-                  const lucro = Number(financeReports.lucroLiquido) || 0;
+                  // === CÃ LCULOS PREMIUM DINÂMICOS ===
+                  const receitaTotalContabil = Number(financeReports.receitaTotal) || 0;
+                  const totalGeralReceita = receitaTotalContabil + (totalFacturado || 0);
+                  const totalGeralDespesa = Number(financeReports.despesaTotal) || 0;
+                  const lucroGeral = totalGeralReceita - totalGeralDespesa;
+
                   const ativos = Number(financeReports.ativos) || 0;
                   const passivos = Number(financeReports.passivos) || 0;
                   const capital = Number(financeReports.capital) || 0;
 
                   // SCORE FINANCEIRO PREMIUM
-                  const receitaTotal = lancamentos.reduce((acc, l) => acc + (l.itens?.filter(it => it.conta_codigo?.startsWith('6')).reduce((sum, i) => sum + (Number(i.valor) || 0), 0) || 0), 0);
-                  const despesaTotal = lancamentos.reduce((acc, l) => acc + (l.itens?.filter(it => it.conta_codigo?.startsWith('7')).reduce((sum, i) => sum + (Number(i.valor) || 0), 0) || 0), 0);
-                  const lucroReal = receitaTotal - despesaTotal;
-                  const score = receitaTotal > 0 ? Math.min(10, Math.max(0, (lucroReal / receitaTotal) * 10 + 5)) : 5.0;
+                  const score = totalGeralReceita > 0 ? Math.min(10, Math.max(0, (lucroGeral / totalGeralReceita) * 10 + 5)) : 5.0;
                   // Indicadores Automáticos
                   const liquidezCorrente = passivos > 0 ? ativos / passivos : ativos > 0 ? 99 : 0;
                   const solvencia = (ativos + capital) > 0 ? ativos / (passivos + capital) : 0;
-                  const margemLiquida = receita > 0 ? (lucro / receita) * 100 : 0;
-                  const roe = capital > 0 ? (lucro / capital) * 100 : 0;
+                  const margemLiquida = totalGeralReceita > 0 ? (lucroGeral / totalGeralReceita) * 100 : 0;
+                  const roe = capital > 0 ? (lucroGeral / capital) * 100 : 0;
                   const ratioEndividamento = ativos > 0 ? (passivos / ativos) * 100 : 0;
 
-                  // Score Financeiro (0â€“10) — algoritmo dinÃ¢mico
-                  // let score = 5.0; // This line is now replaced by the new score calculation above
-                  // if (margemLiquida > 20) score += 2;
-                  // else if (margemLiquida > 10) score += 1;
-                  // else if (margemLiquida < 0) score -= 2;
-                  // if (liquidezCorrente > 1.5) score += 1.5;
-                  // else if (liquidezCorrente > 1) score += 0.5;
                   // else if (liquidezCorrente < 0.8) score -= 1.5;
                   // if (ratioEndividamento < 40) score += 1;
                   // else if (ratioEndividamento > 70) score -= 1;
@@ -2116,19 +2299,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      alertas.push({ nivel: 'danger', msg: 'Ruptura de Stock', sub: `${lowStockCount} itens atingiram o nível crítico de stock.` });
                   }
 
-                  if (lucro < 0) alertas.push({ nivel: 'danger', msg: 'Prejuízo no Período', sub: `A empresa está a gastar mais do que ganha (${safeFormatAOA(Math.abs(lucro))}).` });
+                  if (lucroGeral < 0) alertas.push({ nivel: 'danger', msg: 'Prejuízo no Período', sub: `A empresa está a gastar mais do que ganha (${safeFormatAOA(Math.abs(lucroGeral))}).` });
                   if (liquidezCorrente < 1 && ativos > 0) alertas.push({ nivel: 'danger', msg: 'Dificuldade de Pagamento', sub: `O dinheiro disponível cobre apenas ${(liquidezCorrente * 100).toFixed(0)}% das dívidas imediatas.` });
                   if (ratioEndividamento > 80 && ativos > 0) alertas.push({ nivel: 'warn', msg: 'Dívida Muito Alta', sub: `Mais de 80% do que a empresa possui pertence a terceiros/bancos.` });
                   if (margemLiquida > 0 && margemLiquida < 5) alertas.push({ nivel: 'warn', msg: 'Margem de Lucro Baixa', sub: `Apenas ${margemLiquida.toFixed(1)}% da venda sobra como lucro real.` });
-                  const ivaEstimado = receita * 0.14;
-                  if (ivaEstimado > 0) alertas.push({ nivel: 'warn', msg: 'Reserva para IVA (14%)', sub: `Deverá prever cerca de ${safeFormatAOA(ivaEstimado)} para obrigações fiscais.` });
-                  if (lucro > 0 && margemLiquida >= 10) alertas.push({ nivel: 'ok', msg: 'Excelente Performance', sub: `Margem de lucro saudável e operação sustentável.` });
+                  if (totalIva > 0) alertas.push({ nivel: 'warn', msg: 'Liquidação de IVA', sub: `Valor de IVA acumulado disponível para liquidação: ${safeFormatAOA(totalIva)}.` });
+                  if (lucroGeral > 0 && margemLiquida >= 10) alertas.push({ nivel: 'ok', msg: 'Excelente Performance', sub: `Margem de lucro saudável e operação sustentável.` });
                   if (liquidezCorrente >= 1.2) alertas.push({ nivel: 'ok', msg: 'Caixa Confortável', sub: `A empresa tem folga para pagar os seus compromissos.` });
                   const alertasToShow = alertas.slice(0, 4);
 
                   // Previsão de Fluxo de Caixa (próximos 6 meses por tendência simples)
-                  const tendencia = receita > 0 ? (lucro / receita) : 0;
-                  const base = receita > 0 ? receita : 500000;
+                  const tendencia = totalGeralReceita > 0 ? (lucroGeral / totalGeralReceita) : 0;
+                  const base = totalGeralReceita > 0 ? totalGeralReceita : 500000;
                   const growthFactor = 1 + (tendencia * 0.1);
                   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
                   const cashflowData = meses.map((m, i) => ({
@@ -2141,95 +2323,132 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      <div className="space-y-8 animate-in slide-in-from-bottom-4">
 
                         {/* FILA 1: KPIs + Score */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
                            <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
                               <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Receita Acumulada</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-white">{safeFormatAOA(receita)}</p>
+                              <p className="text-2xl font-black uppercase tracking-widest text-white">{safeFormatAOA(totalFacturado)}</p>
                               <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg w-fit">
-                                 <ArrowUpRight size={10} /> Operacional
+                                 <ArrowUpRight size={10} /> Consolidado (Geral)
+                              </div>
+                           </div>
+                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Vendas POS</p>
+                              <p className="text-2xl font-black uppercase tracking-widest text-yellow-500">{safeFormatAOA(totalPOS)}</p>
+                              <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded-lg w-fit">
+                                 <ShoppingCart size={10} /> POS Vendas
+                              </div>
+                           </div>
+                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Vendas Farmácia</p>
+                              <p className="text-2xl font-black uppercase tracking-widest text-gold-primary">{safeFormatAOA(totalFarmacia)}</p>
+                              <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit">
+                                 <ShoppingCart size={10} /> Farmácia
+                              </div>
+                           </div>
+                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">IVA Cobrado</p>
+                              <p className="text-2xl font-black uppercase tracking-widest text-emerald-500">{safeFormatAOA(totalIva)}</p>
+                              <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg w-fit">
+                                 <Scale size={10} /> AGT (14%)
                               </div>
                            </div>
                            <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
                               <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Custos Totais</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-red-500">{safeFormatAOA(despesa)}</p>
+                              <p className="text-2xl font-black uppercase tracking-widest text-red-500">{safeFormatAOA(totalGeralDespesa)}</p>
                               <p className="text-[9px] text-white/30 font-bold mt-3">Pessoal + Operacional</p>
                            </div>
                            <div className="bg-gold-primary p-7 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden">
                               <p className="text-gold-primary text-[9px] font-black uppercase tracking-widest mb-2">Lucro Líquido</p>
-                              <p className={`text-2xl font-black uppercase tracking-widest ${lucro >= 0 ? 'text-white' : 'text-red-400'}`}>{safeFormatAOA(lucro)}</p>
+                              <p className={`text-2xl font-black uppercase tracking-widest ${lucroGeral >= 0 ? 'text-white' : 'text-red-400'}`}>{safeFormatAOA(lucroGeral)}</p>
                               <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
                                  <div className="h-full bg-gold-primary transition-all duration-1000"
-                                    style={{ width: `${Math.min(100, Math.max(0, (lucro / (receita || 1)) * 100))}%` }} />
+                                    style={{ width: `${Math.min(100, Math.max(0, (lucroGeral / (totalGeralReceita || 1)) * 100))}%` }} />
                               </div>
                               <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">{margemLiquida.toFixed(1)}% Margem</p>
                            </div>
+                        </div>
+
+                        {/* FILA 2: Score + Ativos + Outros */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                            <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
                               <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Activo Total</p>
                               <p className="text-2xl font-black uppercase tracking-widest text-white">{safeFormatAOA(ativos)}</p>
                               <p className="text-[9px] text-white/30 font-bold mt-3">Passivo: {safeFormatAOA(passivos)}</p>
                            </div>
 
-                           {/* Score DinÃ¢mico */}
-                           <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-zinc-900 to-zinc-800 p-7 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-center text-center relative overflow-hidden">
+                           <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-zinc-900 to-zinc-800 p-7 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-center text-center relative overflow-hidden">
                               <div className="absolute inset-0 opacity-10">
                                  <div className="absolute top-2 right-2 w-24 h-24 rounded-full bg-gold-primary blur-2xl" />
                               </div>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest mb-1">Score Financeiro</p>
-                              <p className={`text-5xl font-black uppercase tracking-widest mt-1 ${scoreColor}`}>{receita > 0 ? score.toFixed(1) : '—'}</p>
-                              <p className={`text-[9px] font-black uppercase tracking-widest mt-2 ${scoreColor}`}>{receita > 0 ? scoreLabel : 'Sem Dados'}</p>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-white/30 uppercase mb-1">Score Financeiro</p>
+                              <p className={`text-5xl font-black uppercase tracking mt-1 ${scoreColor}`}>{totalGeralReceita > 0 ? score.toFixed(1) : '—'}</p>
+                              <p className={`text-[9px] font-black uppercase tracking mt-2 ${scoreColor}`}>{totalGeralReceita > 0 ? scoreLabel : 'Sem Dados'}</p>
                               <div className="w-full mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
                                  <div className="h-full bg-gold-primary transition-all duration-1000 rounded-full"
                                     style={{ width: `${(score / 10) * 100}%` }} />
                               </div>
                            </div>
+
+                           <div className="md:col-span-2 bg-white/5 p-7 rounded-[2.5rem] border border-white/10 flex flex-col justify-center">
+                              <div className="grid grid-cols-2 gap-4">
+                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                    <p className="text-[9px] text-white/30 font-black uppercase tracking mb-1">Solvência</p>
+                                    <p className="text-xl font-black uppercase tracking-widest text-white">{solvencia.toFixed(2)}x</p>
+                                 </div>
+                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                    <p className="text-[9px] text-white/30 font-black uppercase tracking mb-1">ROE</p>
+                                    <p className="text-xl font-black uppercase tracking-widest text-white">{roe.toFixed(1)}%</p>
+                                 </div>
+                              </div>
+                           </div>
                         </div>
 
-                        {/* FILA 2: Indicadores Financeiros Automáticos */}
+                        {/* FILA 3: Indicadores Financeiros Automáticos */}
                         <div className="bg-white/5 rounded-[3rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] p-8">
                            <div className="flex items-center justify-between mb-6">
                               <h3 className="text-base font-black uppercase tracking-widest text-white uppercase tracking-tight flex items-center gap-2">
                                  <BarChart2 size={18} className="text-gold-primary" /> Indicadores Financeiros Automáticos
                               </h3>
-                              <span className="text-[9px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest px-3 py-1.5 bg-bg-deep rounded-xl border border-white/5">Calculados em Tempo Real</span>
+                              <span className="text-[9px] font-black uppercase tracking text-white/30 px-3 py-1.5 bg-bg-deep rounded-xl border border-white/5">Calculados em Tempo Real</span>
                            </div>
                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {[
                                  {
-                                    label: 'Capacidade de Pagamento', value: receita > 0 ? liquidezCorrente.toFixed(2) : '—', unit: 'x',
+                                    label: 'Capacidade de Pagamento', value: totalGeralReceita > 0 ? liquidezCorrente.toFixed(2) : '—', unit: 'x',
                                     info: 'Poder de cobrir dívidas curto prazo',
                                     color: liquidezCorrente >= 1.2 ? 'bg-green-50/10 border-green-500/20 text-green-400' : liquidezCorrente >= 1 ? 'bg-yellow-50/10 border-yellow-500/20 text-gold-primary' : 'bg-red-50/10 border-red-500/20 text-red-400',
                                     status: liquidezCorrente >= 1.2 ? '✅ Confortável' : liquidezCorrente >= 1 ? '⚠️ Atenção' : '🔴 Crítico'
                                  },
                                  {
-                                    label: 'Solidez Financeira', value: receita > 0 ? solvencia.toFixed(2) : '—', unit: 'x',
+                                    label: 'Solidez Financeira', value: totalGeralReceita > 0 ? solvencia.toFixed(2) : '—', unit: 'x',
                                     info: 'Garantia de capital vs obrigações',
                                     color: solvencia >= 1 ? 'bg-green-50/10 border-green-500/20 text-green-400' : 'bg-red-50/10 border-red-500/20 text-red-400',
                                     status: solvencia >= 1 ? '✅ Solvente' : '🔴 Em Risco'
                                  },
                                  {
-                                    label: 'Retorno p/ Sócio', value: receita > 0 ? roe.toFixed(1) : '—', unit: '%',
+                                    label: 'Retorno p/ Sócio', value: totalGeralReceita > 0 ? roe.toFixed(1) : '—', unit: '%',
                                     info: 'Rendimento do investimento',
                                     color: roe >= 10 ? 'bg-green-50/10 border-green-500/20 text-green-400' : roe >= 2 ? 'bg-yellow-50/10 border-yellow-500/20 text-gold-primary' : 'bg-white/5 border-white/10 text-white/40',
                                     status: roe >= 10 ? '✅ Saudável' : roe >= 2 ? '⚠️ Baixo' : '— Estável'
                                  },
                                  {
-                                    label: 'Nível de Dívida', value: receita > 0 ? ratioEndividamento.toFixed(0) : '—', unit: '%',
+                                    label: 'Nível de Dívida', value: totalGeralReceita > 0 ? ratioEndividamento.toFixed(0) : '—', unit: '%',
                                     info: 'Percentagem de ativos financiados',
                                     color: ratioEndividamento < 50 ? 'bg-green-50/10 border-green-500/20 text-green-400' : ratioEndividamento < 80 ? 'bg-yellow-50/10 border-yellow-500/20 text-gold-primary' : 'bg-red-50/10 border-red-500/20 text-red-400',
                                     status: ratioEndividamento < 50 ? '✅ Controlado' : ratioEndividamento < 80 ? '⚠️ Elevado' : '🔴 Muito Alto'
                                  },
                               ].map((ind, i) => (
                                  <div key={i} className={`p-5 rounded-2xl border ${ind.color} flex flex-col gap-1`}>
-                                    <p className="text-[9px] font-black uppercase tracking-widest opacity-70">{ind.label}</p>
-                                    <p className="text-3xl font-black uppercase tracking-widest">{ind.value}<span className="text-sm">{ind.value !== '—' ? ind.unit : ''}</span></p>
+                                    <p className="text-[9px] font-black uppercase tracking opacity-70">{ind.label}</p>
+                                    <p className="text-3xl font-black uppercase tracking">{ind.value}<span className="text-sm">{ind.value !== '—' ? ind.unit : ''}</span></p>
                                     <p className="text-[9px] font-bold opacity-60">{ind.info}</p>
-                                    <p className="text-[9px] font-black uppercase tracking-widest mt-1">{ind.status}</p>
+                                    <p className="text-[9px] font-black uppercase tracking mt-1">{ind.status}</p>
                                  </div>
                               ))}
                            </div>
                         </div>
 
-                        {/* FILA 3: Gráficos */}
+                        {/* FILA 4: Gráficos */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                            {/* Comparativo Receita vs Despesa */}
                            <div className="bg-white/5 p-10 rounded-[3rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] h-[420px] flex flex-col">
@@ -2298,16 +2517,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </div>
                         </div>
 
-                        {/* FILA 4: Alertas de Risco DinÃ¢micos + Gráfico Pizza */}
+                        {/* FILA 5: Alertas + Gráfico Pizza */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                            {/* Alertas Inteligentes */}
                            <div className="bg-gold-primary p-10 rounded-[3rem] text-white flex flex-col justify-between shadow-2xl">
                               <div className="space-y-5">
                                  <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-black uppercase tracking-widest uppercase tracking-tight text-gold-primary flex items-center gap-2">
+                                    <h3 className="text-lg font-black uppercase tracking-widest uppercase tracking-tight text-white flex items-center gap-2">
                                        <AlertTriangle size={18} /> Alertas de Risco Financeiro
                                     </h3>
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest">{alertas.filter(a => a.nivel === 'danger').length} Crítico(s)</span>
+                                    <span className="text-[9px] font-black uppercase tracking text-white/30 px-3 py-1 bg-white/5 rounded-lg border border-white/10">{alertas.filter(a => a.nivel === 'danger').length} Crítico(s)</span>
                                  </div>
                                  <div className="space-y-3">
                                     {alertasToShow.length === 0 && (
@@ -2316,12 +2535,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        </div>
                                     )}
                                     {alertasToShow.map((alerta, i) => (
-                                       <div key={i} className={`flex items-start gap-4 p-4 rounded-2xl border ${alerta.nivel === 'danger' ? 'bg-red-500/10 border-red-500/20' : alerta.nivel === 'warn' ? 'bg-gold-primary/10 border-gold-primary/20/20' : 'bg-green-500/10 border-green-500/20'}`}>
+                                       <div key={i} className={`flex items-start gap-4 p-4 rounded-2xl border ${alerta.nivel === 'danger' ? 'bg-red-500/10 border-red-500/20' : alerta.nivel === 'warn' ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
                                           {alerta.nivel === 'danger' ? <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={16} /> :
                                              alerta.nivel === 'warn' ? <AlertTriangle className="text-yellow-400 shrink-0 mt-0.5" size={16} /> :
                                                 <CheckCircle2 className="text-green-400 shrink-0 mt-0.5" size={16} />}
                                           <div>
-                                             <p className="text-sm font-black uppercase tracking-widest">{alerta.msg}</p>
+                                             <p className="text-sm font-black uppercase tracking">{alerta.msg}</p>
                                              <p className="text-[10px] text-white/30">{alerta.sub}</p>
                                           </div>
                                        </div>
@@ -2329,7 +2548,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
                               </div>
                               <button onClick={() => openReport('balanco')}
-                                 className="w-full mt-8 py-4 bg-gold-primary text-white font-black uppercase tracking-widest rounded-xl text-[10px] uppercase tracking-widest hover:bg-yellow-400 transition-all shadow-xl">
+                                 className="w-full mt-8 py-4 bg-white/10 hover:bg-white text-white hover:text-gold-primary font-black uppercase tracking rounded-xl text-[10px] transition-all shadow-xl border border-white/10">
                                  Ver Relatório Detalhado
                               </button>
                            </div>
@@ -2340,7 +2559,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <h3 className="text-lg font-black uppercase tracking-widest uppercase tracking-tight flex items-center gap-2">
                                     <PieChartIcon className="text-gold-primary" size={18} /> Distribuição de Despesas
                                  </h3>
-                                 <p className="text-xs text-white/30 font-bold mt-1 uppercase tracking-widest">Alocação de Custos Operacionais</p>
+                                 <p className="text-xs text-white/30 font-bold mt-1 uppercase">Alocação de Custos Operacionais</p>
                               </div>
                               <div className="flex-1 w-full min-h-0 relative">
                                  <ResponsiveContainer width="100%" height="100%">
@@ -2356,8 +2575,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </ResponsiveContainer>
                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none pr-28">
                                     <div className="text-center">
-                                       <p className="text-[9px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest">Total</p>
-                                       <p className="text-base font-black uppercase tracking-widest text-white">{safeFormatAOA(chartData.pieChartData?.reduce((acc, b) => acc + (Number(b.value) || 0), 0) || 0)}</p>
+                                       <p className="text-[9px] font-black uppercase tracking text-white/30">Total</p>
+                                       <p className="text-base font-black uppercase tracking text-white">{safeFormatAOA(chartData.pieChartData?.reduce((acc, b) => acc + (Number(b.value) || 0), 0) || 0)}</p>
                                     </div>
                                  </div>
                               </div>
@@ -2368,112 +2587,114 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                })()}
 
                {/* --- DIARIO --- */}
-               {activeTab === 'diario' && (
-                  <div className="space-y-6 animate-in slide-in-from-bottom-4">
-                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/5 p-8 rounded-[3rem] shadow-[0_0_30px_rgba(212,175,55,0.05)] border border-white/10">
-                        <div className="flex items-center gap-4 w-full md:w-auto">
-                           <div className="relative flex-1 md:w-80">
-                              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-                              <input
-                                 type="text"
-                                 placeholder="Pesquisar no diário..."
-                                 className="w-full pl-12 pr-6 py-3.5 bg-bg-deep border-none rounded-2xl text-sm focus:ring-2 focus:ring-yellow-500/20"
-                              />
+               {
+                  activeTab === 'diario' && (
+                     <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/5 p-8 rounded-[3rem] shadow-[0_0_30px_rgba(212,175,55,0.05)] border border-white/10">
+                           <div className="flex items-center gap-4 w-full md:w-auto">
+                              <div className="relative flex-1 md:w-80">
+                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                                 <input
+                                    type="text"
+                                    placeholder="Pesquisar no diário..."
+                                    className="w-full pl-12 pr-6 py-3.5 bg-bg-deep border-none rounded-2xl text-sm focus:ring-2 focus:ring-yellow-500/20"
+                                 />
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              {periodos.find(p => p.id === selectedPeriodoId)?.status === 'Fechado' && (
+                                 <div className="px-4 py-2 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-red-100">
+                                    <Lock size={14} /> Período Bloqueado
+                                 </div>
+                              )}
+                              <button
+                                 onClick={() => setShowCompraModal(true)}
+                                 className="px-6 py-4 bg-orange-100 text-orange-700 rounded-2xl font-black uppercase tracking-widest text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-orange-500 hover:text-white transition-all"
+                              >
+                                 <ShoppingCart size={16} /> Registar Compra
+                              </button>
+                              <button
+                                 onClick={() => setShowEntryModal(true)}
+                                 disabled={periodos.find(p => p.id === selectedPeriodoId)?.status === 'Fechado'}
+                                 className="px-8 py-4 bg-gold-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-gold-primary hover:text-white transition-all shadow-xl disabled:opacity-50"
+                              >
+                                 <Plus size={20} /> Novo Lançamento
+                              </button>
                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                           {periodos.find(p => p.id === selectedPeriodoId)?.status === 'Fechado' && (
-                              <div className="px-4 py-2 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-red-100">
-                                 <Lock size={14} /> Período Bloqueado
-                              </div>
-                           )}
-                           <button
-                              onClick={() => setShowCompraModal(true)}
-                              className="px-6 py-4 bg-orange-100 text-orange-700 rounded-2xl font-black uppercase tracking-widest text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-orange-500 hover:text-white transition-all"
-                           >
-                              <ShoppingCart size={16} /> Registar Compra
-                           </button>
-                           <button
-                              onClick={() => setShowEntryModal(true)}
-                              disabled={periodos.find(p => p.id === selectedPeriodoId)?.status === 'Fechado'}
-                              className="px-8 py-4 bg-gold-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-gold-primary hover:text-white transition-all shadow-xl disabled:opacity-50"
-                           >
-                              <Plus size={20} /> Novo Lançamento
-                           </button>
-                        </div>
-                     </div>
 
-                     <div className="bg-white/5 rounded-[3.5rem] shadow-xl border border-white/10 overflow-hidden">
-                        <div className="overflow-x-auto">
-                           <table className="w-full text-left min-w-[1000px]">
-                              <thead className="bg-gold-primary text-white border-b border-zinc-800">
-                                 <tr className="text-[10px] font-black uppercase tracking-widest uppercase tracking-[0.2em]">
-                                    <th className="px-10 py-6">Data</th>
-                                    <th className="px-10 py-6">Referência</th>
-                                    <th className="px-10 py-6">Histórico / Descrição</th>
-                                    <th className="px-10 py-6 text-right">Valor Total</th>
-                                    <th className="px-10 py-6 text-center">Status</th>
-                                    <th className="px-10 py-6 text-center">Tipo</th>
-                                    <th className="px-6 py-6 text-center">Acções</th>
-                                 </tr>
-                              </thead>
-                              <tbody className="divide-y divide-zinc-100">
-                                 {lancamentos.filter(l => l.company_id === selectedEmpresaId && (selectedPeriodoId ? l.periodo_id === selectedPeriodoId : true)).length > 0 ? (
-                                    lancamentos.filter(l => l.company_id === selectedEmpresaId && (selectedPeriodoId ? l.periodo_id === selectedPeriodoId : true)).map((l) => (
-                                       <tr key={l.id} className="group hover:bg-bg-deep/50 transition-all cursor-pointer">
-                                          <td className="px-10 py-8 font-mono text-white/40 text-xs">
-                                             {l.data ? new Date(l.data).toLocaleDateString() : 'N/D'}
-                                          </td>
-                                          <td className="px-10 py-8">
-                                             <span className="px-4 py-2 bg-bg-deep rounded-xl text-[9px] font-black uppercase tracking-widest text-white/30 group-hover:bg-gold-primary group-hover:text-white transition-all">#LNC-{l.id.toString().slice(0, 4)}</span>
-                                          </td>
-                                          <td className="px-10 py-8">
-                                             <p className="font-black uppercase tracking-widest text-white text-lg group-hover:text-gold-primary transition-colors">{l.descricao}</p>
-                                             <div className="flex gap-4 mt-2">
-                                                {l.itens?.map((it, idx) => (
-                                                   <div key={idx} className="flex items-center gap-2">
-                                                      <div className={`w-2 h-2 rounded-full ${it.tipo === 'D' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                                      <span className="text-[10px] font-black uppercase tracking-widest text-white/30 uppercase">{it.conta_codigo}</span>
-                                                   </div>
-                                                ))}
-                                             </div>
-                                          </td>
-                                          <td className="px-10 py-8 text-right font-black uppercase tracking-widest text-xl text-white">
-                                             {safeFormatAOA(l.itens?.filter(i => i.tipo === 'D').reduce((acc, it) => acc + (Number(it.valor) || 0), 0) || 0)}
-                                          </td>
-                                          <td className="px-10 py-8 text-center">
-                                             <span className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest border ${l.estornado ? 'bg-red-50 text-red-600 border-red-100' :
-                                                l.status === 'Postado' ? 'bg-green-50 text-green-600 border-green-100' :
-                                                   l.status === 'Rascunho' || l.status === 'PendenteAprovacao' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' :
-                                                      'bg-bg-deep text-white/40 border-white/5'
-                                                }`}>{l.estornado ? 'Estornado' : (l.status || 'Postado')}</span>
-                                          </td>
-                                          <td className="px-10 py-8 text-center">
-                                             <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${l.tipo_transacao === 'Automático' ? 'bg-blue-50 text-blue-600' :
-                                                l.tipo_transacao === 'Estorno' ? 'bg-red-50 text-red-600' :
-                                                   l.tipo_transacao === 'Folha' ? 'bg-purple-50 text-purple-600' :
-                                                      'bg-bg-deep text-white/40'
-                                                }`}>{l.tipo_transacao || 'Manual'}</span>
-                                          </td>
-                                          <td className="px-6 py-8 text-center">
-                                             {!l.estornado && l.status === 'Postado' ? (
-                                                <button onClick={() => handleEstornarLancamento(l)} disabled={isEstornandoId === l.id}
-                                                   title="Criar Estorno" className="p-2 bg-bg-deep hover:bg-red-50 hover:text-red-600 text-white/30 rounded-xl transition-all disabled:opacity-40">
-                                                   {isEstornandoId === l.id ? <RefreshCw size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-                                                </button>
-                                             ) : <span className="text-zinc-200">—</span>}
-                                          </td>
-                                       </tr>
-                                    ))
-                                 ) : (
-                                    <tr><td colSpan={7} className="text-center py-20 text-white/30 font-bold italic">Nenhum lançamento registado para este período.</td></tr>
-                                 )}
-                              </tbody>
-                           </table>
+                        <div className="bg-white/5 rounded-[3.5rem] shadow-xl border border-white/10 overflow-hidden">
+                           <div className="overflow-x-auto">
+                              <table className="w-full text-left min-w-[1000px]">
+                                 <thead className="bg-gold-primary text-white border-b border-zinc-800">
+                                    <tr className="text-[10px] font-black uppercase tracking-widest uppercase tracking-[0.2em]">
+                                       <th className="px-10 py-6">Data</th>
+                                       <th className="px-10 py-6">Referência</th>
+                                       <th className="px-10 py-6">Histórico / Descrição</th>
+                                       <th className="px-10 py-6 text-right">Valor Total</th>
+                                       <th className="px-10 py-6 text-center">Status</th>
+                                       <th className="px-10 py-6 text-center">Tipo</th>
+                                       <th className="px-6 py-6 text-center">Acções</th>
+                                    </tr>
+                                 </thead>
+                                 <tbody className="divide-y divide-zinc-100">
+                                    {lancamentos.filter(l => l.company_id === selectedEmpresaId && (selectedPeriodoId ? l.periodo_id === selectedPeriodoId : true)).length > 0 ? (
+                                       lancamentos.filter(l => l.company_id === selectedEmpresaId && (selectedPeriodoId ? l.periodo_id === selectedPeriodoId : true)).map((l) => (
+                                          <tr key={l.id} className="group hover:bg-bg-deep/50 transition-all cursor-pointer">
+                                             <td className="px-10 py-8 font-mono text-white/40 text-xs">
+                                                {l.data ? new Date(l.data).toLocaleDateString() : 'N/D'}
+                                             </td>
+                                             <td className="px-10 py-8">
+                                                <span className="px-4 py-2 bg-bg-deep rounded-xl text-[9px] font-black uppercase tracking-widest text-white/30 group-hover:bg-gold-primary group-hover:text-white transition-all">#LNC-{l.id.toString().slice(0, 4)}</span>
+                                             </td>
+                                             <td className="px-10 py-8">
+                                                <p className="font-black uppercase tracking-widest text-white text-lg group-hover:text-gold-primary transition-colors">{l.descricao}</p>
+                                                <div className="flex gap-4 mt-2">
+                                                   {l.itens?.map((it, idx) => (
+                                                      <div key={idx} className="flex items-center gap-2">
+                                                         <div className={`w-2 h-2 rounded-full ${it.tipo === 'D' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                                         <span className="text-[10px] font-black uppercase tracking-widest text-white/30 uppercase">{it.conta_codigo}</span>
+                                                      </div>
+                                                   ))}
+                                                </div>
+                                             </td>
+                                             <td className="px-10 py-8 text-right font-black uppercase tracking-widest text-xl text-white">
+                                                {safeFormatAOA(l.itens?.filter(i => i.tipo === 'D').reduce((acc, it) => acc + (Number(it.valor) || 0), 0) || 0)}
+                                             </td>
+                                             <td className="px-10 py-8 text-center">
+                                                <span className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest border ${l.estornado ? 'bg-red-50 text-red-600 border-red-100' :
+                                                   l.status === 'Postado' ? 'bg-green-50 text-green-600 border-green-100' :
+                                                      l.status === 'Rascunho' || l.status === 'PendenteAprovacao' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' :
+                                                         'bg-bg-deep text-white/40 border-white/5'
+                                                   }`}>{l.estornado ? 'Estornado' : (l.status || 'Postado')}</span>
+                                             </td>
+                                             <td className="px-10 py-8 text-center">
+                                                <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${l.tipo_transacao === 'Automático' ? 'bg-blue-50 text-blue-600' :
+                                                   l.tipo_transacao === 'Estorno' ? 'bg-red-50 text-red-600' :
+                                                      l.tipo_transacao === 'Folha' ? 'bg-purple-50 text-purple-600' :
+                                                         'bg-bg-deep text-white/40'
+                                                   }`}>{l.tipo_transacao || 'Manual'}</span>
+                                             </td>
+                                             <td className="px-6 py-8 text-center">
+                                                {!l.estornado && l.status === 'Postado' ? (
+                                                   <button onClick={() => handleEstornarLancamento(l)} disabled={isEstornandoId === l.id}
+                                                      title="Criar Estorno" className="p-2 bg-bg-deep hover:bg-red-50 hover:text-red-600 text-white/30 rounded-xl transition-all disabled:opacity-40">
+                                                      {isEstornandoId === l.id ? <RefreshCw size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                                                   </button>
+                                                ) : <span className="text-zinc-200">—</span>}
+                                             </td>
+                                          </tr>
+                                       ))
+                                    ) : (
+                                       <tr><td colSpan={7} className="text-center py-20 text-white/30 font-bold italic">Nenhum lançamento registado para este período.</td></tr>
+                                    )}
+                                 </tbody>
+                              </table>
+                           </div>
                         </div>
                      </div>
-                  </div>
-               )}
+                  )
+               }
 
                {/* --- DEMONSTRAÇÃ•ES FINANCEIRAS --- */}
                {
@@ -3310,7 +3531,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </h3>
                            <div className="space-y-4">
                               {[
-                                 { t: 'IVA - Declaração Periódica', d: '2024-03-25', v: (Number(financeReports.receitaTotal) || 0) * ((currentEmpresa?.regime_agt === 'Simplificado' ? 0.07 : (currentEmpresa?.taxa_iva || 14) / 100)) },
+                                 { t: 'IVA - Declaração Periódica', d: '2024-03-25', v: (Number(financeReports.receitaTotal) || 0) * ((currentEmpresa?.regime_agt === 'Simplificado' ? 0.07 : (currentEmpresa?.taxa_iva || 14) / 100)) + (totalIva || 0) },
                                  { t: 'INSS - Guia de Pagamento', d: '2024-03-10', v: folhas?.filter(f => f.company_id === selectedEmpresaId && (selectedPeriodoId ? f.periodo_id === selectedPeriodoId : true)).reduce((acc, b) => acc + (Number(b.inss_trabalhador) || 0) + (Number(b.inss_empresa) || 0), 0) || 0 },
                                  { t: 'IRT - Retenções na Fonte', d: '2024-03-30', v: (currentEmpresa?.incidencia_irt !== false) ? (folhas?.filter(f => f.company_id === selectedEmpresaId && (selectedPeriodoId ? f.periodo_id === selectedPeriodoId : true)).reduce((acc, b) => acc + (Number(b.irt) || 0), 0) || 0) : 0 },
                                  { t: 'II - Imposto Industrial (Estimativa)', d: '2024-05-31', v: (Number(financeReports.lucroLiquido) > 0 ? (Number(financeReports.lucroLiquido) * (currentEmpresa?.taxa_ii || 25) / 100) : 0) },
@@ -3332,7 +3553,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <h3 className="text-xl font-black uppercase tracking-widest uppercase tracking-tight">Carga Tributária Estimada</h3>
                               <div className="space-y-8">
                                  <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest uppercase"><span>IVA Estimado</span><span>{safeFormatAOA(financeReports.receitaTotal * ((currentEmpresa?.taxa_iva || 14) / 100))}</span></div>
+                                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest uppercase"><span>IVA Estimado Total</span><span>{safeFormatAOA(financeReports.receitaTotal * ((currentEmpresa?.taxa_iva || 14) / 100) + (totalIva || 0))}</span></div>
                                     <div className="h-2 bg-white/10 rounded-full"><div className="h-full bg-gold-primary" style={{ width: `${Math.min(100, (currentEmpresa?.taxa_iva || 14) * 5)}%` }}></div></div>
                                  </div>
                                  <div className="space-y-2">
@@ -4053,9 +4274,19 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           </td>
                                           <td className="py-5 px-4 text-right">
                                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => handlePrintFatura(n)} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/70" title="Imprimir"><Printer size={14} /></button>
+                                                {n.tipo === 'Venda' && (
+                                                   <button
+                                                      onClick={(e) => { e.stopPropagation(); handleAutoLaunchFromPharmacySale(n); }}
+                                                      disabled={isAutoLaunching}
+                                                      className="p-2 hover:bg-gold-primary/10 rounded-lg transition-all text-gold-primary"
+                                                      title="Contabilizar Venda"
+                                                   >
+                                                      {isAutoLaunching ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                                   </button>
+                                                )}
+                                                <button onClick={(e) => { e.stopPropagation(); handlePrintFatura(n); }} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/70" title="Imprimir"><Printer size={14} /></button>
                                                 {n.status !== 'Anulado' && (
-                                                   <button onClick={() => handleAnularFatura(n)} className="p-2 hover:bg-white/5 rounded-lg transition-all text-red-500" title="Anular"><X size={14} /></button>
+                                                   <button onClick={(e) => { e.stopPropagation(); handleAnularFatura(n); }} className="p-2 hover:bg-white/5 rounded-lg transition-all text-red-500" title="Anular"><X size={14} /></button>
                                                 )}
                                              </div>
                                           </td>
@@ -4380,12 +4611,44 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                      const modulos = [
                         {
-                           nome: 'Faturação', icon: <FileText size={22} className="text-blue-500" />, bg: 'bg-blue-50 border-blue-100',
+                           nome: 'POS Vendas', icon: <ShoppingCart size={22} className="text-yellow-500" />, bg: 'bg-yellow-50 border-yellow-100',
+                           badge: `${extSales.length} vendas`,
+                           stats: [
+                              { label: 'Total Bruto', value: safeFormatAOA(extSales.reduce((s, x) => s + (Number(x.total) || 0), 0)), color: 'text-yellow-600' },
+                              { label: 'IVA Cobrado', value: safeFormatAOA(extSales.reduce((s, x) => s + (Number(x.tax) || 0), 0)), color: 'text-red-500' },
+                              { label: 'Líquido', value: safeFormatAOA(extSales.reduce((s, x) => s + (Number(x.total) - Number(x.tax)), 0)), color: 'text-green-600' },
+                           ],
+                           items: extSales.slice(0, 5).map(s => ({
+                              label: s.invoice_number || `Venda #${s.id}`,
+                              value: safeFormatAOA(s.total),
+                              sub: `IVA: ${safeFormatAOA(s.tax)}`,
+                              date: s.created_at?.split('T')[0] || '',
+                              onAutoLaunch: () => handleAutoLaunchFromPOSSale(s)
+                           }))
+                        },
+                        {
+                           nome: 'Vendas Farmácia', icon: <Activity size={22} className="text-emerald-500" />, bg: 'bg-emerald-50 border-emerald-100',
+                           badge: `${extVendasFarmacia.length} vendas`,
+                           stats: [
+                              { label: 'Total Bruto', value: safeFormatAOA(extVendasFarmacia.reduce((s, x) => s + (Number(x.total) || 0), 0)), color: 'text-emerald-600' },
+                              { label: 'IVA Cobrado', value: safeFormatAOA(extVendasFarmacia.reduce((s, x) => s + (Number(x.iva) || 0), 0)), color: 'text-red-500' },
+                              { label: 'Líquido', value: safeFormatAOA(extVendasFarmacia.reduce((s, x) => s + (Number(x.total) - Number(x.iva)), 0)), color: 'text-emerald-600' },
+                           ],
+                           items: extVendasFarmacia.slice(0, 5).map(v => ({
+                              label: v.numero_factura || `Venda #${v.id}`,
+                              value: safeFormatAOA(v.total),
+                              sub: `IVA: ${safeFormatAOA(v.iva)}`,
+                              date: v.data || '',
+                              onAutoLaunch: () => handleAutoLaunchFromPharmacySale(v)
+                           }))
+                        },
+                        {
+                           nome: 'Faturação Global', icon: <FileText size={22} className="text-blue-500" />, bg: 'bg-blue-50 border-blue-100',
                            badge: `${extFaturas.length} faturas`,
                            stats: [
                               { label: 'Total Faturado', value: safeFormatAOA(totalFaturas), color: 'text-blue-600' },
                               { label: 'Pagas', value: `${faturasPagas}/${extFaturas.length}`, color: 'text-green-600' },
-                              { label: 'Pendentes', value: `${extFaturas.length - faturasPagas}`, color: 'text-gold-primary' },
+                              { label: 'IVA', value: safeFormatAOA(extFaturas.reduce((s, f) => s + (Number(f.metadata?.iva) || 0), 0)), color: 'text-red-500' },
                            ],
                            items: extFaturas.slice(0, 5).map(f => ({
                               label: f.numero_fatura || f.cliente_nome || '—',
@@ -4552,7 +4815,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                {
                   activeTab === 'consolidacao' && (() => {
                      const consolidadoPorEmpresa = empresas.map(emp => {
-                        const empLancs = (lancamentos || []).filter(l => l.company_id === emp.id);
+                        const empLancs = (lancamentos || []).filter(l => l.company_id === emp.company_id);
                         let receita = 0, despesa = 0, ativo = 0, passivo = 0;
                         empLancs.forEach(l => {
                            (l.itens || []).forEach(it => {
@@ -5315,19 +5578,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         }}>
                            <p style={{ margin: '0' }}>QR CODE</p>
                            <p style={{ margin: '0' }}>SAF-T ANGOLA</p>
-                           <p style={{ margin: '4px 0 0 0', fontSize: '7px' }}>AGUARDANDO CERTIFICAÇÃO</p>
                         </div>
-
                         <p style={{ fontSize: '10px', fontWeight: 'bold' }}>Obrigado pela preferência!</p>
                         <p style={{ fontSize: '9px', color: '#666' }}>Software de Gestão Multi-Empresa - Venda Plus</p>
                      </div>
                   </div>
                </div>
-            </div >
-         </main >
-      </div >
+            </div>
+         </main>
+      </div>
    );
 };
 
 export default AccountingPage;
-

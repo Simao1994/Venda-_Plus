@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Search, ShoppingCart, Trash2, Plus, Minus,
-  Printer, CreditCard, Wallet, X, AlertTriangle, Pill, CheckCircle2, Banknote, ScanBarcode
+  Printer, CreditCard, Wallet, X, AlertTriangle, Pill, CheckCircle2, Banknote, ScanBarcode, Calculator as CalcIcon
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
+import Calculator from '../ui/Calculator';
 
 export default function PharmacyPOS() {
   const { token, user } = useAuth();
@@ -26,6 +27,7 @@ export default function PharmacyPOS() {
   const [newCustomer, setNewCustomer] = useState({ name: '', nif: '', phone: '' });
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [showReadyOnly, setShowReadyOnly] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const barcodeBuffer = useRef('');
   const barcodeTimer = useRef<any>(null);
@@ -53,7 +55,7 @@ export default function PharmacyPOS() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if a modal is open or user is typing in amount/discount fields
-      if (showPayment) return;
+      if (showPayment || showCalculator) return;
       const tag = (e.target as HTMLElement).tagName;
       const isSearchInput = e.target === searchInputRef.current;
 
@@ -337,6 +339,13 @@ export default function PharmacyPOS() {
             >
               {showReadyOnly ? 'Ver Todos' : 'Prontos'}
             </button>
+            <button
+              onClick={() => setShowCalculator(true)}
+              className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-emerald-400/40 hover:text-emerald-400 hover:border-emerald-500/30 transition-all shadow-inner group shrink-0"
+              title="Calculadora Profissional"
+            >
+              <CalcIcon size={20} className="group-hover:scale-110 transition-transform" />
+            </button>
           </div>
         </div>
 
@@ -575,192 +584,212 @@ export default function PharmacyPOS() {
       </div>
 
       {/* ─── Payment Modal ─── */}
-      {showPayment && (
-        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
-          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+      {
+        showPayment && (
+          <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
+            <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
 
-            {/* Modal Header */}
-            <div className="p-10 border-b border-white/5 bg-emerald-500/[0.03]">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">
-                    Finalizar <span style={{ background: 'linear-gradient(135deg, #34d399, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Venda</span>
-                  </h3>
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mt-2">Farmácia</p>
-                </div>
-                <button onClick={() => setShowPayment(false)} className="w-10 h-10 text-white/30 hover:text-white border border-white/5 rounded-xl flex items-center justify-center hover:bg-white/5 transition-all">
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Total Display */}
-              <div className="mt-8 glass-panel p-5 rounded-2xl border border-emerald-500/10 text-center">
-                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em] mb-2">Total a Pagar</p>
-                <p className="text-4xl font-black text-emerald-400 tabular-nums italic">{total.toLocaleString('pt-AO')}</p>
-                <p className="text-sm font-black text-emerald-400/40 mt-1">{user?.currency}</p>
-              </div>
-            </div>
-
-            <div className="p-10 space-y-6">
-              {/* Payment Method Tabs */}
-              <div className="glass-panel p-1.5 rounded-2xl border border-white/5 flex gap-1">
-                {payMethods.map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => setPaymentMethod(id as any)}
-                    className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] flex flex-col items-center gap-1.5 transition-all ${paymentMethod === id
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-                      : 'text-white/30 hover:text-white/50'
-                      }`}
-                  >
-                    <Icon size={16} />
-                    {label}
+              {/* Modal Header */}
+              <div className="p-10 border-b border-white/5 bg-emerald-500/[0.03]">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+                      Finalizar <span style={{ background: 'linear-gradient(135deg, #34d399, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Venda</span>
+                    </h3>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mt-2">Farmácia</p>
+                  </div>
+                  <button onClick={() => setShowPayment(false)} className="w-10 h-10 text-white/30 hover:text-white border border-white/5 rounded-xl flex items-center justify-center hover:bg-white/5 transition-all">
+                    <X size={18} />
                   </button>
-                ))}
+                </div>
+
+                {/* Total Display */}
+                <div className="mt-8 glass-panel p-5 rounded-2xl border border-emerald-500/10 text-center">
+                  <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em] mb-2">Total a Pagar</p>
+                  <p className="text-4xl font-black text-emerald-400 tabular-nums italic">{total.toLocaleString('pt-AO')}</p>
+                  <p className="text-sm font-black text-emerald-400/40 mt-1">{user?.currency}</p>
+                </div>
               </div>
 
-              {/* Amount Input */}
-              {(paymentMethod === 'cash' || paymentMethod === 'multicaixa') ? (
-                <div className="space-y-4">
-                  <div className="glass-panel p-5 rounded-2xl border border-white/5 focus-within:border-emerald-500/30 transition-all">
-                    <label className="block text-[9px] font-black text-white/20 uppercase tracking-[0.4em] mb-3">
-                      {paymentMethod === 'cash' ? 'Valor Entregue pelo Cliente' : 'Valor Confirmado pelo Terminal'}
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full bg-transparent border-none outline-none font-black text-4xl text-white tabular-nums tracking-tighter placeholder:text-white/10"
-                      value={amountPaid}
-                      onChange={e => setAmountPaid(e.target.value)}
-                      placeholder="0"
-                      autoFocus
-                    />
-                  </div>
+              <div className="p-10 space-y-6">
+                {/* Payment Method Tabs */}
+                <div className="glass-panel p-1.5 rounded-2xl border border-white/5 flex gap-1">
+                  {payMethods.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setPaymentMethod(id as any)}
+                      className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] flex flex-col items-center gap-1.5 transition-all ${paymentMethod === id
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                        : 'text-white/30 hover:text-white/50'
+                        }`}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
-                  {/* Quick amounts */}
-                  <div className="grid grid-cols-4 gap-2">
-                    {[500, 1000, 2000, 5000].map((v, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          const current = parseFloat(amountPaid) || 0;
-                          setAmountPaid((current + v).toString());
-                        }}
-                        className="glass-panel py-3 rounded-xl text-[9px] font-black text-white/40 hover:text-emerald-400 hover:border-emerald-500/20 border border-white/5 transition-all tabular-nums"
-                      >
-                        +{v.toLocaleString('pt-AO')}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[Math.ceil(total), Math.ceil(total / 500) * 500 + 500, Math.ceil(total / 1000) * 1000 + 1000, Math.ceil(total / 5000) * 5000].map((v, i) => (
-                      <button key={i} type="button" onClick={() => setAmountPaid(v.toString())} className="glass-panel py-3 rounded-xl text-[9px] font-black text-white/40 hover:text-emerald-400 hover:border-emerald-500/20 border border-white/5 transition-all tabular-nums">
-                        {v.toLocaleString('pt-AO')}
-                      </button>
-                    ))}
-                  </div>
-
-                  {paymentMethod === 'cash' && amountPaidNum > 0 && (
-                    <div className="glass-panel p-5 rounded-2xl border border-emerald-900/30 bg-emerald-500/[0.03] flex justify-between items-center">
-                      <span className="font-black text-white/40 text-[10px] uppercase tracking-widest">Troco</span>
-                      <span className="font-black text-emerald-400 text-2xl tabular-nums">{change.toLocaleString('pt-AO')} <span className="text-sm opacity-50">{user?.currency}</span></span>
+                {/* Amount Input */}
+                {(paymentMethod === 'cash' || paymentMethod === 'multicaixa') ? (
+                  <div className="space-y-4">
+                    <div className="glass-panel p-5 rounded-2xl border border-white/5 focus-within:border-emerald-500/30 transition-all">
+                      <label className="block text-[9px] font-black text-white/20 uppercase tracking-[0.4em] mb-3">
+                        {paymentMethod === 'cash' ? 'Valor Entregue pelo Cliente' : 'Valor Confirmado pelo Terminal'}
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full bg-transparent border-none outline-none font-black text-4xl text-white tabular-nums tracking-tighter placeholder:text-white/10"
+                        value={amountPaid}
+                        onChange={e => setAmountPaid(e.target.value)}
+                        placeholder="0"
+                        autoFocus
+                      />
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="glass-panel p-6 rounded-2xl border border-amber-500/10 bg-amber-500/[0.03]">
-                  <div className="flex items-center gap-3 mb-3">
-                    <AlertTriangle size={18} className="text-amber-400" />
-                    <span className="font-black text-amber-400 text-xs uppercase tracking-widest">Venda a Crédito</span>
-                  </div>
-                  <p className="text-[11px] text-white/30 font-black leading-relaxed">Esta venda será registada como dívida pendente. Certifique-se de que o paciente está identificado.</p>
-                </div>
-              )}
 
-              {/* Action Buttons */}
-              <div className="flex gap-4">
-                <button onClick={() => setShowPayment(false)} className="flex-1 py-4 font-black text-[10px] uppercase tracking-[0.3em] text-white/30 border border-white/5 rounded-2xl hover:bg-white/5 transition-all">
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleCheckout}
-                  disabled={processing}
-                  className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] active:scale-[0.98] transition-all disabled:opacity-50 shadow-2xl"
-                >
-                  {processing ? 'A processar...' : 'Confirmar'}
-                </button>
+                    {/* Quick amounts */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[500, 1000, 2000, 5000].map((v, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            const current = parseFloat(amountPaid) || 0;
+                            setAmountPaid((current + v).toString());
+                          }}
+                          className="glass-panel py-3 rounded-xl text-[9px] font-black text-white/40 hover:text-emerald-400 hover:border-emerald-500/20 border border-white/5 transition-all tabular-nums"
+                        >
+                          +{v.toLocaleString('pt-AO')}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[Math.ceil(total), Math.ceil(total / 500) * 500 + 500, Math.ceil(total / 1000) * 1000 + 1000, Math.ceil(total / 5000) * 5000].map((v, i) => (
+                        <button key={i} type="button" onClick={() => setAmountPaid(v.toString())} className="glass-panel py-3 rounded-xl text-[9px] font-black text-white/40 hover:text-emerald-400 hover:border-emerald-500/20 border border-white/5 transition-all tabular-nums">
+                          {v.toLocaleString('pt-AO')}
+                        </button>
+                      ))}
+                    </div>
+
+                    {paymentMethod === 'cash' && amountPaidNum > 0 && (
+                      <div className="glass-panel p-5 rounded-2xl border border-emerald-900/30 bg-emerald-500/[0.03] flex justify-between items-center">
+                        <span className="font-black text-white/40 text-[10px] uppercase tracking-widest">Troco</span>
+                        <span className="font-black text-emerald-400 text-2xl tabular-nums">{change.toLocaleString('pt-AO')} <span className="text-sm opacity-50">{user?.currency}</span></span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="glass-panel p-6 rounded-2xl border border-amber-500/10 bg-amber-500/[0.03]">
+                    <div className="flex items-center gap-3 mb-3">
+                      <AlertTriangle size={18} className="text-amber-400" />
+                      <span className="font-black text-amber-400 text-xs uppercase tracking-widest">Venda a Crédito</span>
+                    </div>
+                    <p className="text-[11px] text-white/30 font-black leading-relaxed">Esta venda será registada como dívida pendente. Certifique-se de que o paciente está identificado.</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-4">
+                  <button onClick={() => setShowPayment(false)} className="flex-1 py-4 font-black text-[10px] uppercase tracking-[0.3em] text-white/30 border border-white/5 rounded-2xl hover:bg-white/5 transition-all">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleCheckout}
+                    disabled={processing}
+                    className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] active:scale-[0.98] transition-all disabled:opacity-50 shadow-2xl"
+                  >
+                    {processing ? 'A processar...' : 'Confirmar'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* ─── Customer Modal ─── */}
-      {showCustomerModal && (
-        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
-          <div className="glass-panel rounded-[40px] w-full max-w-sm overflow-hidden shadow-2xl border border-white/10 p-8">
-            <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Novo <span className="text-emerald-400">Paciente</span></h3>
-            <form onSubmit={handleCreateCustomer} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Nome Completo</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
-                  value={newCustomer.name}
-                  onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">NIF (Opcional)</label>
-                <input
-                  type="text"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
-                  value={newCustomer.nif}
-                  onChange={e => setNewCustomer({ ...newCustomer, nif: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Telefone</label>
-                <input
-                  type="text"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
-                  value={newCustomer.phone}
-                  onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowCustomerModal(false)} className="flex-1 py-4 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-white/30 hover:bg-white/5">Cancelar</button>
-                <button type="submit" disabled={isCreatingCustomer} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                  {isCreatingCustomer ? 'A guardar...' : 'Guardar'}
-                </button>
-              </div>
-            </form>
+      {
+        showCustomerModal && (
+          <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4">
+            <div className="glass-panel rounded-[40px] w-full max-w-sm overflow-hidden shadow-2xl border border-white/10 p-8">
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Novo <span className="text-emerald-400">Paciente</span></h3>
+              <form onSubmit={handleCreateCustomer} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Nome Completo</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
+                    value={newCustomer.name}
+                    onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">NIF (Opcional)</label>
+                  <input
+                    type="text"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
+                    value={newCustomer.nif}
+                    onChange={e => setNewCustomer({ ...newCustomer, nif: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Telefone</label>
+                  <input
+                    type="text"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
+                    value={newCustomer.phone}
+                    onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setShowCustomerModal(false)} className="flex-1 py-4 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-white/30 hover:bg-white/5">Cancelar</button>
+                  <button type="submit" disabled={isCreatingCustomer} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                    {isCreatingCustomer ? 'A guardar...' : 'Guardar'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* ─── Success Toast ─── */}
-      {lastSale && (
-        <div className="fixed bottom-6 right-6 glass-panel p-6 rounded-[32px] shadow-2xl border border-emerald-500/20 z-50 flex items-center gap-5 max-w-sm shadow-[0_0_40px_rgba(16,185,129,0.1)]">
-          <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)] shrink-0">
-            <CheckCircle2 size={28} />
+      {
+        lastSale && (
+          <div className="fixed bottom-6 right-6 glass-panel p-6 rounded-[32px] shadow-2xl border border-emerald-500/20 z-50 flex items-center gap-5 max-w-sm shadow-[0_0_40px_rgba(16,185,129,0.1)]">
+            <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)] shrink-0">
+              <CheckCircle2 size={28} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-white text-xs uppercase tracking-widest italic">Venda Realizada!</p>
+              <p className="text-[9px] text-emerald-400/60 font-black uppercase tracking-widest mt-1">{lastSale.numero_factura}</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => handlePrint()} className="px-4 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/30 transition-all">
+                <Printer size={14} />
+              </button>
+              <button onClick={() => setLastSale(null)} className="px-4 py-2 border border-white/5 text-white/30 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">
+                <X size={14} />
+              </button>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-white text-xs uppercase tracking-widest italic">Venda Realizada!</p>
-            <p className="text-[9px] text-emerald-400/60 font-black uppercase tracking-widest mt-1">{lastSale.numero_factura}</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <button onClick={() => handlePrint()} className="px-4 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/30 transition-all">
-              <Printer size={14} />
-            </button>
-            <button onClick={() => setLastSale(null)} className="px-4 py-2 border border-white/5 text-white/30 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
+        )
+      }
+
+      {
+        showCalculator && (
+          <Calculator
+            onClose={() => setShowCalculator(false)}
+            onValueSelect={(val) => {
+              setAmountPaid(val);
+              setShowCalculator(false);
+            }}
+            accentColor="#10b981"
+            title="Terminal Farmacêutico"
+          />
+        )
+      }
     </div>
   );
 }
