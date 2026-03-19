@@ -26,7 +26,7 @@ class ErrorBoundary extends Component<any, any> {
 
 import {
   Users, Building2, CalendarCheck, FileSpreadsheet,
-  LayoutDashboard, FileText, Target, IdCard
+  LayoutDashboard, FileText, Target, IdCard, CreditCard, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -52,8 +52,8 @@ export default function HRModule() {
     { id: 'payroll', label: 'Folha Salarial', icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'] },
     { id: 'performance', label: 'Performance', icon: Target, roles: ['admin', 'manager', 'master'] },
     { id: 'passes', label: 'Passes PVC', icon: IdCard, roles: ['admin', 'manager', 'master'] },
-    { id: 'bank', label: 'Contas Bancárias', icon: FileText, roles: ['admin', 'manager', 'master'] },
-    { id: 'vagas', label: 'Vagas', icon: FileText, roles: ['admin', 'manager', 'master'] },
+    { id: 'bank', label: 'Contas Bancárias', icon: CreditCard, roles: ['admin', 'manager', 'master'] },
+    { id: 'vagas', label: 'Vagas Admin', icon: ClipboardList, roles: ['admin', 'manager', 'master'] },
   ];
 
   if (!user) return (
@@ -73,8 +73,8 @@ export default function HRModule() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all ${activeTab === tab.id
-                ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]'
-                : 'text-white/30 hover:text-white/50 hover:bg-white/5 border border-transparent'
+              ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]'
+              : 'text-white/30 hover:text-white/50 hover:bg-white/5 border border-transparent'
               }`}
           >
             <tab.icon size={14} />

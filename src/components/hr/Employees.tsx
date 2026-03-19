@@ -6,8 +6,9 @@ import {
   UserPlus, Search, Edit2, Trash2, X, CheckCircle2, XCircle,
   DollarSign, Briefcase, Phone, Mail, MapPin, Calendar,
   Building2, ShieldCheck, CreditCard, Users, ChevronDown,
-  RefreshCw, User
+  RefreshCw, User, CreditCard as BankIcon
 } from 'lucide-react';
+import BankAccountsTab from './BankAccountsTab';
 
 const Field = ({ label, children }: any) => (
   <div className="space-y-1.5">
@@ -28,7 +29,7 @@ export default function Employees() {
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeSection, setActiveSection] = useState<'pessoal' | 'profissional' | 'salarial'>('pessoal');
+  const [activeSection, setActiveSection] = useState<'pessoal' | 'profissional' | 'salarial' | 'bancario'>('pessoal');
 
   const defaultForm = {
     name: '', email: '', phone: '', address: '', nif: '', numero_ss: '',
@@ -124,6 +125,7 @@ export default function Employees() {
     { id: 'pessoal', label: 'Dados Pessoais', icon: User },
     { id: 'profissional', label: 'Dados Profissionais', icon: Briefcase },
     { id: 'salarial', label: 'Dados Salariais', icon: DollarSign },
+    { id: 'bancario', label: 'Dados Bancários', icon: BankIcon },
   ] as const;
 
   return (
@@ -308,9 +310,9 @@ export default function Employees() {
                   <Field label="Data de Admissão *">
                     <input required type="date" className={inputCls} value={formData.hire_date} onChange={e => up('hire_date', e.target.value)} />
                   </Field>
-                  <Field label="Conta Bancária">
-                    <input type="text" className={inputCls} placeholder="NIB ou IBAN" value={formData.bank_account} onChange={e => up('bank_account', e.target.value)} />
-                  </Field>
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-[10px] text-amber-700 font-bold uppercase tracking-wider flex items-center gap-2">
+                    <BankIcon size={14} /> Use a aba "Dados Bancários" para detalhes completos
+                  </div>
                   <Field label="Tipo de Colaborador">
                     <select className={selectCls} value={formData.is_service_provider ? 'true' : 'false'} onChange={e => up('is_service_provider', e.target.value === 'true')}>
                       <option value="false">Efectivo (regime laboral)</option>
@@ -359,6 +361,27 @@ export default function Employees() {
                   <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700 font-medium">
                     💡 O INSS (3% trabalhador / 8% empresa) e o IRT são calculados automaticamente na Folha de Pagamento.
                   </div>
+                </div>
+              )}
+
+              {/* Dados Bancários */}
+              {activeSection === 'bancario' && (
+                <div className="space-y-6">
+                  {editingEmployee ? (
+                    <BankAccountsTab
+                      funcionarioId={editingEmployee.id}
+                      user={user as any}
+                    />
+                  ) : (
+                    <div className="bg-zinc-50 border border-zinc-100 rounded-3xl p-10 text-center">
+                      <BankIcon size={48} className="text-zinc-300 mx-auto mb-4" />
+                      <h4 className="text-sm font-black text-zinc-900 uppercase">Registo de Contas</h4>
+                      <p className="text-xs text-zinc-500 mt-2">
+                        Poderá registar os dados bancários detalhados (IBAN, Banco, etc.)
+                        após criar o registo base do funcionário.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
