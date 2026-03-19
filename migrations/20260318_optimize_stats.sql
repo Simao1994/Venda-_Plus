@@ -8,6 +8,7 @@ DECLARE
     v_table RECORD;
     v_count BIGINT;
     v_total_tables INTEGER := 0;
+    v_user_count BIGINT := 0;
 BEGIN
     FOR v_table IN 
         SELECT 
@@ -23,7 +24,10 @@ BEGIN
         AND t.table_name NOT LIKE 'pg_%' 
         AND t.table_name NOT LIKE 'sql_%'
     LOOP
-        -- Determine if we should count this table
+        -- Count all public tables in total_tables
+        v_total_tables := v_total_tables + 1;
+
+        -- For row counts (table_stats), filter by tenant if not master
         IF p_is_master OR v_table.has_company_id OR v_table.table_name = 'companies' THEN
             -- Dynamic SQL for counting
             IF v_table.has_company_id AND NOT p_is_master THEN
@@ -33,7 +37,6 @@ BEGIN
             END IF;
             
             v_results := v_results || jsonb_build_object(v_table.table_name, v_count);
-            v_total_tables := v_total_tables + 1;
         END IF;
     END LOOP;
 
