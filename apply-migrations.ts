@@ -9,7 +9,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 async function applyMigrations() {
     const files = [
-        'migrations/20260319_inventory_v2.sql'
+        'migrations/20260319_inventory_v2.sql',
+        'migrations/MIGRATION_NEW_MODULES.sql',
+        'migrations/fix_bank_accounts.sql',
+        'migrations/fix_hr_columns.sql'
     ];
 
     for (const file of files) {
