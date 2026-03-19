@@ -5,8 +5,9 @@ import {
   DollarSign, Database, Download, CheckCircle2, Server,
   Shield, Store, Package, Users, User, BarChart3,
   Plus, Newspaper, Megaphone, PieChart, Settings as SettingsIcon,
-  X, Check, FileText, Activity
+  X, Check, FileText, Activity, HelpCircle
 } from 'lucide-react';
+import SystemDocumentation from './documentation/SystemDocumentation';
 
 const MODULE_DEFS = [
   { key: 'sales', label: 'Vendas & PDV', icon: <Store size={14} /> },
@@ -37,7 +38,7 @@ export default function Settings() {
     logo: '',
     role_permissions: {}
   });
-  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'system'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'system' | 'docs'>('profile');
   const [dbState, setDbState] = useState<any>(null);
   const [billingSeries, setBillingSeries] = useState<any[]>([]);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
@@ -233,6 +234,12 @@ export default function Settings() {
           className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'system' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
         >
           Estado do Sistema
+        </button>
+        <button
+          onClick={() => setActiveTab('docs')}
+          className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'docs' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+        >
+          Documentação
         </button>
       </div>
 
@@ -545,6 +552,8 @@ export default function Settings() {
             </div>
           )}
         </div>
+      ) : activeTab === 'docs' ? (
+        <SystemDocumentation isAdmin={user?.role === 'admin' || user?.role === 'master'} />
       ) : (
         <div className="space-y-6">
           <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">

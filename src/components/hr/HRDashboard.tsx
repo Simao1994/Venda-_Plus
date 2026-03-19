@@ -1,187 +1,164 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import {
-  Users,
-  Building2,
-  TrendingUp,
-  DollarSign,
-  PieChart,
-  Calendar
-} from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
+import { Users, Building2, TrendingUp, DollarSign, PieChart, Calendar, Banknote } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function HRDashboard() {
   const { token, user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  useEffect(() => { fetchStats(); }, []);
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/hr/stats', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setStats(data || {});
-    } catch (error) {
-      console.error('Error fetching HR stats:', error);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch('/api/hr/stats', { headers: { Authorization: `Bearer ${token}` } });
+      setStats((await res.json()) || {});
+    } catch (e) { console.error('HR stats error:', e); }
+    finally { setLoading(false); }
   };
 
-  if (loading) return <div className="p-8 text-center">Carregando...</div>;
+  const lp = stats?.lastPayroll;
 
-  const lastPayroll = stats?.lastPayroll;
-
-  const chartData = lastPayroll ? [
-    { name: 'Salário Líquido', value: lastPayroll.total_net, color: '#4f46e5' },
-    { name: 'IRT', value: lastPayroll.total_irt, color: '#ef4444' },
-    { name: 'INSS (Trab.)', value: lastPayroll.total_inss_employee, color: '#f59e0b' },
-    { name: 'INSS (Emp.)', value: lastPayroll.total_inss_employer, color: '#10b981' },
+  const chartData = lp ? [
+    { name: 'Salário Líquido', value: lp.total_net, color: '#6366f1' },
+    { name: 'IRT', value: lp.total_irt, color: '#ef4444' },
+    { name: 'INSS (Trab.)', value: lp.total_inss_employee, color: '#f59e0b' },
+    { name: 'INSS (Emp.)', value: lp.total_inss_employer, color: '#10b981' },
   ] : [];
 
+  const kpis = [
+    { label: 'Funcionários Ativos', value: stats?.employees || 0, icon: Users, color: 'indigo' },
+    { label: 'Departamentos', value: stats?.departments || 0, icon: Building2, color: 'emerald' },
+    { label: 'Custo Total Folha', value: lp ? (lp.total_gross + lp.total_inss_employer).toLocaleString('pt-AO') : '0', icon: DollarSign, color: 'amber', suffix: user?.currency },
+    { label: 'Impostos (IRT+INSS)', value: lp ? (lp.total_irt + lp.total_inss_employee + lp.total_inss_employer).toLocaleString('pt-AO') : '0', icon: TrendingUp, color: 'red', suffix: user?.currency },
+  ];
+
+  const colorMap: Record<string, { bg: string; text: string; border: string; glow: string }> = {
+    indigo: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20', glow: 'shadow-[0_0_30px_rgba(99,102,241,0.1)]' },
+    emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', glow: 'shadow-[0_0_30px_rgba(16,185,129,0.1)]' },
+    amber: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', glow: 'shadow-[0_0_30px_rgba(245,158,11,0.1)]' },
+    red: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', glow: 'shadow-[0_0_30px_rgba(239,68,68,0.1)]' },
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center">
-              <Users size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Funcionários Ativos</p>
-              <h3 className="text-2xl font-bold text-gray-900">{stats?.employees || 0}</h3>
-            </div>
-          </div>
-        </div>
+    <div className="p-8 max-w-7xl mx-auto relative z-10">
+      {/* Header */}
+      <header className="mb-10">
+        <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
+          Recursos <span style={{ background: 'linear-gradient(135deg, #818cf8, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Humanos</span>
+        </h1>
+        <p className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em] mt-2 italic">Gestão de pessoal, folha salarial e impostos</p>
+      </header>
 
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
-              <Building2 size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Departamentos</p>
-              <h3 className="text-2xl font-bold text-gray-900">{stats?.departments || 0}</h3>
-            </div>
-          </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-32">
+          <div className="w-12 h-12 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin" />
         </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center">
-              <DollarSign size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Custo Total Folha</p>
-              <h3 className="text-2xl font-bold text-gray-900">
-                {lastPayroll ? (lastPayroll.total_gross + lastPayroll.total_inss_employer).toLocaleString() : 0} {user?.currency}
-              </h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center">
-              <TrendingUp size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Impostos Pagos (IRT+INSS)</p>
-              <h3 className="text-2xl font-bold text-gray-900">
-                {lastPayroll ? (lastPayroll.total_irt + lastPayroll.total_inss_employee + lastPayroll.total_inss_employer).toLocaleString() : 0} {user?.currency}
-              </h3>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <PieChart size={20} className="text-indigo-600" />
-            Distribuição de Custos (Última Folha)
-          </h3>
-          <div className="h-[300px]">
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => val.toLocaleString()} />
-                  <Tooltip
-                    formatter={(val: any) => [val.toLocaleString() + ' ' + user?.currency, 'Valor']}
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                <div className="text-center">
-                  <PieChart size={32} className="mx-auto mb-2 opacity-20" />
-                  <p className="text-xs font-bold uppercase tracking-widest">Sem dados disponíveis</p>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            {kpis.map((kpi, i) => {
+              const c = colorMap[kpi.color];
+              return (
+                <div key={i} className={`glass-panel p-8 rounded-[40px] border border-white/5 flex items-center gap-6 relative overflow-hidden group hover:border-opacity-30 transition-all ${c.glow}`}>
+                  <div className={`w-16 h-16 ${c.bg} ${c.text} rounded-[1.5rem] flex items-center justify-center border ${c.border} ${c.glow} shrink-0`}>
+                    <kpi.icon size={28} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em] mb-1">{kpi.label}</p>
+                    <p className="text-3xl font-black text-white tracking-tighter italic">
+                      {typeof kpi.value === 'number' ? kpi.value.toLocaleString('pt-AO') : kpi.value}
+                    </p>
+                    {kpi.suffix && <p className="text-[9px] font-black text-white/10 mt-0.5">{kpi.suffix}</p>}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })}
           </div>
-        </div>
 
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <Calendar size={20} className="text-indigo-600" />
-            Resumo da Última Folha ({lastPayroll?.month}/{lastPayroll?.year})
-          </h3>
-          {lastPayroll ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
-                <span className="text-gray-600">Salário Bruto Total</span>
-                <span className="font-bold">{lastPayroll.total_gross.toLocaleString()} {user?.currency}</span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
-                <span className="text-gray-600">IRT Total</span>
-                <span className="font-bold text-rose-600">-{lastPayroll.total_irt.toLocaleString()} {user?.currency}</span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
-                <span className="text-gray-600">INSS Trabalhador (3%)</span>
-                <span className="font-bold text-amber-600">-{lastPayroll.total_inss_employee.toLocaleString()} {user?.currency}</span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
-                <span className="text-gray-600">INSS Empresa (8%)</span>
-                <span className="font-bold text-emerald-600">{lastPayroll.total_inss_employer.toLocaleString()} {user?.currency}</span>
-              </div>
-              <div className="pt-4 border-t flex justify-between items-center">
-                <span className="text-lg font-bold text-gray-900">Salário Líquido Total</span>
-                <span className="text-xl font-black text-indigo-600">{lastPayroll.total_net.toLocaleString()} {user?.currency}</span>
+          {/* Chart + Payroll Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Bar Chart */}
+            <div className="glass-panel p-8 rounded-[40px] border border-white/5">
+              <h3 className="font-black text-white text-sm uppercase tracking-[0.2em] italic mb-2 flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#6366f1]" />
+                Distribuição de Custos
+              </h3>
+              <p className="text-[9px] text-white/20 uppercase tracking-widest mb-6">Última Folha Salarial</p>
+              <div className="h-[280px]">
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.25)' }} dy={8} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: 'rgba(255,255,255,0.15)' }} tickFormatter={v => v.toLocaleString('pt-AO')} />
+                      <Tooltip
+                        contentStyle={{ background: '#0a0a0a', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }}
+                        labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' as const }}
+                        itemStyle={{ color: '#818cf8', fontSize: '14px', fontWeight: 900 }}
+                        formatter={(v: any) => [`${Number(v).toLocaleString('pt-AO')} ${user?.currency}`, 'Valor']}
+                      />
+                      <Bar dataKey="value" radius={[12, 12, 0, 0]}>
+                        {chartData.map((entry, i) => (
+                          <Cell key={`cell-${i}`} fill={entry.color} fillOpacity={0.8} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-white/10 gap-4">
+                    <PieChart size={32} />
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em]">Sem dados disponíveis</p>
+                  </div>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-              <div className="text-center">
-                <Calendar size={32} className="mx-auto mb-2 opacity-20" />
-                <p className="text-xs font-bold uppercase tracking-widest">Gere a primeira folha</p>
-              </div>
+
+            {/* Payroll Summary */}
+            <div className="glass-panel p-8 rounded-[40px] border border-white/5">
+              <h3 className="font-black text-white text-sm uppercase tracking-[0.2em] italic mb-2 flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#6366f1]" />
+                Resumo da Folha
+              </h3>
+              <p className="text-[9px] text-white/20 uppercase tracking-widest mb-6">
+                {lp ? `${lp.month}/${lp.year}` : 'Sem dados'}
+              </p>
+              {lp ? (
+                <div className="space-y-3">
+                  {[
+                    { label: 'Salário Bruto Total', value: lp.total_gross, color: 'text-white/60', sign: '' },
+                    { label: 'IRT Total', value: lp.total_irt, color: 'text-red-400', sign: '-' },
+                    { label: 'INSS Trabalhador (3%)', value: lp.total_inss_employee, color: 'text-amber-400', sign: '-' },
+                    { label: 'INSS Empresa (8%)', value: lp.total_inss_employer, color: 'text-emerald-400', sign: '' },
+                  ].map((r, i) => (
+                    <div key={i} className="glass-panel flex justify-between items-center p-5 rounded-2xl border border-white/5 hover:border-indigo-500/10 transition-all group">
+                      <span className="text-[10px] font-black text-white/30 uppercase tracking-widest group-hover:text-white/40 transition-colors">{r.label}</span>
+                      <span className={`font-black tabular-nums ${r.color}`}>
+                        {r.sign}{r.value?.toLocaleString('pt-AO')} <span className="text-[9px] opacity-50">{user?.currency}</span>
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Total Líquido */}
+                  <div className="pt-4 border-t border-white/5 flex justify-between items-center">
+                    <span className="font-black text-white uppercase tracking-widest text-sm">Salário Líquido Total</span>
+                    <span className="font-black text-indigo-400 text-2xl tabular-nums italic">
+                      {lp.total_net?.toLocaleString('pt-AO')} <span className="text-sm opacity-50">{user?.currency}</span>
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-[280px] flex flex-col items-center justify-center text-white/10 gap-4">
+                  <Calendar size={32} />
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em]">Gere a primeira folha salarial</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

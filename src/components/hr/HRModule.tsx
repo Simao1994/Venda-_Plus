@@ -1,44 +1,32 @@
 // @ts-nocheck
-import React, { useState, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, Component } from 'react';
 
-// Error Boundary para capturar crashes das tabs e não deixar a tela toda branca
+// Error Boundary
 class ErrorBoundary extends Component<any, any> {
-  state = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(`Erro na tab ${this.props.tabName}:`, error, errorInfo);
-  }
-
+  state = { hasError: false, error: null as any };
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) { console.error(`Erro na tab ${this.props.tabName}:`, error, errorInfo); }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl m-6 border border-red-200">
-          <h2 className="text-xl font-bold mb-2">Erro ao carregar o módulo ({this.props.tabName})</h2>
-          <pre className="text-sm overflow-auto text-left font-mono">{this.state.error?.message}</pre>
-          <pre className="text-xs overflow-auto text-left mt-2 opacity-70">{this.state.error?.stack}</pre>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded font-bold"
-          >Tentar Novamente</button>
+        <div className="p-8 text-center m-6">
+          <div className="glass-panel rounded-[40px] p-10 border border-red-500/20 inline-block">
+            <h2 className="text-lg font-black text-red-400 uppercase tracking-widest italic mb-4">Erro no Módulo ({this.props.tabName})</h2>
+            <pre className="text-[10px] text-white/30 font-mono overflow-auto text-left max-w-lg">{this.state.error?.message}</pre>
+            <button onClick={() => this.setState({ hasError: false, error: null })} className="mt-6 px-6 py-3 bg-red-500/20 text-red-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-500/30 hover:bg-red-500/30 transition-all">
+              Tentar Novamente
+            </button>
+          </div>
         </div>
       );
     }
     return this.props.children;
   }
 }
+
 import {
-  Users,
-  Building2,
-  CalendarCheck,
-  FileSpreadsheet,
-  LayoutDashboard,
-  FileText,
-  Target,
-  IdCard
+  Users, Building2, CalendarCheck, FileSpreadsheet,
+  LayoutDashboard, FileText, Target, IdCard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -68,31 +56,36 @@ export default function HRModule() {
     { id: 'vagas', label: 'Vagas', icon: FileText, roles: ['admin', 'manager', 'master'] },
   ];
 
-  if (!user) return <div className="p-8 text-center font-bold text-slate-400">Carregando permissões...</div>;
+  if (!user) return (
+    <div className="p-8 text-center">
+      <div className="w-10 h-10 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
+    </div>
+  );
 
   const filteredTabs = tabs.filter(tab => tab.roles.includes(user.role));
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* HR Navigation */}
-      <div className="bg-white border-b px-6 py-3 flex gap-2 overflow-x-auto shrink-0">
+    <div className="flex flex-col h-full">
+      {/* ── Premium HR Navigation ── */}
+      <div className="glass-panel border-b border-white/5 px-6 py-4 flex gap-2 overflow-x-auto shrink-0 custom-scrollbar">
         {filteredTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${activeTab === tab.id
-              ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-              : 'text-gray-500 hover:bg-gray-100'
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all ${activeTab === tab.id
+                ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]'
+                : 'text-white/30 hover:text-white/50 hover:bg-white/5 border border-transparent'
               }`}
           >
-            <tab.icon size={16} />
+            <tab.icon size={14} />
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* HR Content */}
-      <div className="flex-1 overflow-y-auto">
+      {/* ── Content Area ── */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.03),transparent_60%)]" />
         <ErrorBoundary key={activeTab} tabName={activeTab}>
           {activeTab === 'dashboard' && <HRDashboard />}
           {activeTab === 'employees' && <Employees />}

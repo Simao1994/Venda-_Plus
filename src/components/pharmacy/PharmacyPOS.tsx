@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Search, ShoppingCart, Trash2, Plus, Minus,
-  Printer, CreditCard, Wallet, X, AlertTriangle, Pill, CheckCircle2, Banknote
+  Printer, CreditCard, Wallet, X, AlertTriangle, Pill, CheckCircle2, Banknote, ScanBarcode
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 
@@ -19,6 +19,10 @@ export default function PharmacyPOS() {
   const [autoPrint, setAutoPrint] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [discount, setDiscount] = useState('0');
+  const [barcodeFlash, setBarcodeFlash] = useState(false);
+  const barcodeBuffer = useRef('');
+  const barcodeTimer = useRef<any>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -30,6 +34,45 @@ export default function PharmacyPOS() {
   });
 
   useEffect(() => { fetchMedicamentos(); }, []);
+
+  // ── Barcode Scanner Auto-Detect ──
+  // Barcode scanners type digits very fast (< 50ms between chars) and end with Enter
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if a modal is open or user is typing in amount/discount fields
+      if (showPayment) return;
+      const tag = (e.target as HTMLElement).tagName;
+      const isSearchInput = e.target === searchInputRef.current;
+
+      if (e.key === 'Enter' && barcodeBuffer.current.length >= 4) {
+        // Barcode scan complete
+        const code = barcodeBuffer.current;
+        barcodeBuffer.current = '';
+        const med = medicamentos.find(m => m.codigo_barras === code);
+        if (med) {
+          addToCart(med);
+          setBarcodeFlash(true);
+          setTimeout(() => setBarcodeFlash(false), 800);
+          setSearch('');
+        } else {
+          setSearch(code); // Show in search if no match
+        }
+        e.preventDefault();
+        return;
+      }
+
+      // Only capture digits for barcode
+      if (/^\d$/.test(e.key)) {
+        barcodeBuffer.current += e.key;
+        if (barcodeTimer.current) clearTimeout(barcodeTimer.current);
+        barcodeTimer.current = setTimeout(() => { barcodeBuffer.current = ''; }, 100);
+      } else if (e.key !== 'Shift' && e.key !== 'Enter') {
+        barcodeBuffer.current = '';
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [medicamentos, showPayment, cart]);
 
   const fetchMedicamentos = async () => {
     try {
@@ -169,16 +212,22 @@ export default function PharmacyPOS() {
       <div className="flex-1 flex flex-col overflow-hidden border-r border-white/5">
         {/* Search Bar */}
         <div className="p-4 glass-panel border-b border-white/5 shrink-0">
-          <div className="relative group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-400/40 group-focus-within:text-emerald-400 transition-colors" size={16} />
-            <input
-              type="text"
-              placeholder="Pesquisar por nome ou código de barras..."
-              className="w-full pl-12 pr-5 py-4 bg-white/5 border border-white/5 rounded-2xl focus:bg-white/[0.08] focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/5 font-black text-[11px] text-white placeholder:text-white/20 outline-none transition-all uppercase tracking-[0.1em] shadow-inner"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              autoFocus
-            />
+          <div className="relative group flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-400/40 group-focus-within:text-emerald-400 transition-colors" size={16} />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Pesquisar por nome ou código de barras..."
+                className="w-full pl-12 pr-5 py-4 bg-white/5 border border-white/5 rounded-2xl focus:bg-white/[0.08] focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/5 font-black text-[11px] text-white placeholder:text-white/20 outline-none transition-all uppercase tracking-[0.1em] shadow-inner"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-all shrink-0 ${barcodeFlash ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.4)] scale-110' : 'bg-white/5 border-white/5 text-white/20'}`} title="Leitor de código de barras ativo">
+              <ScanBarcode size={20} />
+            </div>
           </div>
         </div>
 
@@ -198,10 +247,10 @@ export default function PharmacyPOS() {
                     key={med.id}
                     onClick={() => !outOfStock && addToCart(med)}
                     className={`glass-panel p-5 rounded-[28px] border flex flex-col gap-3 group relative overflow-hidden transition-all ${outOfStock
-                        ? 'opacity-40 cursor-not-allowed border-white/5'
-                        : inCart
-                          ? 'border-emerald-500/40 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.1)] hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]'
-                          : 'border-white/5 cursor-pointer hover:border-emerald-500/20 hover:shadow-[0_0_20px_rgba(16,185,129,0.05)]'
+                      ? 'opacity-40 cursor-not-allowed border-white/5'
+                      : inCart
+                        ? 'border-emerald-500/40 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.1)] hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]'
+                        : 'border-white/5 cursor-pointer hover:border-emerald-500/20 hover:shadow-[0_0_20px_rgba(16,185,129,0.05)]'
                       }`}
                   >
                     {/* In-cart badge */}
@@ -212,7 +261,7 @@ export default function PharmacyPOS() {
                     )}
 
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0 transition-all ${outOfStock ? 'bg-white/5 text-white/20 border-white/5' :
-                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                      'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]'
                       }`}>
                       <Pill size={22} />
                     </div>
@@ -424,8 +473,8 @@ export default function PharmacyPOS() {
                     key={id}
                     onClick={() => setPaymentMethod(id as any)}
                     className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] flex flex-col items-center gap-1.5 transition-all ${paymentMethod === id
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-                        : 'text-white/30 hover:text-white/50'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                      : 'text-white/30 hover:text-white/50'
                       }`}
                   >
                     <Icon size={16} />
