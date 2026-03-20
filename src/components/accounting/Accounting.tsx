@@ -302,6 +302,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             body: JSON.stringify({
                type: invoiceForm.tipo,
                customer_name: invoiceForm.cliente_nome,
+               customer_id: invoiceForm.cliente_id,
                items: invoiceForm.itens,
                company_id: selectedEmpresaId,
                metadata: { observacoes: invoiceForm.observacoes },
@@ -310,7 +311,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             })
          });
 
-         if (!res.ok) throw new Error(await res.text());
+         if (!res.ok) {
+            const rawBody = await res.text().catch(() => 'No error body');
+            console.error('❌ API Error Response:', { status: res.status, body: rawBody });
+            
+            let message = rawBody;
+            try {
+               const json = JSON.parse(rawBody);
+               message = json.error || json.message || rawBody;
+            } catch (e) {}
+            
+            throw new Error(`Erro [HTTP ${res.status}]: ${message.substring(0, 200)}`);
+         }
 
          const doc = await res.json();
          setLastCreatedDoc(doc);
@@ -671,11 +683,19 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
       setIsSavingContact(true);
       try {
-         const { error } = await supabase.from('acc_contactos').insert({
-            ...newContact,
-            company_id: selectedEmpresaId
-         });
+         const table = newContact.tipo === 'Fornecedor' ? 'suppliers' : 'customers';
+         const payload = {
+            company_id: selectedEmpresaId,
+            name: newContact.nome,
+            nif: newContact.nif,
+            email: newContact.email,
+            phone: newContact.telefone,
+            address: newContact.morada
+         };
+
+         const { error } = await supabase.from(table).insert(payload);
          if (error) throw error;
+         
          alert("Contacto criado com sucesso!");
          setShowContactModal(false);
          setNewContact({
@@ -683,11 +703,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             email: '', telefone: '', morada: ''
          });
          fetchAccountingData();
-      } catch (e) {
+      } catch (e: any) {
          console.error(e);
-         alert("Erro ao guardar contacto.");
+         alert("Erro ao guardar contacto: " + (e.message || "Tente novamente"));
       } finally {
-         setIsSavingContact(true);
          setIsSavingContact(false);
       }
    };
@@ -814,7 +833,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             rhRecibosRes,
             prodRes,
             comprasRes,
-            contactosRes,
+            customersRes,
+            suppliersRes,
             catsRes,
             vendasFarmaciaRes,
             salesRes
@@ -831,7 +851,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             safeQuery<any[]>(() => supabase.from('rh_recibos').select('*').eq('company_id', effEmpId).order('data_emissao', { ascending: false }), { cacheKey: `acc-recibos-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('products').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<any[]>(() => supabase.from('acc_contactos').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-contactos-${effEmpId}`, cacheTTL: 60000 }),
+            safeQuery<any[]>(() => supabase.from('customers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-customers-${effEmpId}`, cacheTTL: 30000 }),
+            safeQuery<any[]>(() => supabase.from('suppliers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-suppliers-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('vendas_farmacia').select('*, clientes_farmacia(nome)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('sales').select('*, customers(name)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000 })
@@ -889,9 +910,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             setCompras(comprasRes.data);
          }
 
-         if (contactosRes.data) {
-            setContactos(contactosRes.data);
-         }
+                  // Merge Customers and Suppliers into Contactos
+         const mergedContactos = [
+            ...(customersRes?.data || []).map((c: any) => ({ ...c, nome: c.name, tipo: 'Cliente' })),
+            ...(suppliersRes?.data || []).map((s: any) => ({ ...s, nome: s.name, tipo: 'Fornecedor' }))
+         ];
+         setContactos(mergedContactos);
+         AmazingStorage.save(STORAGE_KEYS.ACC_CONTACTOS, mergedContactos);
 
          if (catsRes.data) {
             setCategorias(catsRes.data);
@@ -5147,8 +5172,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                {/* --- MODAL NOVO CONTACTO (CRM) --- */}
                {
                   showContactModal && (
-                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-                        <div className="bg-white/5 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
+                     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-6 animate-in fade-in duration-300 overflow-y-auto">
+                        <div className="bg-white/5 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in-95 my-auto">
                            <div className="p-8 border-b border-white/5 flex justify-between items-center bg-bg-deep/50">
                               <div className="flex items-center gap-4">
                                  <div className="w-12 h-12 bg-gold-primary rounded-2xl flex items-center justify-center text-white shadow-lg">
@@ -5161,7 +5186,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               </div>
                               <button onClick={() => setShowContactModal(false)} className="p-3 text-white/30 hover:bg-zinc-200 rounded-full transition-all"><X size={24} /></button>
                            </div>
-                           <form onSubmit={handleCreateContact} className="p-8 space-y-6">
+                           <form onSubmit={handleCreateContact} className="p-10 space-y-8">
                               <div className="grid grid-cols-2 gap-6">
                                  <div className="col-span-2">
                                     <Input label="Nome Completo / Razão Social" required placeholder="Ex: Amazing Corporation Lda"
@@ -5185,7 +5210,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  </div>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-zinc-50">
+                              <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/10">
                                  <Input label="E-mail" type="email" placeholder="contacto@email.com"
                                     value={newContact.email} onChange={(e: any) => setNewContact({ ...newContact, email: e.target.value })}
                                  />

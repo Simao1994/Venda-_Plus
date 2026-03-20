@@ -3441,10 +3441,14 @@ async function startServer() {
 
   const PORT = process.env.PORT || 3000;
   // Certified Document Generation (Universal)
+  // Certified Document Generation (Universal)
   app.post('/api/documents', authenticate, async (req: any, res: any) => {
-    const { type, items, customer_name, metadata, company_id } = req.body;
+    const { type, items, customer_name, customer_id, metadata, company_id, is_exempt, exemption_reason } = req.body;
+    console.log('📄 [DOCS] Início de emissão:', { type, customer_name, customer_id, company_id });
+
     if (!type || !items || !customer_name) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      console.log('⚠️ [DOCS] Campos em falta:', { type, items_len: items?.length, customer_name });
+      return res.status(400).json({ error: 'Missing required fields (type, items, customer_name)' });
     }
 
     try {
@@ -3456,79 +3460,123 @@ async function startServer() {
 
       const year = new Date().getFullYear();
       const series = `${prefix} ${year}`;
+      const effCompanyId = company_id || req.user.company_id;
 
-      // Get sequence
+      // 1. Get/Update Sequence
+      console.log('📄 [DOCS] Verificando série:', series);
       let { data: bSeries, error: sError } = await supabase
         .from('billing_series')
         .select('*')
         .eq('series', series)
-        .eq('company_id', company_id || req.user.company_id)
+        .eq('company_id', effCompanyId)
         .single();
 
-      if (sError && sError.code !== 'PGRST116') throw sError;
+      if (sError && sError.code !== 'PGRST116') {
+        console.log('❌ [DOCS] Erro na série:', sError);
+        throw sError;
+      }
 
       let nextNum = 1;
       if (bSeries) {
-        nextNum = bSeries.current_number + 1;
+        nextNum = (bSeries.current_number || 0) + 1;
+        console.log('📄 [DOCS] Atualizando número para:', nextNum);
         await supabase.from('billing_series').update({ current_number: nextNum }).eq('id', bSeries.id);
       } else {
+        console.log('📄 [DOCS] Criando nova série:', series);
         await supabase.from('billing_series').insert({
           series,
           prefix,
           current_number: 1,
           year,
-          company_id: company_id || req.user.company_id
+          company_id: effCompanyId
         });
       }
 
       const docNumber = `${series}/${nextNum}`;
-      const total = items.reduce((acc: number, i: any) => acc + (i.total || (i.qtd * (i.preco_unitario || 0))), 0);
-      const iva = total * 0.14;
-      const finalTotal = total + iva;
+      console.log('📄 [DOCS] Número gerado:', docNumber);
 
-      // Get prev hash
+      // 2. Calculate Totals (Safely)
+      const total = items.reduce((acc: number, i: any) => {
+        const itemVal = Number(i.total || (Number(i.qtd || 0) * Number(i.preco_unitario || 0)));
+        return acc + (isNaN(itemVal) ? 0 : itemVal);
+      }, 0);
+
+      const iva = is_exempt ? 0 : total * 0.14;
+      const finalTotal = total + (isNaN(iva) ? 0 : iva);
+      console.log('📄 [DOCS] Totais:', { total, iva, finalTotal });
+
+      // 3. Security Hash
       const { data: lastDoc } = await supabase
         .from('contabil_faturas')
         .select('hash')
-        .eq('company_id', company_id || req.user.company_id)
+        .eq('company_id', effCompanyId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      // Fetch company NIF for Hash
-      const { data: companyData } = await supabase.from("companies").select("nif").eq("id", company_id || req.user.company_id).single();
+      const { data: companyData } = await supabase.from("companies").select("nif").eq("id", effCompanyId).single();
       const companyNif = companyData?.nif || '999999999';
 
       const prevHash = lastDoc?.hash || '';
       const hashDate = new Date().toISOString();
       const hashString = prepareHashString(docNumber, hashDate, finalTotal, companyNif);
       const hash = generateHash(hashString, prevHash);
+      console.log('📄 [DOCS] Hash gerado:', hash.substring(0, 10) + '...');
 
-      const { data: doc, error: dError } = await supabase.from('contabil_faturas').insert({
+      // 4. Insert Document
+      const insertData = {
         numero_fatura: docNumber,
+        cliente_id: customer_id || null,
         cliente_nome: customer_name,
         data_emissao: new Date().toISOString().split('T')[0],
         valor_total: finalTotal,
         status: 'Pendente',
-        company_id: company_id || req.user.company_id,
+        company_id: effCompanyId,
         tipo: type,
         hash,
         prev_hash: prevHash,
-        metadata: { ...metadata, items, subtotal: total, iva }
-      }).select().single();
+        metadata: {
+          ...metadata,
+          items,
+          subtotal: total.toFixed(2),
+          iva: iva.toFixed(2),
+          is_exempt,
+          exemption_reason
+        }
+      };
 
-      if (dError) throw dError;
+      console.log('📄 [DOCS] Inserindo no Supabase...');
+      const { data: doc, error: dError } = await supabase.from('contabil_faturas').insert(insertData).select().single();
 
-      logActivity(req.user.id, 'document_created', 'contabil_faturas', doc.id, { docNumber, type });
+      if (dError) {
+        console.log('❌ [DOCS] Erro ao inserir fatura:', dError);
+        throw dError;
+      }
+
+      if (!doc) {
+        console.log('❌ [DOCS] Documento retornado nulo');
+        throw new Error("Erro ao confirmar criação do documento no banco.");
+      }
+
+      // 5. Async Logging
+      logActivity(req, 'CREATE', 'contabil_faturas', `Documento ${docNumber} emitido.`, { doc_id: doc.id, type });
+
+      console.log('✅ [DOCS] Sucesso:', docNumber);
       res.json(doc);
     } catch (err: any) {
-      console.error('Error creating document:', err);
-      res.status(500).json({ error: err.message });
+      console.error('❌ [DOCS] Erro fatal:', err);
+      res.status(500).json({ error: err.message || 'Erro interno ao processar documento' });
     }
   });
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  // Global Error Handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('🔥 [GLOBAL ERROR]:', err);
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
   });
 }
 
