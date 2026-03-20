@@ -18,17 +18,12 @@ ALTER TABLE billing_series ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own company's billing series"
     ON billing_series FOR SELECT
     USING (auth.uid() IN (
-        SELECT auth_user_id FROM users WHERE company_id = billing_series.company_id
+        SELECT id FROM users WHERE company_id = billing_series.company_id
     ));
 
 CREATE POLICY "Admins can manage their own company's billing series"
     ON billing_series FOR ALL
     USING (auth.uid() IN (
-        SELECT auth_user_id FROM users WHERE company_id = billing_series.company_id AND role = 'admin'
+        SELECT id FROM users WHERE company_id = billing_series.company_id AND role = 'admin'
     ));
 
--- Add trigger for updated_at
-CREATE TRIGGER set_billing_series_updated_at
-    BEFORE UPDATE ON billing_series
-    FOR EACH ROW
-    EXECUTE FUNCTION moddatetime (updated_at);

@@ -26,9 +26,3 @@ CREATE POLICY system_docs_manage ON system_documentation
         (current_setting('request.jwt.claims', true)::jsonb ->> 'role') IN ('admin', 'master')
     );
 
--- Add trigger for updated_at
-DROP TRIGGER IF EXISTS set_system_documentation_updated_at ON system_documentation;
-CREATE TRIGGER set_system_documentation_updated_at
-    BEFORE UPDATE ON system_documentation
-    FOR EACH ROW
-    EXECUTE FUNCTION moddatetime (updated_at);

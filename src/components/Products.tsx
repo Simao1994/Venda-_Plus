@@ -22,7 +22,9 @@ export default function Products() {
     stock: '',
     min_stock: '5',
     unit: 'un',
-    expiry_date: ''
+    expiry_date: '',
+    tipo: 'produto',
+    lote: ''
   });
 
   const printRef = React.useRef<HTMLDivElement>(null);
@@ -112,7 +114,7 @@ export default function Products() {
     });
     if (res.ok) {
       setShowModal(false);
-      setFormData({ name: '', barcode: '', category_id: '', cost_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'un', expiry_date: '' });
+      setFormData({ name: '', barcode: '', category_id: '', cost_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'un', expiry_date: '', tipo: 'produto', lote: '' });
       fetchData();
     } else {
       const data = await res.json();
@@ -220,7 +222,8 @@ export default function Products() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{product.category_name || 'UNCLTIFIED'}</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block">{product.category_name || 'UNCLTIFIED'}</span>
+                      {product.tipo === 'medicamento' && <span className="text-[8px] font-black text-blue-400 uppercase tracking-[0.2em] bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 inline-block mt-2">Medicine</span>}
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="font-black text-white italic tracking-tighter text-sm">
@@ -420,6 +423,32 @@ export default function Products() {
                 </div>
               )}
 
+              <div className="col-span-1 md:col-span-2 mb-2">
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-3 text-center">Protocol Type</label>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, tipo: 'produto', lote: '' })}
+                    className={`flex-1 p-4 rounded-2xl border font-black uppercase tracking-widest text-[10px] transition-all flex justify-center items-center gap-2 ${formData.tipo === 'produto'
+                        ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]'
+                        : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                      }`}
+                  >
+                    Standard Asset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, tipo: 'medicamento' })}
+                    className={`flex-1 p-4 rounded-2xl border font-black uppercase tracking-widest text-[10px] transition-all flex justify-center items-center gap-2 ${formData.tipo === 'medicamento'
+                        ? 'bg-blue-500 text-bg-deep border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
+                        : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                      }`}
+                  >
+                    Medicine / Pharmacy
+                  </button>
+                </div>
+              </div>
+
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Asset Denomination</label>
                 <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
@@ -528,16 +557,33 @@ export default function Products() {
               </div>
 
               <div className="col-span-1 md:col-span-2">
-                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Vector Termination (Expiry Date)</label>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Vector Termination {formData.tipo === 'medicamento' && '(Expiry Date - Required)'}</label>
                 <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
                   <input
                     type="date"
+                    required={formData.tipo === 'medicamento'}
                     className="w-full bg-transparent border-none outline-none font-black text-white italic"
                     value={formData.expiry_date}
                     onChange={e => setFormData({ ...formData, expiry_date: e.target.value })}
                   />
                 </div>
               </div>
+
+              {formData.tipo === 'medicamento' && (
+                <div className="col-span-1 md:col-span-2 animate-in fade-in slide-in-from-top-2">
+                  <label className="block text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mb-2">Batch / Lot Identifier</label>
+                  <div className="glass-panel p-4 rounded-2xl border border-blue-500/30 focus-within:border-blue-400 transition-all text-left bg-blue-500/5">
+                    <input
+                      type="text"
+                      required
+                      className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight"
+                      value={formData.lote}
+                      onChange={e => setFormData({ ...formData, lote: e.target.value })}
+                      placeholder="ENTER ASSIGNED BATCH LOTE..."
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="col-span-1 md:col-span-2 flex justify-end gap-4 mt-8">
                 <button

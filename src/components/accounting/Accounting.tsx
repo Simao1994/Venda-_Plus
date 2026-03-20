@@ -812,7 +812,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             faturasRes,
             tesourariaRes,
             rhRecibosRes,
-            invRes,
+            prodRes,
             comprasRes,
             contactosRes,
             catsRes,
@@ -829,7 +829,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             safeQuery<any[]>(() => supabase.from('contabil_faturas').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-faturas-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('fin_transacoes').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-tesouraria-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('rh_recibos').select('*').eq('company_id', effEmpId).order('data_emissao', { ascending: false }), { cacheKey: `acc-recibos-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('inventario').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-inv-${effEmpId}`, cacheTTL: 60000 }),
+            safeQuery<any[]>(() => supabase.from('products').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('acc_contactos').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-contactos-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000 }),
@@ -873,9 +873,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          setExtRhRecibos(rhRecibosRes.data || []);
          AmazingStorage.save('amazing_ext_rh_recibos', rhRecibosRes.data);
 
-         if (invRes.data) {
-            setExtInventario(invRes.data);
-         }
+         if (prodRes.data) {
+             const mappedData = prodRes.data.map((p: any) => ({
+                ...p,
+                nome: p.name,
+                preco_unitario: p.sale_price || p.price,
+                quantidade_atual: p.stock,
+                quantidade_minima: p.min_stock,
+                unidade: p.unit || 'un'
+             }));
+             setExtInventario(mappedData);
+          }
 
          if (comprasRes.data) {
             setCompras(comprasRes.data);
@@ -935,10 +943,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!newInventoryItem.nome || !newInventoryItem.categoria_id) return alert("Nome e Categoria são obrigatórios.");
       setIsSavingItem(true);
       try {
-         const { error } = await supabase.from('inventario').insert({
-            ...newInventoryItem,
-            company_id: selectedEmpresaId
-         });
+         const { error } = await supabase.from('products').insert({
+             name: newInventoryItem.nome,
+             description: newInventoryItem.descricao,
+             category_id: parseInt(newInventoryItem.categoria_id) || null,
+             unit: newInventoryItem.unidade,
+             stock: newInventoryItem.quantidade_atual,
+             min_stock: newInventoryItem.quantidade_minima,
+             sale_price: newInventoryItem.preco_unitario,
+             barcode: newInventoryItem.codigo,
+             tipo: 'produto',
+             company_id: selectedEmpresaId
+          });
          if (error) throw error;
          alert("Item adicionado com sucesso!");
          setShowItemModal(false);
@@ -2323,57 +2339,61 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      <div className="space-y-8 animate-in slide-in-from-bottom-4">
 
                         {/* FILA 1: KPIs + Score */}
-                        <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
-                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
-                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Receita Acumulada</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-white">{safeFormatAOA(totalFacturado)}</p>
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
+                           <div className="bg-white/5 p-5 xl:p-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] overflow-hidden flex flex-col items-center justify-center text-center">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2 truncate">Receita Acumulada</p>
+                              <p className="text-lg xl:text-xl font-black uppercase tracking-tighter text-white truncate" title={safeFormatAOA(totalFacturado)}>{safeFormatAOA(totalFacturado)}</p>
                               <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg w-fit">
-                                 <ArrowUpRight size={10} /> Consolidado (Geral)
+                                 <ArrowUpRight size={10} /> Consolidado
                               </div>
                            </div>
-                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
-                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Vendas POS</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-yellow-500">{safeFormatAOA(totalPOS)}</p>
+                           <div className="bg-white/5 p-5 xl:p-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] overflow-hidden flex flex-col items-center justify-center text-center">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2 truncate">Vendas POS</p>
+                              <p className="text-lg xl:text-xl font-black uppercase tracking-tighter text-yellow-500 truncate" title={safeFormatAOA(totalPOS)}>{safeFormatAOA(totalPOS)}</p>
                               <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded-lg w-fit">
                                  <ShoppingCart size={10} /> POS Vendas
                               </div>
                            </div>
-                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
-                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Vendas Farmácia</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-gold-primary">{safeFormatAOA(totalFarmacia)}</p>
+                           <div className="bg-white/5 p-5 xl:p-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] overflow-hidden flex flex-col items-center justify-center text-center">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2 truncate">Vendas Farmácia</p>
+                              <p className="text-lg xl:text-xl font-black uppercase tracking-tighter text-gold-primary truncate" title={safeFormatAOA(totalFarmacia)}>{safeFormatAOA(totalFarmacia)}</p>
                               <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit">
                                  <ShoppingCart size={10} /> Farmácia
                               </div>
                            </div>
-                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
-                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">IVA Cobrado</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-emerald-500">{safeFormatAOA(totalIva)}</p>
+                           <div className="bg-white/5 p-5 xl:p-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] overflow-hidden flex flex-col items-center justify-center text-center">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2 truncate">IVA Cobrado</p>
+                              <p className="text-lg xl:text-xl font-black uppercase tracking-tighter text-emerald-500 truncate" title={safeFormatAOA(totalIva)}>{safeFormatAOA(totalIva)}</p>
                               <div className="mt-3 flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg w-fit">
                                  <Scale size={10} /> AGT (14%)
                               </div>
                            </div>
-                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
-                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Custos Totais</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-red-500">{safeFormatAOA(totalGeralDespesa)}</p>
-                              <p className="text-[9px] text-white/30 font-bold mt-3">Pessoal + Operacional</p>
+                           <div className="bg-white/5 p-5 xl:p-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] overflow-hidden flex flex-col items-center justify-center text-center">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2 truncate">Custos Totais</p>
+                              <p className="text-lg xl:text-xl font-black uppercase tracking-tighter text-red-500 truncate" title={safeFormatAOA(totalGeralDespesa)}>{safeFormatAOA(totalGeralDespesa)}</p>
+                              <p className="text-[9px] text-white/30 font-bold mt-3 truncate">Pessoal + Operacional</p>
                            </div>
-                           <div className="bg-gold-primary p-7 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden">
-                              <p className="text-gold-primary text-[9px] font-black uppercase tracking-widest mb-2">Lucro Líquido</p>
-                              <p className={`text-2xl font-black uppercase tracking-widest ${lucroGeral >= 0 ? 'text-white' : 'text-red-400'}`}>{safeFormatAOA(lucroGeral)}</p>
-                              <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                 <div className="h-full bg-gold-primary transition-all duration-1000"
-                                    style={{ width: `${Math.min(100, Math.max(0, (lucroGeral / (totalGeralReceita || 1)) * 100))}%` }} />
+                           <div className="bg-gold-primary p-5 xl:p-6 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden flex flex-col justify-between items-center text-center w-full">
+                              <div className="flex flex-col items-center w-full">
+                                 <p className="text-gold-primary text-[9px] font-black uppercase tracking-widest mb-2 truncate">Lucro Líquido</p>
+                                 <p className={`text-lg xl:text-xl font-black uppercase tracking-tighter truncate ${lucroGeral >= 0 ? 'text-white' : 'text-red-400'}`} title={safeFormatAOA(lucroGeral)}>{safeFormatAOA(lucroGeral)}</p>
                               </div>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">{margemLiquida.toFixed(1)}% Margem</p>
+                              <div className="flex flex-col items-center w-full mt-1">
+                                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gold-primary transition-all duration-1000"
+                                       style={{ width: `${Math.min(100, Math.max(0, (lucroGeral / (totalGeralReceita || 1)) * 100))}%` }} />
+                                 </div>
+                                 <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1 truncate">{margemLiquida.toFixed(1)}% Margem</p>
+                              </div>
                            </div>
                         </div>
 
                         {/* FILA 2: Score + Ativos + Outros */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                           <div className="bg-white/5 p-7 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)]">
-                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2">Activo Total</p>
-                              <p className="text-2xl font-black uppercase tracking-widest text-white">{safeFormatAOA(ativos)}</p>
-                              <p className="text-[9px] text-white/30 font-bold mt-3">Passivo: {safeFormatAOA(passivos)}</p>
+                           <div className="bg-white/5 p-5 xl:p-6 rounded-[2.5rem] border border-white/10 shadow-[0_0_30px_rgba(212,175,55,0.05)] overflow-hidden flex flex-col items-center justify-center text-center">
+                              <p className="text-white/30 text-[9px] font-black uppercase tracking-widest mb-2 truncate">Activo Total</p>
+                              <p className="text-xl xl:text-2xl font-black uppercase tracking-tighter text-white truncate" title={safeFormatAOA(ativos)}>{safeFormatAOA(ativos)}</p>
+                              <p className="text-[9px] text-white/30 font-bold mt-3 truncate" title={safeFormatAOA(passivos)}>Passivo: {safeFormatAOA(passivos)}</p>
                            </div>
 
                            <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-zinc-900 to-zinc-800 p-7 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-center text-center relative overflow-hidden">
@@ -2438,11 +2458,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     status: ratioEndividamento < 50 ? '✅ Controlado' : ratioEndividamento < 80 ? '⚠️ Elevado' : '🔴 Muito Alto'
                                  },
                               ].map((ind, i) => (
-                                 <div key={i} className={`p-5 rounded-2xl border ${ind.color} flex flex-col gap-1`}>
-                                    <p className="text-[9px] font-black uppercase tracking opacity-70">{ind.label}</p>
-                                    <p className="text-3xl font-black uppercase tracking">{ind.value}<span className="text-sm">{ind.value !== '—' ? ind.unit : ''}</span></p>
-                                    <p className="text-[9px] font-bold opacity-60">{ind.info}</p>
-                                    <p className="text-[9px] font-black uppercase tracking mt-1">{ind.status}</p>
+                                 <div key={i} className={`p-5 rounded-2xl border ${ind.color} flex flex-col gap-1 overflow-hidden`}>
+                                    <p className="text-[9px] font-black uppercase tracking opacity-70 truncate" title={ind.label}>{ind.label}</p>
+                                    <p className="text-3xl font-black uppercase tracking truncate" title={String(ind.value)}>{ind.value}<span className="text-sm">{ind.value !== '—' ? ind.unit : ''}</span></p>
+                                    <p className="text-[9px] font-bold opacity-60 truncate" title={ind.info}>{ind.info}</p>
+                                    <p className="text-[9px] font-black uppercase tracking mt-1 truncate">{ind.status}</p>
                                  </div>
                               ))}
                            </div>
@@ -4601,7 +4621,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            fq(supabase.from('contabil_faturas').select('*').eq('company_id', selectedEmpresaId).order('data_emissao', { ascending: false }).limit(100)),
                            fq(supabase.from('fin_transacoes').select('*').eq('company_id', selectedEmpresaId).order('data', { ascending: false }).limit(100)),
                            fq(supabase.from('hr_recibos').select('*').eq('company_id', selectedEmpresaId).order('created_at', { ascending: false }).limit(100)),
-                           fq(supabase.from('inventario').select('*').eq('company_id', selectedEmpresaId).order('nome')),
+                           fq(supabase.from('products').select('*').eq('company_id', selectedEmpresaId).order('nome')),
                            fq(supabase.from('stock_movimentos').select('*').eq('company_id', selectedEmpresaId).order('created_at', { ascending: false }).limit(100))
                         ]);
                         setExtFaturas(fat); setExtTesouraria(tes); setExtRhRecibos(rh); setExtInventario(inv); setExtStockMov(smov);
