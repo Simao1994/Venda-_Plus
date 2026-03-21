@@ -43,6 +43,8 @@ import SubscriptionManagement from './components/SubscriptionManagement';
 import MobileAppInfo from './components/MobileAppInfo';
 import Suppliers from './components/Suppliers';
 import BlogPage from './components/Blog';
+import { api } from './lib/api';
+import SaftModule from './components/saft/SaftModule';
 
 function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void, onGoToRegister: () => void }) {
   const { login } = useAuth();
@@ -55,16 +57,16 @@ function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      login(data.token, data.user);
-    } else {
-      setError(data.error);
+    try {
+      const res = await api.post('/api/auth/login', { email, password });
+      const data = await res.json();
+      if (res.ok) {
+        login(data.token, data.user);
+      } else {
+        setError(data.error);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro de ligação');
     }
   };
 
@@ -348,6 +350,7 @@ export default function App() {
     { id: 'pharmacy', label: "Farmácia", icon: Cross, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'pharmacy' },
     { id: 'hr', label: "RH", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
     { id: 'accounting', label: "Contabilidade", icon: Calculator, roles: ['admin', 'manager', 'master'], feature: 'sales' },
+    { id: 'saft', label: "SAF-T (AGT)", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'sales' },
     { id: 'marketing', label: "Marketing", icon: Smartphone, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'blog', label: "Blog Corporativo", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'subscription', label: "Gestão de Assinatura", icon: CreditCard, roles: ['admin', 'manager'], feature: 'settings' },
@@ -505,6 +508,7 @@ export default function App() {
           {activeTab === 'pharmacy' && <PharmacyModule />}
           {activeTab === 'hr' && <HRModule />}
           {activeTab === 'accounting' && <Accounting user={user as any} />}
+          {activeTab === 'saft' && <SaftModule />}
           {activeTab === 'marketing' && <Marketing />}
           {activeTab === 'blog' && <BlogPage user={user as any} />}
           {activeTab === 'subscription' && <SubscriptionManagement />}

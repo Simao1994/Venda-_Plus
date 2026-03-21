@@ -24,6 +24,7 @@ import {
   Calendar,
   MessageSquare
 } from 'lucide-react';
+import { api } from '../lib/api';
 
 function DigitalClock() {
   const [time, setTime] = useState(new Date());
@@ -114,7 +115,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch('/api/saas/plans');
+      const res = await api.get('/api/saas/plans');
       const data = await res.json();
       setPlans(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -124,7 +125,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
   const fetchPublications = async () => {
     try {
-      const res = await fetch('/api/public/publications');
+      const res = await api.get('/api/public/publications');
       const data = await res.json();
       setPublications(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -151,7 +152,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch('/api/system/config');
+      const res = await api.get('/api/system/config');
       const data = await res.json();
       setConfig(prev => ({ ...prev, ...data }));
     } catch (error) {
@@ -174,7 +175,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
   const fetchPartners = async () => {
     try {
-      const res = await fetch('/api/public/partners');
+      const res = await api.get('/api/public/partners');
       const data = await res.json();
       setPartners(Array.isArray(data) ? data : []);
     } catch (error) {

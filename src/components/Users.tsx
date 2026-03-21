@@ -7,6 +7,7 @@ import {
   RefreshCw, Key, Eye, EyeOff, CheckCircle2, Lock, Unlock,
   ChevronDown, Settings, Users as UsersIcon, Activity, Filter, Calendar, Search
 } from 'lucide-react';
+import { api } from '../lib/api';
 
 // ─── Definição dos módulos e permissões disponíveis ─────────────────────────
 const MODULE_DEFS = [
@@ -64,7 +65,7 @@ export default function Users() {
     setLoading(true);
     try {
       const [usersRes, companyRes] = await Promise.all([
-        fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } }),
+        api.get('/api/users'),
         supabase.from('companies').select('id, name, access_token, role_permissions').eq('id', currentUser?.company_id).single()
       ]);
       if (usersRes.ok) setUsers(await usersRes.json());
@@ -79,9 +80,7 @@ export default function Users() {
   const fetchLogs = async () => {
     setLoadingLogs(true);
     try {
-      const res = await fetch('/api/activity-logs', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/activity-logs');
       if (res.ok) {
         setLogs(await res.json());
       }
@@ -101,11 +100,7 @@ export default function Users() {
     setSaving(true);
     try {
       const defaultPerms = company?.role_permissions?.[formData.role] || DEFAULT_PERMS[formData.role] || DEFAULT_PERMS.cashier;
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...formData, permissions: defaultPerms })
-      });
+      const res = await api.post('/api/users', { ...formData, permissions: defaultPerms });
       if (res.ok) {
         setShowModal(false);
         setFormData({ name: '', email: '', password: '', role: 'cashier' });
@@ -121,7 +116,7 @@ export default function Users() {
 
   const handleDeleteUser = async (id: number) => {
     if (!confirm('Eliminar este utilizador? Esta ação não pode ser desfeita.')) return;
-    await fetch(`/api/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    await api.delete(`/api/users/${id}`);
     fetchData();
   };
 

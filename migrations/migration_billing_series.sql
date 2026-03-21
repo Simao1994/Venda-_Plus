@@ -17,13 +17,17 @@ ALTER TABLE billing_series ENABLE ROW LEVEL SECURITY;
 -- Policies
 CREATE POLICY "Users can view their own company's billing series"
     ON billing_series FOR SELECT
-    USING (auth.uid() IN (
-        SELECT id FROM users WHERE company_id = billing_series.company_id
-    ));
+    USING (
+        (current_setting('request.jwt.claims', true)::jsonb ->> 'role' = 'master')
+        OR
+        (company_id = get_auth_tenant())
+    );
 
 CREATE POLICY "Admins can manage their own company's billing series"
     ON billing_series FOR ALL
-    USING (auth.uid() IN (
-        SELECT id FROM users WHERE company_id = billing_series.company_id AND role = 'admin'
-    ));
+    USING (
+        (current_setting('request.jwt.claims', true)::jsonb ->> 'role' = 'master')
+        OR
+        (company_id = get_auth_tenant() AND (current_setting('request.jwt.claims', true)::jsonb ->> 'role') IN ('admin', 'manager'))
+    );
 

@@ -8,6 +8,7 @@ import {
   X, Check, FileText, Activity, HelpCircle
 } from 'lucide-react';
 import SystemDocumentation from './documentation/SystemDocumentation';
+import { api } from '../lib/api';
 
 const MODULE_DEFS = [
   { key: 'sales', label: 'Vendas & PDV', icon: <Store size={14} /> },
@@ -52,9 +53,7 @@ export default function Settings() {
 
   const fetchCompany = async () => {
     try {
-      const res = await fetch('/api/company/profile', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/company/profile');
       const data = await res.json();
       setCompany(data);
     } catch (error) {
@@ -78,9 +77,7 @@ export default function Settings() {
 
   const fetchSystemState = async () => {
     try {
-      const res = await fetch('/api/system/state', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/system/state');
       const data = await res.json();
       setDbState(data);
     } catch (error) {
@@ -90,9 +87,7 @@ export default function Settings() {
 
   const fetchBillingSeries = async () => {
     try {
-      const res = await fetch('/api/billing-series', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/billing-series');
       const data = await res.json();
       setBillingSeries(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -108,14 +103,7 @@ export default function Settings() {
   const handleCreateSeries = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/billing-series', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(newSeries)
-      });
+      const res = await api.post('/api/billing-series', newSeries);
       if (res.ok) {
         setShowSeriesModal(false);
         fetchBillingSeries();
@@ -127,14 +115,7 @@ export default function Settings() {
 
   const toggleSeriesStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const res = await fetch(`/api/billing-series/${id}/toggle`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ is_active: !currentStatus })
-      });
+      const res = await api.patch(`/api/billing-series/${id}/toggle`, { is_active: !currentStatus });
       if (res.ok) fetchBillingSeries();
     } catch (error) {
       console.error('Error toggling series:', error);
@@ -145,14 +126,7 @@ export default function Settings() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/company/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(company)
-      });
+      const res = await api.put('/api/company/profile', company);
       if (res.ok) {
         alert('Configurações guardadas com sucesso!');
       }
@@ -182,9 +156,7 @@ export default function Settings() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const res = await fetch('/api/system/export', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/system/export');
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);

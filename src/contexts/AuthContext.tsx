@@ -27,11 +27,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = sessionStorage.getItem('erp_token');
-    const savedUser = sessionStorage.getItem('erp_user');
+    const savedToken = localStorage.getItem('token') || localStorage.getItem('erp_token');
+    const savedUser = localStorage.getItem('user') || localStorage.getItem('erp_user');
+
     if (savedToken && savedUser) {
       setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) { /* ignore JSON parse error */ }
     }
 
     setLoading(false);
@@ -40,17 +43,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
-    sessionStorage.setItem('erp_token', newToken);
-    sessionStorage.setItem('erp_user', JSON.stringify(newUser));
 
+    // Store as requested
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify(newUser));
+
+    // Backward compatibility
+    localStorage.setItem('erp_token', newToken);
+    localStorage.setItem('erp_user', JSON.stringify(newUser));
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
-    sessionStorage.removeItem('erp_token');
-    sessionStorage.removeItem('erp_user');
-
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('erp_token');
+    localStorage.removeItem('erp_user');
+    sessionStorage.clear();
+    window.location.href = '/';
   };
 
   if (loading) return null;

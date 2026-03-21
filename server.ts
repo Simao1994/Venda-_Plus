@@ -66,15 +66,15 @@ async function startServer() {
     console.error('⚠️ Por favor, obtenha a "service_role" key correta no Dashboard do Supabase.');
   }
 
-  // Sync database schema on startup (Non-blocking)
+  // Sync database schema on startup (NON-BLOCKING/DISABLED DUE TO SIZE)
+  /*
   syncDatabaseSchema().then(async () => {
     console.log('✅ Database Schema Sync Complete');
-
     console.log('✅ Base migrations checked.');
-
   }).catch(err => {
     console.error('❌ Database Schema Sync Failed:', err.message);
   });
+  */
 
   // Diagnostic & Repair: Ensure all companies have a branch and users are associated
   try {
@@ -126,7 +126,8 @@ async function startServer() {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
       next();
-    } catch (err) {
+    } catch (err: any) {
+      console.error('❌ [AUTH] Token Inválido:', err.message);
       res.status(401).json({ error: "Invalid token" });
     }
   };
@@ -3389,21 +3390,6 @@ async function startServer() {
 
   // --- FIM PROCUREMENT & INVENTORY APIs ---
 
-  // Vite middleware
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
   // --- SYSTEM CONFIGURATION ---
   app.get("/api/system/config", async (req, res) => {
     try {
@@ -3568,6 +3554,21 @@ async function startServer() {
       res.status(500).json({ error: err.message || 'Erro interno ao processar documento' });
     }
   });
+
+  // Vite middleware (MUST BE AFTER ALL API ROUTES)
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

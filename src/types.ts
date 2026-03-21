@@ -89,8 +89,31 @@ export interface EmpresaAfiliada {
 export interface Funcionario {
   id: string;
   nome: string;
+  data_nascimento: string;
   funcao: string;
+  bilhete: string;
+  telefone: string;
+  morada: string;
+  departamento_id: string;
+  data_admissao: string;
+  tipo_contrato: string;
+  status: 'ativo' | 'ferias' | 'suspenso' | 'terminado';
+  nivel_escolaridade: string;
+  area_formacao: string;
   salario_base: number;
+  subsidio_alimentacao: number;
+  subsidio_transporte: number;
+  bonus_assiduidade: number;
+  outros_bonus: number;
+  foto_url?: string;
+  documentos: any[];
+  historico_alteracoes: any[];
+  tempo_contrato: string;
+  provincia: string;
+  municipio: string;
+  nome_pai: string;
+  nome_mae: string;
+  telefone_alternativo: string;
   company_id: number;
 }
 
@@ -225,4 +248,48 @@ export interface ConciliacaoBancaria {
   descricao: string;
   status: 'conciliado' | 'pendente';
   company_id: number;
+}
+
+export interface RegistroPresenca {
+  id: string;
+  funcionario_id: string;
+  data: string;
+  entrada: string;
+  saida?: string;
+  status: 'Presente' | 'Atraso' | 'Falta' | 'Folga';
+  horas_extras?: number;
+  tenant_id: string;
+}
+
+export interface ReciboSalarial {
+  id: string;
+  funcionario_id: string;
+  nome: string;
+  mes: string;
+  ano: number;
+  liquido: number;
+  data_emissao: string;
+  tenant_id: string;
+}
+
+export interface MetaDesempenho {
+  id: string;
+  funcionario_id: string;
+  titulo: string;
+  progresso: number;
+  prazo: string;
+  status: 'Em curso' | 'Concluída' | 'Atrasada';
+  tenant_id: string;
+}
+
+export type Departamento = 'Administração' | 'Vendas' | 'RH' | 'Financeiro' | 'Operações' | 'Limpeza' | 'Segurança';
+export type ContratoTipo = 'Efectivo' | 'Prestação de Serviços' | 'Estágio' | 'Temporário';
+export type FuncionarioStatus = 'ativo' | 'ferias' | 'suspenso' | 'terminado';
+
+export interface PasseServico {
+  id: string;
+  funcionario_id: string;
+  data_emissao: string;
+  data_validade: string;
+  tenant_id: string;
 }

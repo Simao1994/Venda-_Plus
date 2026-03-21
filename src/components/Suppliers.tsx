@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Truck, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, Save, X } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface Supplier {
     id: number;
@@ -30,9 +31,7 @@ export default function Suppliers() {
 
     const fetchSuppliers = async () => {
         try {
-            const res = await fetch('/api/suppliers', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/api/suppliers');
             const data = await res.json();
             setSuppliers(data);
         } catch (error) {
@@ -48,14 +47,9 @@ export default function Suppliers() {
         const url = editingSupplier ? `/api/suppliers/${editingSupplier.id}` : '/api/suppliers';
 
         try {
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(formData)
-            });
+            const res = await (editingSupplier
+                ? api.put(`/api/suppliers/${editingSupplier.id}`, formData)
+                : api.post('/api/suppliers', formData));
 
             if (res.ok) {
                 setShowModal(false);
@@ -71,10 +65,7 @@ export default function Suppliers() {
     const handleDelete = async (id: number) => {
         if (!confirm('Tem a certeza que deseja eliminar este fornecedor?')) return;
         try {
-            const res = await fetch(`/api/suppliers/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.delete(`/api/suppliers/${id}`);
             if (res.ok) fetchSuppliers();
         } catch (error) {
             console.error('Error deleting supplier:', error);

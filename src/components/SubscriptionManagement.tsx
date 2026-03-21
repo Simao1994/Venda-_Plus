@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle2, AlertCircle, Upload, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../lib/api';
 
 export default function SubscriptionManagement() {
     const { token, user } = useAuth();
@@ -13,9 +14,7 @@ export default function SubscriptionManagement() {
 
     const fetchSubscription = async () => {
         try {
-            const res = await fetch('/api/company/subscription', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await api.get('/api/company/subscription');
             const data = await res.json();
             setSubscription(data);
         } catch (error) {
