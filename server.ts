@@ -174,6 +174,64 @@ async function startServer() {
     next();
   };
 
+  // --- FILE MANAGEMENT ---
+  app.get("/api/files", authenticate, async (req: any, res) => {
+    const { data: files, error } = await supabase
+      .from("company_files")
+      .select("*")
+      .eq("company_id", req.user.company_id)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(files || []);
+  });
+
+  app.post("/api/files", authenticate, async (req: any, res) => {
+    const { name, file_path, file_url, file_type, category, size_bytes } = req.body;
+
+    const { data: file, error } = await supabase
+      .from("company_files")
+      .insert([{
+        company_id: req.user.company_id,
+        name,
+        file_path,
+        file_url,
+        file_type,
+        category,
+        size_bytes: size_bytes || 0,
+        uploaded_by: req.user.id
+      }])
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(file);
+  });
+
+  app.delete("/api/files/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+
+    // Safety check: ensure file belongs to the company
+    const { data: file, error: checkError } = await supabase
+      .from("company_files")
+      .select("company_id")
+      .eq("id", id)
+      .single();
+
+    if (checkError || !file) return res.status(404).json({ error: "Ficheiro não encontrado." });
+    if (file.company_id !== req.user.company_id && req.user.role !== 'master') {
+      return res.status(403).json({ error: "Acesso negado a este ficheiro." });
+    }
+
+    const { error: deleteError } = await supabase
+      .from("company_files")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) return res.status(500).json({ error: deleteError.message });
+    res.json({ success: true });
+  });
+
   const isMaster = (req: any, res: any, next: any) => {
     if (req.user.role !== 'master') return res.status(403).json({ error: "Acesso reservado ao administrador do sistema (Master)." });
     next();
@@ -219,12 +277,91 @@ async function startServer() {
     }
   };
 
+  // Activity Logs Route
+  app.get("/api/activity-logs", authenticate, async (req: any, res: any) => {
+    try {
+      const { data: logs, error } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .eq("company_id", req.user.company_id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      res.json(logs || []);
+    } catch (err: any) {
+      console.error('❌ Failed to fetch activity logs:', err);
+      res.status(500).json({ error: "Erro ao carregar logs de atividade." });
+    }
+  });
+
+  // Reports Route (Sales by Employee)
+  app.get("/api/reports/sales-by-employee", authenticate, async (req: any, res: any) => {
+    try {
+      if (!['master', 'admin', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+
+      const { startDate, endDate } = req.query;
+
+      let query = supabase
+        .from('sales')
+        .select(`
+          id, total, tax, created_at,
+          user_id,
+          users ( name )
+        `)
+        .eq('company_id', req.user.company_id)
+        .eq('status', 'paid');
+
+      if (startDate) query = query.gte('created_at', startDate);
+      if (endDate) query = query.lte('created_at', endDate);
+
+      const { data: sales, error } = await query;
+      if (error) throw error;
+
+      const aggregated: Record<number, any> = {};
+
+      (sales || []).forEach((sale: any) => {
+        const uid = sale.user_id;
+        if (!uid) return;
+
+        if (!aggregated[uid]) {
+          aggregated[uid] = {
+            funcionario_id: uid,
+            nome_funcionario: sale.users?.name || 'Desconhecido',
+            numero_vendas: 0,
+            total_vendido: 0,
+            iva_gerado: 0,
+            media_por_venda: 0
+          };
+        }
+
+        aggregated[uid].numero_vendas += 1;
+        aggregated[uid].total_vendido += Number(sale.total) || 0;
+        aggregated[uid].iva_gerado += Number(sale.tax) || 0;
+      });
+
+      const result = Object.values(aggregated).map((item: any) => {
+        item.media_por_venda = item.numero_vendas > 0 ? (item.total_vendido / item.numero_vendas) : 0;
+        return item;
+      });
+
+      result.sort((a: any, b: any) => b.total_vendido - a.total_vendido);
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('❌ Failed to fetch employee sales report:', err);
+      res.status(500).json({ error: "Erro ao gerar relatório." });
+    }
+  });
+
   // Auth Routes
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     const { data: user, error } = await supabase
       .from("users")
-      .select("*, companies(name, currency)")
+      .select("*, companies(name, currency, imagem_home)")
       .eq("email", email)
       .single();
 
@@ -267,6 +404,7 @@ async function startServer() {
         company_id: user.company_id,
         company_name: companies?.name,
         currency: companies?.currency,
+        company_home_image: companies?.imagem_home,
         branch_id: user.branch_id,
         is_master: user.role === 'master'
       }
@@ -284,7 +422,7 @@ async function startServer() {
       // 1. Find company by access_token
       const { data: company, error: cError } = await supabase
         .from("companies")
-        .select("id, name, currency")
+        .select("id, name, currency, imagem_home")
         .eq("access_token", accessToken)
         .single();
 
@@ -326,6 +464,7 @@ async function startServer() {
           company_id: user.company_id,
           company_name: company.name,
           currency: company.currency,
+          company_home_image: company.imagem_home,
           branch_id: user.branch_id,
           is_master: user.role === 'master'
         }
@@ -684,10 +823,10 @@ async function startServer() {
 
   app.put("/api/company/profile", authenticate, async (req: any, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
-    const { name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions } = req.body;
+    const { name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home } = req.body;
     const { error } = await supabase
       .from("companies")
-      .update({ name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions })
+      .update({ name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home })
       .eq("id", req.user.company_id);
 
     if (error) return res.status(500).json({ error: error.message });
@@ -2105,6 +2244,75 @@ async function startServer() {
     });
   });
 
+  // Relatório de Vendas Farmácia por Funcionário
+  app.get("/api/reports/pharmacy-sales-by-employee", authenticate, async (req: any, res: any) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const companyId = req.user.company_id;
+
+      if (!['master', 'admin', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ error: "Acesso negado. Apenas administradores podem ver este relatório." });
+      }
+
+      let query = supabase
+        .from('vendas_farmacia')
+        .select(`
+          id, total, iva, created_at,
+          vendedor_id,
+          users ( name ),
+          itens:itens_venda_farmacia ( quantidade )
+        `)
+        .eq('company_id', companyId);
+
+      if (startDate) query = query.gte('created_at', startDate);
+      if (endDate) query = query.lte('created_at', endDate);
+
+      const { data: vendas, error } = await query;
+
+      if (error) throw error;
+      if (!vendas) return res.json([]);
+
+      // Agregação manual
+      console.log(`📊 [Relatório Farmácia] Processando ${vendas.length} vendas.`);
+
+      const grouped = vendas.reduce((acc: any, venda: any) => {
+        const userId = venda.vendedor_id || 'vendedor_desconhecido';
+        const userName = venda.users?.name || 'Sistema/Desconhecido';
+
+        if (!acc[userId]) {
+          acc[userId] = {
+            id: userId,
+            name: userName,
+            sales_count: 0,
+            total_amount: 0,
+            total_tax: 0,
+            total_items: 0
+          };
+        }
+
+        acc[userId].sales_count++;
+        acc[userId].total_amount += Number(venda.total || 0);
+        acc[userId].total_tax += Number(venda.iva || 0);
+
+        // Somar quantidades dos itens
+        // Nota: itens:itens_venda_farmacia pode vir como array devido ao select
+        const itemsArr = Array.isArray(venda.itens) ? venda.itens : [];
+        const itemsQty = itemsArr.reduce((sum: number, it: any) => sum + Number(it.quantidade || 0), 0);
+        acc[userId].total_items += itemsQty;
+
+        return acc;
+      }, {});
+
+      const result = Object.values(grouped).sort((a: any, b: any) => b.total_amount - a.total_amount);
+      console.log(`✅ [Relatório Farmácia] Enviando stats de ${result.length} funcionários.`);
+      res.json(result);
+
+    } catch (err: any) {
+      console.error('❌ Erro no relatório de farmácia:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/farmacia/vendas", authenticate, async (req: any, res) => {
     const { itens, cliente_id, forma_pagamento, valor_entregue } = req.body;
     const companyId = req.user.company_id;
@@ -3438,22 +3646,23 @@ async function startServer() {
     }
 
     try {
-      const prefix = type === 'Factura' ? 'FT' :
+      const doc_type = type === 'Factura' ? 'FAC' :
         type === 'Factura-Recibo' ? 'FR' :
           type === 'Recibo' ? 'RE' :
             type === 'Nota de Crédito' ? 'NC' :
               type === 'Nota de Débito' ? 'ND' : 'PRO';
 
       const year = new Date().getFullYear();
-      const series = `${prefix} ${year}`;
+      const series_name = String(year);
       const effCompanyId = company_id || req.user.company_id;
 
       // 1. Get/Update Sequence
-      console.log('📄 [DOCS] Verificando série:', series);
+      console.log('📄 [DOCS] Verificando série:', { doc_type, series_name });
       let { data: bSeries, error: sError } = await supabase
         .from('billing_series')
         .select('*')
-        .eq('series', series)
+        .eq('doc_type', doc_type)
+        .eq('series_name', series_name)
         .eq('company_id', effCompanyId)
         .single();
 
@@ -3464,32 +3673,33 @@ async function startServer() {
 
       let nextNum = 1;
       if (bSeries) {
-        nextNum = (bSeries.current_number || 0) + 1;
+        nextNum = (bSeries.last_number || 0) + 1;
         console.log('📄 [DOCS] Atualizando número para:', nextNum);
-        await supabase.from('billing_series').update({ current_number: nextNum }).eq('id', bSeries.id);
+        await supabase.from('billing_series').update({ last_number: nextNum, updated_at: new Date().toISOString() }).eq('id', bSeries.id);
       } else {
-        console.log('📄 [DOCS] Criando nova série:', series);
+        console.log('📄 [DOCS] Criando nova série:', { doc_type, series_name });
         await supabase.from('billing_series').insert({
-          series,
-          prefix,
-          current_number: 1,
-          year,
-          company_id: effCompanyId
+          doc_type,
+          series_name,
+          last_number: 1,
+          company_id: effCompanyId,
+          is_active: true
         });
       }
 
-      const docNumber = `${series}/${nextNum}`;
+      const paddedNumber = String(nextNum).padStart(3, '0');
+      const docNumber = `${doc_type}-${series_name}/${paddedNumber}`;
       console.log('📄 [DOCS] Número gerado:', docNumber);
 
       // 2. Calculate Totals (Safely)
-      const total = items.reduce((acc: number, i: any) => {
+      const subtotal = items.reduce((acc: number, i: any) => {
         const itemVal = Number(i.total || (Number(i.qtd || 0) * Number(i.preco_unitario || 0)));
         return acc + (isNaN(itemVal) ? 0 : itemVal);
       }, 0);
 
-      const iva = is_exempt ? 0 : total * 0.14;
-      const finalTotal = total + (isNaN(iva) ? 0 : iva);
-      console.log('📄 [DOCS] Totais:', { total, iva, finalTotal });
+      const iva = is_exempt ? 0 : subtotal * 0.14;
+      const finalTotal = subtotal + (isNaN(iva) ? 0 : iva);
+      console.log('📄 [DOCS] Totais:', { subtotal, iva, finalTotal });
 
       // 3. Security Hash
       const { data: lastDoc } = await supabase
@@ -3507,37 +3717,132 @@ async function startServer() {
       const hashDate = new Date().toISOString();
       const hashString = prepareHashString(docNumber, hashDate, finalTotal, companyNif);
       const hash = generateHash(hashString, prevHash);
-      console.log('📄 [DOCS] Hash gerado:', hash.substring(0, 10) + '...');
+      const paid = (doc_type === 'FR') ? finalTotal : (Number(req.body.amount_paid) || 0);
+      const debt = Math.max(0, finalTotal - paid);
+      let docStatus = 'PENDENTE';
+      if (paid >= finalTotal) docStatus = 'PAGO';
+      else if (paid > 0) docStatus = 'PARCIAL';
 
-      // 4. Insert Document
-      const insertData = {
+      // Cálculo de vencimento padrão (30 dias)
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+      const dueDateStr = dueDate.toISOString().split('T')[0];
+
+      const insertData: any = {
         numero_fatura: docNumber,
-        cliente_id: customer_id || null,
+        cliente_id: req.body.cliente_id, // Ensure cliente_id is stored
         cliente_nome: customer_name,
         data_emissao: new Date().toISOString().split('T')[0],
+        data_vencimento: dueDateStr,
         valor_total: finalTotal,
-        status: 'Pendente',
+        valor_pago: paid,
+        valor_em_divida: debt,
+        status: docStatus,
         company_id: effCompanyId,
-        tipo: type,
+        type_prefix: doc_type, // Map doc_type to type_prefix
+        tipo: type, // Add tipo for frontend compatibility
         hash,
         prev_hash: prevHash,
+        is_exempt: !!is_exempt,
+        exemption_reason: exemption_reason || null,
         metadata: {
-          ...metadata,
-          items,
-          subtotal: total.toFixed(2),
-          iva: iva.toFixed(2),
-          is_exempt,
-          exemption_reason
+          items: items || [],
+          subtotal: Number(subtotal) || 0,
+          iva: Number(iva) || 0,
+          finalTotal: Number(finalTotal) || 0,
+          amount_paid: paid,
+          change: Number(req.body.change) || 0,
+          customer_nif: req.body.customer_nif || '999999999'
         }
       };
 
+      console.log('📄 [DOCS] Dados para inserção:', JSON.stringify(insertData, null, 2));
       console.log('📄 [DOCS] Inserindo no Supabase...');
       const { data: doc, error: dError } = await supabase.from('contabil_faturas').insert(insertData).select().single();
 
+      if (doc && paid > 0) {
+        // Registar histórico inicial
+        await supabase.from('fin_pagamentos_historico').insert({
+          documento_id: doc.id,
+          origem: 'FATURA',
+          valor: paid,
+          metodo: 'Pagamento no Ato',
+          company_id: effCompanyId
+        });
+      }
+
       if (dError) {
-        console.log('❌ [DOCS] Erro ao inserir fatura:', dError);
+        console.log('❌ [DOCS] Erro detalhado na inserção:', JSON.stringify(dError, null, 2));
+        // Fallback for metadata if column is missing (temporarily to avoid crash)
+        if (dError.message?.includes('metadata') || dError.code === '42703') {
+          console.log('⚠️ [DOCS] Coluna metadata em falta. Tentando sem metadata...');
+          const { metadata, ...fallbackData } = insertData;
+          const { data: docF, error: dErrorF } = await supabase.from('contabil_faturas').insert(fallbackData).select().single();
+          if (dErrorF) throw dErrorF;
+          // Devolvemos o documento com os metadados (mesmo não gravados) para que a impressão imediata funcione
+          return res.json({ success: true, doc: { ...docF, metadata: insertData.metadata } });
+        }
         throw dError;
       }
+
+      console.log('✅ [DOCS] Documento emitido com sucesso:', doc.numero_fatura);
+
+      // --- ACCOUNTING INTEGRATION ---
+      try {
+        const { data: activePeriod } = await supabase
+          .from('acc_periodos')
+          .select('id')
+          .eq('company_id', effCompanyId)
+          .eq('status', 'Aberto')
+          .order('ano', { ascending: false })
+          .order('mes', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (activePeriod) {
+          // 1. Factura (Deb: Cliente, Cred: Receita)
+          const { data: lnc, error: lError } = await supabase.from('acc_lancamentos').insert({
+            company_id: effCompanyId,
+            periodo_id: activePeriod.id,
+            data: new Date().toISOString().split('T')[0],
+            descricao: `Emissão de ${type} ${docNumber}`,
+            tipo: 'Venda',
+            valor_total: finalTotal,
+            status: 'Confirmado'
+          }).select().single();
+
+          if (lnc) {
+            await supabase.from('acc_lancamento_itens').insert([
+              { lancamento_id: lnc.id, company_id: effCompanyId, conta_id: '3.1', debito: finalTotal, credito: 0, descricao: 'Débito em conta de cliente' },
+              { lancamento_id: lnc.id, company_id: effCompanyId, conta_id: '6.1', debito: 0, credito: finalTotal, descricao: 'Receita de vendas' }
+            ]);
+          }
+
+          // 2. Pagamento Imediato (FR ou Pagamento à cabeça)
+          if (paid > 0) {
+            const { data: pLnc } = await supabase.from('acc_lancamentos').insert({
+              company_id: effCompanyId,
+              periodo_id: activePeriod.id,
+              data: new Date().toISOString().split('T')[0],
+              descricao: `Recebimento de ${type} ${docNumber}`,
+              tipo: 'Tesouraria',
+              valor_total: paid,
+              status: 'Confirmado'
+            }).select().single();
+
+            if (pLnc) {
+              await supabase.from('acc_lancamento_itens').insert([
+                { lancamento_id: pLnc.id, company_id: effCompanyId, conta_id: '1.1', debito: paid, credito: 0, descricao: 'Entrada em Caixa' },
+                { lancamento_id: pLnc.id, company_id: effCompanyId, conta_id: '3.1', debito: 0, credito: paid, descricao: 'Liquidação de cliente' }
+              ]);
+            }
+          }
+        }
+      } catch (accErr) {
+        console.error('⚠️ [DOCS] Erro na integração contabilística:', accErr);
+      }
+
+      return res.json({ success: true, doc });
 
       if (!doc) {
         console.log('❌ [DOCS] Documento retornado nulo');
@@ -3552,6 +3857,172 @@ async function startServer() {
     } catch (err: any) {
       console.error('❌ [DOCS] Erro fatal:', err);
       res.status(500).json({ error: err.message || 'Erro interno ao processar documento' });
+    }
+  });
+
+  app.post("/api/documents/:id/payment", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { amount, payment_method } = req.body;
+    const effCompanyId = req.user.company_id;
+
+    if (!amount || amount <= 0) return res.status(400).json({ error: "Valor de pagamento inválido" });
+
+    try {
+      // 1. Fetch current document
+      const { data: doc, error: fError } = await supabase
+        .from('contabil_faturas')
+        .select('*')
+        .eq('id', id)
+        .eq('company_id', effCompanyId)
+        .single();
+
+      if (fError || !doc) return res.status(404).json({ error: "Documento não encontrado" });
+
+      const newPaid = Number(doc.valor_pago || 0) + Number(amount);
+      const newDebt = Math.max(0, Number(doc.valor_total) - newPaid);
+
+      let newStatus = 'PENDENTE';
+      if (newPaid >= Number(doc.valor_total)) newStatus = 'PAGO';
+      else if (newPaid > 0) newStatus = 'PARCIAL';
+
+      // 2. Update document
+      const { error: uError } = await supabase
+        .from('contabil_faturas')
+        .update({
+          valor_pago: newPaid,
+          valor_em_divida: newDebt,
+          status: newStatus
+        })
+        .eq('id', id);
+
+      if (uError) throw uError;
+
+      // --- HISTORICO DE PAGAMENTO ---
+      await supabase.from('fin_pagamentos_historico').insert({
+        documento_id: id,
+        origem: 'FATURA',
+        valor: amount,
+        metodo: 'Liquidação Parcial/Total',
+        company_id: effCompanyId
+      });
+
+      // --- ACCOUNTING INTEGRATION (PAYMENT) ---
+      try {
+        const { data: activePeriod } = await supabase
+          .from('acc_periodos')
+          .select('id')
+          .eq('company_id', effCompanyId)
+          .eq('status', 'Aberto')
+          .order('ano', { ascending: false })
+          .order('mes', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (activePeriod) {
+          const { data: pLnc } = await supabase.from('acc_lancamentos').insert({
+            company_id: effCompanyId,
+            periodo_id: activePeriod.id,
+            data: new Date().toISOString().split('T')[0],
+            descricao: `Recebimento Parcial/Total: ${doc.numero_fatura}`,
+            tipo: 'Tesouraria',
+            valor_total: amount,
+            status: 'Confirmado'
+          }).select().single();
+
+          if (pLnc) {
+            await supabase.from('acc_lancamento_itens').insert([
+              { lancamento_id: pLnc.id, company_id: effCompanyId, conta_id: '1.1', debito: amount, credito: 0, descricao: 'Entrada em Caixa' },
+              { lancamento_id: pLnc.id, company_id: effCompanyId, conta_id: '3.1', debito: 0, credito: amount, descricao: 'Liquidação de cliente' }
+            ]);
+          }
+        }
+      } catch (accErr) {
+        console.error('⚠️ [PAY] Erro na integração contabilística:', accErr);
+      }
+
+      logActivity(req, 'PAYMENT', 'contabil_faturas', `Pagamento de ${amount} registado para ${doc.numero_fatura}. Novo Saldo: ${newDebt}`, { doc_id: id, amount });
+
+      res.json({ success: true, new_status: newStatus, new_debt: newDebt });
+    } catch (err: any) {
+      console.error('❌ [PAY] Erro ao registar pagamento:', err);
+      res.status(500).json({ error: err.message || 'Erro ao processar pagamento' });
+    }
+  });
+
+  app.post("/api/documents/:id/cancel", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const effCompanyId = req.user.company_id;
+
+    try {
+      console.log(`📄 [DOCS] Anulando documento ${id}...`);
+      const { data: doc, error: fError } = await supabase
+        .from('contabil_faturas')
+        .select('*')
+        .eq('id', id)
+        .eq('company_id', effCompanyId)
+        .single();
+
+      if (fError || !doc) return res.status(404).json({ error: "Documento não encontrado" });
+      if (doc.status === 'Anulado') return res.status(400).json({ error: "Este documento já foi anulado" });
+
+      const { error: uError } = await supabase
+        .from('contabil_faturas')
+        .update({ status: 'Anulado' })
+        .eq('id', id);
+
+      if (uError) throw uError;
+
+      logActivity(req, 'CANCEL', 'contabil_faturas', `Documento ${doc.numero_fatura} anulado. Motivo: ${reason || 'N/A'}`, { doc_id: id });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('❌ [DOCS] Erro ao anular:', err);
+      res.status(500).json({ error: err.message || 'Erro ao anular documento' });
+    }
+  });
+
+
+  // --- NOVO: ENDPOINT CONTAS A RECEBER ---
+  app.get('/api/receivables', authenticate, async (req: any, res) => {
+    try {
+      const effCompanyId = req.query.company_id || req.user.company_id;
+      const { data, error } = await supabase
+        .from('contabil_faturas')
+        .select('*')
+        .eq('company_id', effCompanyId)
+        .gt('valor_em_divida', 0)
+        .neq('status', 'Anulado')
+        .order('data_vencimento', { ascending: true });
+
+      if (error) throw error;
+
+      const now = new Date().toISOString().split('T')[0];
+      const enhancedData = data.map(d => ({
+        ...d,
+        is_overdue: d.data_vencimento ? d.data_vencimento < now : false
+      }));
+
+      res.json(enhancedData);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- NOVO: HISTÓRICO DE PAGAMENTOS ---
+  app.get('/api/documents/:id/history', authenticate, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { data, error } = await supabase
+        .from('fin_pagamentos_historico')
+        .select('*')
+        .eq('documento_id', id)
+        .order('data', { ascending: false });
+
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

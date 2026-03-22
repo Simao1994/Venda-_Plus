@@ -223,10 +223,10 @@ export default function SystemDocumentation({ isAdmin }: SystemDocumentationProp
                         {isAdmin && !editMode && (
                             <button
                                 onClick={handleEdit}
-                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                className="flex items-center gap-2 px-4 py-2 bg-gold-primary/10 text-gold-primary hover:bg-gold-primary hover:text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                             >
                                 <Edit3 size={16} />
-                                Editar
+                                Editar Documentação
                             </button>
                         )}
 
@@ -244,19 +244,19 @@ export default function SystemDocumentation({ isAdmin }: SystemDocumentationProp
                     {editMode ? (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Título do Artigo</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gold-primary">Título do Artigo</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-2xl font-black text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-2xl font-black text-white focus:ring-2 focus:ring-gold-primary/50 outline-none"
                                     value={editedContent?.title || ''}
                                     onChange={e => setEditedContent(prev => prev ? { ...prev, title: e.target.value } : null)}
                                 />
                             </div>
 
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Conteúdo (HTML)</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gold-primary">Conteúdo (HTML)</label>
                                 <textarea
-                                    className="w-full h-[400px] bg-white/5 border border-white/10 rounded-2xl px-6 py-6 text-sm font-medium text-white/80 focus:ring-2 focus:ring-indigo-500/50 outline-none font-mono"
+                                    className="w-full h-[400px] bg-white/5 border border-white/10 rounded-2xl px-6 py-6 text-sm font-medium text-white/80 focus:ring-2 focus:ring-gold-primary/50 outline-none font-mono"
                                     value={editedContent?.content || ''}
                                     onChange={e => setEditedContent(prev => prev ? { ...prev, content: e.target.value } : null)}
                                 />
@@ -266,7 +266,7 @@ export default function SystemDocumentation({ isAdmin }: SystemDocumentationProp
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
-                                    className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-900/20"
+                                    className="flex-1 py-4 bg-gold-primary text-black rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-gold-secondary transition-all flex items-center justify-center gap-2 shadow-xl shadow-gold-primary/20"
                                 >
                                     {saving ? 'Salvando...' : <><Save size={18} /> Salvar Alterações</>}
                                 </button>

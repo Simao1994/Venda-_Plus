@@ -1,10 +1,10 @@
-/**
- * Centralized API utility for Venda Plus.
- * Handles automatic Authorization header injection and global 401 (Unauthorized) responses.
- */
+import { getFullApiUrl } from './config';
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
     const token = localStorage.getItem('erp_token');
+
+    // Ensure URL is absolute if needed (mobile/capacitor)
+    const finalUrl = getFullApiUrl(url);
 
     const headers = {
         'Content-Type': 'application/json',
@@ -12,7 +12,7 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
         ...(options.headers || {}),
     };
 
-    const response = await fetch(url, {
+    const response = await fetch(finalUrl, {
         ...options,
         headers,
     });
@@ -34,5 +34,7 @@ export const api = {
         apiFetch(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
     put: (url: string, body: any, options?: RequestInit) =>
         apiFetch(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+    patch: (url: string, body: any, options?: RequestInit) =>
+        apiFetch(url, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
     delete: (url: string, options?: RequestInit) => apiFetch(url, { ...options, method: 'DELETE' }),
 };

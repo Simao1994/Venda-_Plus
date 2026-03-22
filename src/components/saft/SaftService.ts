@@ -147,8 +147,12 @@ export class SaftService {
                 return { sucesso: false, erros };
             }
 
+            // Fetch company data
+            const { data: companyData } = await supabase.from('companies').select('*').eq('id', empresa_id).single();
+            const empresa = companyData || { name: 'Venda Plus', nif: '999999999' };
+
             // Generate XML
-            const xml = this.gerarXML({ name: 'Venda Plus', nif: '555555555' }, clientes, produtos, faturas, itens);
+            const xml = this.gerarXML(empresa, clientes, produtos, faturas, itens);
 
             // Save History
             const totalValor = faturas.reduce((acc, f) => acc + (f.valor_total || f.total || 0), 0);

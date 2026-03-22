@@ -40,19 +40,29 @@ export default function MobileAppInfo() {
                         Acesse o Venda Plus Mobile e controle suas vendas, stock e funcionários de qualquer lugar do mundo. Disponível para Android e iOS.
                     </p>
                     <div className="flex flex-wrap gap-4 pt-4">
-                        <button
-                            onClick={() => setShowInstructions('ios')}
+                        <a
+                            href="/downloads/venda-plus.ipa"
+                            draggable={false}
                             className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-[24px] font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 border border-slate-700"
                         >
                             <Smartphone size={20} className="text-indigo-400" />
-                            <span>Disponível para <span className="text-white">iPhone</span></span>
-                        </button>
-                        <button
-                            onClick={handleInstallClick}
+                            <span>Baixar para <span className="text-white">iPhone (iOS)</span></span>
+                        </a>
+                        <a
+                            href="/downloads/venda-plus.apk"
+                            draggable={false}
                             className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-[24px] font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 border border-slate-700"
                         >
                             <Download size={20} className="text-indigo-400" />
-                            <span>Baixar para <span className="text-white">Android</span></span>
+                            <span>Baixar App <span className="text-white">(APK Android)</span></span>
+                        </a>
+
+                        <button
+                            onClick={handleInstallClick}
+                            className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-white text-indigo-600 rounded-[24px] font-bold hover:bg-indigo-50 transition-all border-2 border-indigo-600 shadow-lg active:scale-95"
+                        >
+                            <QrCode size={20} />
+                            <span>Instalar como PWA</span>
                         </button>
                     </div>
                 </div>
@@ -141,18 +151,32 @@ export default function MobileAppInfo() {
                                 </div>
                             )}
 
-                            <button
-                                onClick={() => {
-                                    if (showInstructions === 'android' && deferredPrompt) {
-                                        deferredPrompt.prompt();
-                                        setDeferredPrompt(null);
-                                    }
-                                    setShowInstructions(null);
-                                }}
-                                className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black uppercase tracking-widest text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
-                            >
-                                {showInstructions === 'android' && deferredPrompt ? 'Instalar Agora' : 'Entendi, vou instalar agora'}
-                            </button>
+                            <div className="pt-4">
+                                {showInstructions === 'android' && !deferredPrompt && (
+                                    <p className="text-amber-600 text-[10px] font-black uppercase text-center mb-4 tracking-widest bg-amber-50 py-2 rounded-xl border border-amber-100">
+                                        ⚠️ Instalação automática não disponível. Siga os passos acima.
+                                    </p>
+                                )}
+
+                                <button
+                                    onClick={() => {
+                                        if (showInstructions === 'android' && deferredPrompt) {
+                                            console.log('MobileAppInfo: Triggering install prompt...');
+                                            deferredPrompt.prompt();
+                                            deferredPrompt.userChoice.then((choice: any) => {
+                                                console.log('MobileAppInfo: User choice:', choice.outcome);
+                                                setDeferredPrompt(null);
+                                                setShowInstructions(null);
+                                            });
+                                        } else {
+                                            setShowInstructions(null);
+                                        }
+                                    }}
+                                    className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black uppercase tracking-widest text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
+                                >
+                                    {showInstructions === 'android' && deferredPrompt ? 'Instalar Agora' : 'Fechar e Seguir Passos'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

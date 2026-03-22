@@ -5,29 +5,32 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   mask?: string;
-  // Added icon prop to support search icons and other visual decorators in input fields
   icon?: React.ReactNode;
 }
 
 const Input: React.FC<InputProps> = ({ label, error, icon, className, ...props }) => {
   return (
-    <div className="w-full">
-      {label && <label className="block text-sm font-medium text-zinc-700 mb-1">{label}</label>}
-      <div className="relative">
-        {/* Render the icon inside the input if provided */}
+    <div className="w-full space-y-2">
+      {label && (
+        <label className="block text-[10px] font-black text-white/40 uppercase tracking-[0.2em] ml-1 italic flex items-center gap-2">
+          {label}
+        </label>
+      )}
+      <div className="relative group">
         {icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-zinc-400">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-gold-primary/40 group-focus-within:text-gold-primary transition-colors">
             {icon}
           </div>
         )}
         <input 
-          className={`w-full ${icon ? 'pl-10' : 'px-4'} py-2 bg-white border rounded-lg text-zinc-900 text-sm outline-none transition-all focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 ${
-            error ? 'border-red-500' : 'border-zinc-200'
+          className={`w-full ${icon ? 'pl-12' : 'px-6'} py-4 bg-white/[0.03] border border-white/5 rounded-2xl text-white text-sm font-bold outline-none transition-all focus:ring-2 focus:ring-gold-primary/20 focus:border-gold-primary/40 placeholder:text-white/10 ${
+            error ? 'border-red-500/50 focus:ring-red-500/10 focus:border-red-500/30' : ''
           } ${className}`}
           {...props}
         />
+        <div className="absolute inset-0 rounded-2xl bg-gold-primary/[0.01] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity" />
       </div>
-      {error && <span className="text-xs text-red-500 mt-1">{error}</span>}
+      {error && <span className="text-[10px] font-black text-red-500/60 uppercase tracking-widest ml-1 italic">{error}</span>}
     </div>
   );
 };

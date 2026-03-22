@@ -82,98 +82,110 @@ export default function PurchaseOrders() {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <header className="mb-8 flex justify-between items-start">
-                <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Ordens de Compra</h1>
-                    <p className="text-gray-500 font-medium">Faça a gestão de pedidos a fornecedores e reposição de stock.</p>
+        <div className="p-8 space-y-10 relative animate-in fade-in duration-700">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative">
+                <div className="relative">
+                    <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-1 h-12 bg-gold-primary rounded-full shadow-[0_0_20px_rgba(212,175,55,0.4)]" />
+                    <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">
+                        Procurement <span className="text-gold-gradient">Hub</span>
+                    </h1>
+                    <p className="text-[10px] font-black text-gold-primary/40 uppercase tracking-[0.4em] mt-2 italic">Supply chain management & acquisitions</p>
                 </div>
                 <button
                     onClick={() => setShowModal(true)}
-                    className="bg-emerald-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+                    className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-gold-gradient text-bg-deep rounded-2xl hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] font-black uppercase tracking-widest text-[10px] transition-all shadow-2xl active:scale-95 border border-white/10"
                 >
                     <Plus size={18} />
-                    Novo Pedido
+                    Initialize Request
                 </button>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center">
-                        <Clock size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pendentes</p>
-                        <p className="text-2xl font-black text-gray-900">{orders.filter(o => o.status === 'pending').length}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
-                        <Truck size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recebidas</p>
-                        <p className="text-2xl font-black text-gray-900">{orders.filter(o => o.status === 'received').length}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-all blur-3xl" />
+                    <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center shadow-inner">
+                            <Clock size={28} />
+                        </div>
+                        <div>
+                            <h3 className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-1 italic">Pending Orders</h3>
+                            <p className="text-4xl font-black text-white italic tracking-tighter">{orders.filter(o => o.status === 'pending').length}</p>
+                        </div>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
-                        <ShoppingBag size={24} />
+                <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-all blur-3xl" />
+                    <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center shadow-inner">
+                            <Truck size={28} />
+                        </div>
+                        <div>
+                            <h3 className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-1 italic">Received Logistics</h3>
+                            <p className="text-4xl font-black text-white italic tracking-tighter">{orders.filter(o => o.status === 'received').length}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Gasto</p>
-                        <p className="text-2xl font-black text-gray-900">
-                            {orders.filter(o => o.status === 'received').reduce((acc, curr) => acc + curr.total_amount, 0).toLocaleString()} <span className="text-xs">{user?.currency}</span>
-                        </p>
+                </div>
+                <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gold-primary/5 rounded-full -mr-16 -mt-16 group-hover:bg-gold-primary/10 transition-all blur-3xl" />
+                    <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-gold-primary/10 text-gold-primary rounded-2xl flex items-center justify-center shadow-inner">
+                            <ShoppingBag size={28} />
+                        </div>
+                        <div>
+                            <h3 className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-1 italic">Capital Outflow</h3>
+                            <p className="text-4xl font-black text-gold-gradient italic tracking-tighter">
+                                {orders.filter(o => o.status === 'received').reduce((acc, curr) => acc + curr.total_amount, 0).toLocaleString()} <span className="text-xs">{user?.currency}</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="glass-panel rounded-[40px] border border-white/5 overflow-hidden shadow-2xl relative">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">
-                                <th className="px-6 py-5">Nº Pedido / Fornecedor</th>
-                                <th className="px-6 py-5">Data</th>
-                                <th className="px-6 py-5">Itens</th>
-                                <th className="px-6 py-5 text-right">Total</th>
-                                <th className="px-6 py-5 text-center">Estado</th>
-                                <th className="px-6 py-5 text-right">Acções</th>
+                            <tr className="bg-[#0B0B0B] text-[10px] font-black text-white/20 uppercase tracking-[0.2em] border-b border-white/5">
+                                <th className="px-10 py-6">ID / Entidade</th>
+                                <th className="px-10 py-6">Timestamp</th>
+                                <th className="px-10 py-6">Asset Count</th>
+                                <th className="px-10 py-6 text-right">Magnitude</th>
+                                <th className="px-10 py-6 text-center">Status</th>
+                                <th className="px-10 py-6 text-right">Execution</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-white/5">
                             {orders.map((order) => (
-                                <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <p className="font-bold text-gray-900">OC-{order.id.toString().padStart(4, '0')}</p>
-                                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{order.supplier_name}</p>
+                                <tr key={order.id} className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="px-10 py-6">
+                                        <p className="font-black text-white italic tracking-tighter uppercase text-base">OC-{order.id.toString().padStart(4, '0')}</p>
+                                        <p className="text-[10px] font-black text-gold-primary/40 uppercase tracking-[0.2em] italic">{order.supplier_name}</p>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <p className="text-xs font-bold text-gray-600">{new Date(order.created_at).toLocaleDateString()}</p>
+                                    <td className="px-10 py-6">
+                                        <p className="text-[11px] font-bold text-white/60">{new Date(order.created_at).toLocaleDateString()}</p>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-xs font-bold text-gray-500">{order.items_count} produtos</span>
+                                    <td className="px-10 py-6">
+                                        <span className="text-[11px] font-black text-white/30 uppercase tracking-widest italic">{order.items_count} assets</span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <p className="font-black text-gray-900">{order.total_amount.toLocaleString()} {user?.currency}</p>
+                                    <td className="px-10 py-6 text-right">
+                                        <p className="font-black text-white text-lg italic tracking-tighter">{order.total_amount.toLocaleString()} <span className="text-[10px] opacity-30 italic ml-1">{user?.currency}</span></p>
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${order.status === 'received' ? 'bg-emerald-100 text-emerald-700' :
-                                                order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                    <td className="px-10 py-6 text-center">
+                                        <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${order.status === 'received' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]' :
+                                                order.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
                                             }`}>
-                                            {order.status === 'received' ? 'Recebido' :
-                                                order.status === 'cancelled' ? 'Cancelado' : 'Pendente'}
+                                            {order.status === 'received' ? 'Authenticated' :
+                                                order.status === 'cancelled' ? 'Aborted' : 'Transit'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-10 py-6 text-right">
                                         {order.status === 'pending' && (
                                             <button
                                                 onClick={() => markAsReceived(order.id)}
-                                                className="text-emerald-600 hover:text-emerald-700 font-black text-[10px] uppercase tracking-widest flex items-center gap-1 justify-end ml-auto"
+                                                className="px-5 py-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 hover:text-white transition-all ml-auto hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] shadow-inner"
                                             >
                                                 <CheckCircle2 size={14} />
-                                                Marcar como Recebido
+                                                Certify Receipt
                                             </button>
                                         )}
                                     </td>
@@ -181,9 +193,8 @@ export default function PurchaseOrders() {
                             ))}
                             {orders.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-20 text-center">
-                                        <AlertCircle size={40} className="text-gray-200 mx-auto mb-4" />
-                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Nenhuma ordem de compra encontrada.</p>
+                                    <td colSpan={6} className="px-10 py-32 text-center text-white/10 font-black uppercase text-[12px] tracking-[0.4em] italic bg-[#0B0B0B]/40 animate-pulse">
+                                        No procurement logs detected.
                                     </td>
                                 </tr>
                             )}
@@ -194,32 +205,42 @@ export default function PurchaseOrders() {
 
             {/* New Order Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-                        <div className="p-8 border-b bg-gray-50/50">
-                            <h3 className="text-xl font-black text-gray-900 tracking-tight">Novo Pedido a Fornecedor</h3>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Selecione o fornecedor e os itens para reposição</p>
+                <div className="fixed inset-0 bg-bg-deep/90 backdrop-blur-xl flex items-center justify-center z-[110] p-4 text-left">
+                    <div className="glass-panel rounded-[40px] w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-white/10 relative">
+                        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+                        
+                        <div className="p-10 border-b border-white/5 bg-gold-primary/[0.02] flex justify-between items-center">
+                            <div>
+                                <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Procurement <span className="text-gold-gradient">Synthesis</span></h3>
+                                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mt-2 italic">Select partner and aggregate asset vectors</p>
+                            </div>
+                            <button onClick={() => setShowModal(false)} className="p-3 hover:bg-white/5 rounded-full transition-colors text-white/30">
+                                <Plus size={28} className="rotate-45" />
+                            </button>
                         </div>
 
-                        <div className="p-8 overflow-y-auto flex-1 gap-8 flex">
-                            <div className="flex-1 space-y-6">
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fornecedor</label>
-                                    <select
-                                        className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-gray-900"
-                                        value={newOrder.supplier_id}
-                                        onChange={(e) => setNewOrder({ ...newOrder, supplier_id: e.target.value })}
-                                    >
-                                        <option value="">Selecione um fornecedor</option>
-                                        {suppliers.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
+                        <div className="p-10 overflow-y-auto flex-1 gap-10 flex flex-col lg:flex-row bg-[#080808]/50">
+                            <div className="flex-1 space-y-10">
+                                <div className="space-y-4">
+                                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] italic">Strategic Partner</label>
+                                    <div className="relative group">
+                                        <Truck className="absolute left-5 top-1/2 -translate-y-1/2 text-gold-primary/40 group-focus-within:text-gold-primary transition-colors" size={20} />
+                                        <select
+                                            className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl focus:border-gold-primary/30 outline-none font-black text-[11px] text-white uppercase tracking-widest appearance-none cursor-pointer group-hover:bg-white/[0.08] transition-all"
+                                            value={newOrder.supplier_id}
+                                            onChange={(e) => setNewOrder({ ...newOrder, supplier_id: e.target.value })}
+                                        >
+                                            <option value="" className="bg-bg-deep">Detecting partner network...</option>
+                                            {suppliers.map(s => (
+                                                <option key={s.id} value={s.id} className="bg-bg-deep">{s.name?.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Pesquisar Itens</label>
-                                    <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                                <div className="space-y-4">
+                                    <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] italic">Asset Inventory</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-3 custom-scrollbar">
                                         {products.map(p => (
                                             <button
                                                 key={p.id}
@@ -232,80 +253,97 @@ export default function PurchaseOrders() {
                                                         });
                                                     }
                                                 }}
-                                                className="p-3 bg-gray-50 rounded-xl text-left hover:bg-emerald-50 hover:ring-1 hover:ring-emerald-200 transition-all group"
+                                                className="p-5 bg-white/5 rounded-2xl text-left border border-white/5 hover:border-gold-primary/30 hover:bg-white/[0.08] transition-all group relative overflow-hidden"
                                             >
-                                                <p className="text-xs font-bold text-gray-900 group-hover:text-emerald-700">{p.name}</p>
-                                                <p className="text-[10px] text-gray-400 font-medium">Stock: {p.stock} | Preço: {p.cost_price}</p>
+                                                <div className="relative z-10">
+                                                    <p className="text-xs font-black text-white uppercase tracking-tight group-hover:text-gold-primary transition-colors">{p.name}</p>
+                                                    <div className="flex justify-between items-center mt-3">
+                                                        <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">Stock: <span className="text-white/60">{p.stock}</span></p>
+                                                        <p className="text-[9px] text-gold-primary/40 font-black tracking-widest italic">{p.cost_price?.toLocaleString()} {user?.currency}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Plus size={14} className="text-gold-primary" />
+                                                </div>
                                             </button>
                                         ))}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="w-[350px] bg-gray-50 rounded-3xl p-6 flex flex-col">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Lista do Pedido</h4>
-                                <div className="flex-1 space-y-3 overflow-y-auto">
+                            <div className="w-full lg:w-[400px] bg-white/[0.02] rounded-[32px] p-8 border border-white/5 flex flex-col shadow-inner">
+                                <h4 className="text-[10px] font-black text-gold-primary/40 uppercase tracking-[0.4em] mb-8 italic flex items-center gap-3">
+                                    <Package size={14} /> Manifest Aggregation
+                                </h4>
+                                <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                                     {newOrder.items.map((item, idx) => (
-                                        <div key={idx} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <p className="text-xs font-bold text-gray-900 pr-2">{item.name}</p>
+                                        <div key={idx} className="bg-white/5 p-5 rounded-2xl border border-white/5 animate-in slide-in-from-right duration-300">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <p className="text-[11px] font-black text-white uppercase tracking-tight leading-tight flex-1">{item.name}</p>
                                                 <button
                                                     onClick={() => setNewOrder({ ...newOrder, items: newOrder.items.filter((_, i) => i !== idx) })}
-                                                    className="text-red-400 hover:text-red-600"
+                                                    className="text-white/20 hover:text-red-500 transition-colors p-1"
                                                 >
-                                                    &times;
+                                                    <Plus size={18} className="rotate-45" />
                                                 </button>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="number"
-                                                    className="w-20 p-2 bg-gray-50 rounded-lg text-xs font-bold outline-none"
-                                                    placeholder="Qtd"
-                                                    value={item.quantity}
-                                                    onChange={(e) => {
-                                                        const newItems = [...newOrder.items];
-                                                        newItems[idx].quantity = parseFloat(e.target.value) || 0;
-                                                        setNewOrder({ ...newOrder, items: newItems });
-                                                    }}
-                                                />
-                                                <input
-                                                    type="number"
-                                                    className="flex-1 p-2 bg-gray-50 rounded-lg text-xs font-bold outline-none"
-                                                    placeholder="Custo"
-                                                    value={item.cost}
-                                                    onChange={(e) => {
-                                                        const newItems = [...newOrder.items];
-                                                        newItems[idx].cost = parseFloat(e.target.value) || 0;
-                                                        setNewOrder({ ...newOrder, items: newItems });
-                                                    }}
-                                                />
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-2">
+                                                    <span className="text-[8px] font-black text-white/10 uppercase tracking-widest">Quantum</span>
+                                                    <input
+                                                        type="number"
+                                                        className="w-full p-3 bg-bg-deep rounded-xl text-[11px] font-black text-white border border-white/5 focus:border-gold-primary/30 outline-none transition-all shadow-inner"
+                                                        value={item.quantity}
+                                                        onChange={(e) => {
+                                                            const newItems = [...newOrder.items];
+                                                            newItems[idx].quantity = parseFloat(e.target.value) || 0;
+                                                            setNewOrder({ ...newOrder, items: newItems });
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                     <span className="text-[8px] font-black text-white/10 uppercase tracking-widest">Unit Cost</span>
+                                                    <input
+                                                        type="number"
+                                                        className="w-full p-3 bg-bg-deep rounded-xl text-[11px] font-black text-gold-primary border border-white/5 focus:border-gold-primary/30 outline-none transition-all shadow-inner"
+                                                        value={item.cost}
+                                                        onChange={(e) => {
+                                                            const newItems = [...newOrder.items];
+                                                            newItems[idx].cost = parseFloat(e.target.value) || 0;
+                                                            setNewOrder({ ...newOrder, items: newItems });
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
                                     {newOrder.items.length === 0 && (
-                                        <p className="text-[10px] font-bold text-gray-300 text-center mt-10">Carrinho vazio</p>
+                                        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-20">
+                                            <ShoppingBag size={40} className="text-white" />
+                                            <p className="text-[9px] font-black text-white uppercase tracking-[0.3em]">Manifest is empty</p>
+                                        </div>
                                     )}
                                 </div>
 
-                                <div className="pt-4 border-t mt-4">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Estimado</p>
-                                        <p className="text-xl font-black text-emerald-600">
-                                            {newOrder.items.reduce((acc, curr) => acc + (curr.quantity * curr.cost), 0).toLocaleString()} {user?.currency}
+                                <div className="pt-8 border-t border-white/5 mt-8 space-y-6">
+                                    <div className="flex justify-between items-center">
+                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] italic">Aggregate Sum</p>
+                                        <p className="text-3xl font-black text-gold-gradient italic tracking-tighter">
+                                            {newOrder.items.reduce((acc, curr) => acc + (curr.quantity * curr.cost), 0).toLocaleString()} <span className="text-[10px] text-gold-primary/40 uppercase ml-1 italic">{user?.currency}</span>
                                         </p>
                                     </div>
                                     <button
                                         onClick={handleCreateOrder}
                                         disabled={!newOrder.supplier_id || newOrder.items.length === 0}
-                                        className="w-full py-4 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:opacity-50"
+                                        className="w-full py-5 bg-gold-gradient text-bg-deep rounded-2xl text-[11px] font-black uppercase tracking-[0.4em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl disabled:opacity-20 disabled:grayscale active:scale-95 border border-white/10"
                                     >
-                                        Confirmar Pedido
+                                        Confirm Dispatch
                                     </button>
                                     <button
                                         onClick={() => setShowModal(false)}
-                                        className="w-full py-3 mt-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-all"
+                                        className="w-full py-2 text-[9px] font-black text-white/20 uppercase tracking-[0.4em] hover:text-white/60 transition-all italic"
                                     >
-                                        Cancelar
+                                        Abort Signal
                                     </button>
                                 </div>
                             </div>

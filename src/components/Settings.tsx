@@ -5,7 +5,7 @@ import {
   DollarSign, Database, Download, CheckCircle2, Server,
   Shield, Store, Package, Users, User, BarChart3,
   Plus, Newspaper, Megaphone, PieChart, Settings as SettingsIcon,
-  X, Check, FileText, Activity, HelpCircle
+  X, Check, FileText, Activity, HelpCircle, RefreshCw
 } from 'lucide-react';
 import SystemDocumentation from './documentation/SystemDocumentation';
 import { api } from '../lib/api';
@@ -37,15 +37,17 @@ export default function Settings() {
     tax_percentage: 14,
     currency: 'Kz',
     logo: '',
+    imagem_home: '',
     role_permissions: {}
   });
-  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'system' | 'docs'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'system' | 'docs' | 'personalization'>('profile');
   const [dbState, setDbState] = useState<any>(null);
   const [billingSeries, setBillingSeries] = useState<any[]>([]);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [newSeries, setNewSeries] = useState({ doc_type: 'FAC', series_name: '2026' });
   const [exporting, setExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const homeFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCompany();
@@ -70,6 +72,18 @@ export default function Settings() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setCompany({ ...company, logo: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleHomeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) return alert('Imagem muito grande (máx 5MB)');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompany({ ...company, imagem_home: reader.result as string });
       };
       reader.readAsDataURL(file);
     }
@@ -174,286 +188,371 @@ export default function Settings() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center font-bold text-gray-500 animate-pulse">Sincronizando ambiente...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-bg-deep flex items-center justify-center">
+      <div className="flex flex-col items-center gap-6">
+        <div className="w-16 h-16 border-4 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin shadow-[0_0_30px_rgba(212,175,55,0.2)]"></div>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-primary/60 animate-pulse italic">Synchronizing Core Engine...</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-screen">
       <div className="flex items-center gap-4 mb-8">
-        <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
+        <div className="w-12 h-12 bg-gold-primary/10 text-gold-primary rounded-2xl flex items-center justify-center border border-gold-primary/20">
           <Building2 size={24} />
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Configurações</h1>
-          <p className="text-gray-500">Gira os dados da empresa e visualize o estado do sistema</p>
+          <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">Configurações <span className="text-gold-primary">Globais</span></h1>
+          <p className="text-white/40 font-bold text-sm">Gira os dados da empresa e visualize o estado do sistema com precisão.</p>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-8 bg-gray-100/50 p-1 rounded-2xl w-fit">
+      <div className="flex flex-wrap gap-2 mb-8 bg-white/5 p-1 rounded-2xl w-fit border border-white/5">
         <button
           onClick={() => setActiveTab('profile')}
-          className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'profile' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'profile' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
         >
           Perfil da Empresa
         </button>
         <button
           onClick={() => setActiveTab('billing')}
-          className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'billing' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'billing' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
         >
           Séries de Faturação
         </button>
         <button
           onClick={() => setActiveTab('system')}
-          className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'system' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'system' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
         >
           Estado do Sistema
         </button>
         <button
           onClick={() => setActiveTab('docs')}
-          className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${activeTab === 'docs' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'docs' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
         >
           Documentação
         </button>
+        <button
+          onClick={() => setActiveTab('personalization')}
+          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'personalization' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+        >
+          Personalização
+        </button>
       </div>
 
-      {activeTab === 'profile' ? (
+      {(activeTab === 'profile' || activeTab === 'personalization') ? (
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white p-6 md:p-8 rounded-[32px] shadow-sm border border-gray-100 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2 space-y-4">
-                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Globe size={14} /> Logotipo da Empresa (Imagem)
-                </label>
-                <div className="flex gap-6 items-center bg-gray-50 p-6 rounded-[24px]">
-                  <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-white overflow-hidden shadow-inner relative group">
-                    {company.logo ? (
-                      <>
-                        <img src={company.logo} alt="Logo" className="w-full h-full object-contain" />
-                        <button
-                          type="button"
-                          onClick={() => setCompany({ ...company, logo: '' })}
-                          className="absolute inset-0 bg-red-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-black text-[10px] uppercase"
-                        >
-                          Remover
-                        </button>
-                      </>
-                    ) : (
-                      <Globe size={24} className="text-gray-300" />
-                    )}
+          {activeTab === 'profile' ? (
+            <div className="glass-panel p-6 md:p-8 rounded-[32px] shadow-sm border border-white/10 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2 space-y-4">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 italic">
+                    <Globe size={14} /> Logotipo da Empresa
+                  </label>
+                  <div className="flex gap-6 items-center bg-white/5 p-6 rounded-[24px] border border-white/5">
+                    <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center bg-black/20 overflow-hidden shadow-inner relative group">
+                      {company.logo ? (
+                        <>
+                          <img src={company.logo} alt="Logo" className="w-full h-full object-contain" />
+                          <button
+                            type="button"
+                            onClick={() => setCompany({ ...company, logo: '' })}
+                            className="absolute inset-0 bg-red-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-black text-[10px] uppercase"
+                          >
+                            Remover
+                          </button>
+                        </>
+                      ) : (
+                        <Globe size={24} className="text-white/10" />
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <p className="text-[9px] font-black text-white/30 uppercase tracking-tight">Selecione uma imagem quadrada (PNG, JPG) com fundo transparente para melhores resultados nos recibos profissionais.</p>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-6 py-3 bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gold-primary hover:bg-gold-primary hover:text-black transition-all shadow-sm"
+                      >
+                        Selecionar Imagem
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-2">
-                    <p className="text-xs font-bold text-gray-500">Selecione uma imagem quadrada (PNG, JPG) com fundo transparente para melhores resultados nos recibos.</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Globe size={14} /> Nome da Empresa
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary font-bold transition-all"
+                    value={company.name}
+                    onChange={e => setCompany({ ...company, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Hash size={14} /> NIF
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary font-bold transition-all"
+                    value={company.nif}
+                    onChange={e => setCompany({ ...company, nif: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Phone size={14} /> Telefone
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary font-bold transition-all"
+                    value={company.phone}
+                    onChange={e => setCompany({ ...company, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Mail size={14} /> Email Corporativo
+                  </label>
+                  <input
+                    type="email"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary font-bold transition-all"
+                    value={company.email}
+                    onChange={e => setCompany({ ...company, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Endereço Completo</label>
+                <textarea
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary font-bold transition-all"
+                  rows={3}
+                  value={company.address}
+                  onChange={e => setCompany({ ...company, address: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Percent size={14} /> Taxa de IVA Padrão (%)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary font-bold"
+                    value={company.tax_percentage}
+                    onChange={e => setCompany({ ...company, tax_percentage: parseFloat(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <DollarSign size={14} /> Moeda do Sistema
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary font-bold"
+                    value={company.currency}
+                    onChange={e => setCompany({ ...company, currency: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-white/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <Shield className="text-gold-primary" size={24} />
+                  <h3 className="text-xl font-black text-white uppercase italic">Matriz de Permissões</h3>
+                </div>
+                <p className="text-[10px] text-gold-primary/70 mb-6 font-black uppercase tracking-tighter bg-gold-primary/5 p-4 rounded-2xl border border-gold-primary/10">
+                  Ajuste os modelos de permissão para cada papel. Estas definições serão aplicadas automaticamente a cada novo utilizador criado no Venda Plus.
+                </p>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm border-collapse dark-table">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-white/20">Módulo / Funcionalidade</th>
+                        <th className="py-4 px-2 font-black text-gold-primary text-center text-[10px] uppercase tracking-[0.2em]">Admin</th>
+                        <th className="py-4 px-2 font-black text-blue-400 text-center text-[10px] uppercase tracking-[0.2em]">Gerente</th>
+                        <th className="py-4 px-2 font-black text-emerald-400 text-center text-[10px] uppercase tracking-[0.2em]">Caixa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {MODULE_DEFS.map((mod) => (
+                        <tr key={mod.key} className="hover:bg-white/5 transition-colors">
+                          <td className="py-4 px-2">
+                            <div className="flex items-center gap-3">
+                              <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/20 border border-white/5">
+                                {mod.icon}
+                              </span>
+                              <span className="font-black text-white/60 text-[10px] uppercase tracking-widest">{mod.label}</span>
+                            </div>
+                          </td>
+                          {['admin', 'manager', 'cashier'].map((role) => {
+                            const isChecked = company.role_permissions?.[role]?.[mod.key] === true;
+                            return (
+                              <td key={role} className="py-4 px-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => togglePermission(role, mod.key)}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${isChecked
+                                    ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20 scale-110'
+                                    : 'bg-white/5 text-white/10 hover:bg-white/10 border border-white/5'
+                                    }`}
+                                >
+                                  {isChecked ? <Check size={14} strokeWidth={4} /> : <X size={12} />}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="glass-panel p-6 md:p-8 rounded-[32px] shadow-sm border border-white/10 space-y-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider mb-2 italic text-gold-primary">Imagem de Fundo da Home</h3>
+                  <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-6">Esta imagem será exibida como fundo na página inicial do seu sistema ERP.</p>
+
+                  <div className="space-y-6">
+                    <div
+                      className="w-full h-80 rounded-[32px] border-2 border-dashed border-white/10 flex items-center justify-center bg-black/40 overflow-hidden shadow-2xl relative group cursor-pointer transition-all hover:border-gold-primary/30"
+                      onClick={() => homeFileInputRef.current?.click()}
+                    >
+                      {company.imagem_home ? (
+                        <>
+                          <img src={company.imagem_home} alt="Home Background" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-4 backdrop-blur-sm">
+                            <span className="bg-gold-primary text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-gold-primary/20">Alterar Imagem</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCompany({ ...company, imagem_home: '' });
+                              }}
+                              className="bg-red-500/20 text-red-500 border border-red-500/30 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-red-500 hover:text-white transition-all"
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center space-y-4">
+                          <div className="w-20 h-20 bg-white/5 rounded-[24px] flex items-center justify-center mx-auto border border-white/5 shadow-inner">
+                            <Package size={32} className="text-white/20" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-black text-gold-primary uppercase tracking-[0.3em]">Clique para carregar</p>
+                            <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Painel de Fundo Premium</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <input
                       type="file"
-                      ref={fileInputRef}
+                      ref={homeFileInputRef}
                       className="hidden"
                       accept="image/*"
-                      onChange={handleFileChange}
+                      onChange={handleHomeFileChange}
                     />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm"
-                    >
-                      Selecionar Imagem
-                    </button>
+                    <div className="bg-white/5 p-6 rounded-3xl border border-white/5 flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gold-primary/10 rounded-xl flex items-center justify-center text-gold-primary shrink-0 border border-gold-primary/20">
+                        <Activity size={18} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-white uppercase tracking-widest">Especificações Recomendadas</p>
+                        <p className="text-[9px] text-white/40 font-bold leading-relaxed">Resolução 1920x1080px (16:9) para cobertura total. Suporta PNG, JPG e WebP. Tamanho máximo do ficheiro: 5 megabytes.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Globe size={14} /> Nome da Empresa
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={company.name}
-                  onChange={e => setCompany({ ...company, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Hash size={14} /> NIF
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={company.nif}
-                  onChange={e => setCompany({ ...company, nif: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Phone size={14} /> Telefone
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={company.phone}
-                  onChange={e => setCompany({ ...company, phone: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Mail size={14} /> Email
-                </label>
-                <input
-                  type="email"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={company.email}
-                  onChange={e => setCompany({ ...company, email: e.target.value })}
-                />
-              </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-black text-gray-400 uppercase tracking-widest">Endereço Completo</label>
-              <textarea
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                rows={3}
-                value={company.address}
-                onChange={e => setCompany({ ...company, address: e.target.value })}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-dashed">
-              <div className="space-y-2">
-                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Percent size={14} /> Taxa de IVA Padrão (%)
-                </label>
-                <input
-                  type="number"
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={company.tax_percentage}
-                  onChange={e => setCompany({ ...company, tax_percentage: parseFloat(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <DollarSign size={14} /> Moeda
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold"
-                  value={company.currency}
-                  onChange={e => setCompany({ ...company, currency: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="pt-8 border-t border-gray-100">
-              <div className="flex items-center gap-3 mb-6">
-                <Shield className="text-purple-600" size={24} />
-                <h3 className="text-xl font-black text-gray-900">Matriz de Permissões (Modelos)</h3>
-              </div>
-              <p className="text-xs text-gray-500 mb-6 font-medium bg-purple-50 p-4 rounded-2xl border border-purple-100">
-                Ajuste os modelos de permissão para cada papel. Estas definições serão aplicadas automaticamente a cada novo utilizador criado.
-              </p>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400">Módulo / Funcionalidade</th>
-                      <th className="py-4 px-2 font-black text-purple-600 text-center text-[10px] uppercase">Admin</th>
-                      <th className="py-4 px-2 font-black text-blue-600 text-center text-[10px] uppercase">Gerente</th>
-                      <th className="py-4 px-2 font-black text-emerald-600 text-center text-[10px] uppercase">Caixa</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {MODULE_DEFS.map((mod) => (
-                      <tr key={mod.key} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="py-4 px-2">
-                          <div className="flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
-                              {mod.icon}
-                            </span>
-                            <span className="font-bold text-gray-700 text-xs">{mod.label}</span>
-                          </div>
-                        </td>
-                        {['admin', 'manager', 'cashier'].map((role) => {
-                          const isChecked = company.role_permissions?.[role]?.[mod.key] === true;
-                          return (
-                            <td key={role} className="py-4 px-2 text-center">
-                              <button
-                                type="button"
-                                onClick={() => togglePermission(role, mod.key)}
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all ${isChecked
-                                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
-                                  : 'bg-gray-100 text-gray-300 hover:bg-gray-200'
-                                  }`}
-                              >
-                                {isChecked ? <Check size={18} strokeWidth={3} /> : <X size={16} />}
-                              </button>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-4">
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50"
+              className="px-10 py-5 bg-gold-primary text-black rounded-[24px] font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_50px_rgba(212,175,55,0.3)] disabled:opacity-50"
             >
-              <Save size={20} />
-              {saving ? 'Guardando...' : 'Guardar Alterações'}
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                  <span>Sincronizando...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  <span>Guardar Alterações {activeTab === 'personalization' ? 'de Design' : ''}</span>
+                </>
+              )}
             </button>
           </div>
         </form>
       ) : activeTab === 'billing' ? (
         <div className="space-y-6">
-          <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
+          <div className="glass-panel p-8 rounded-[32px] shadow-sm border border-white/10">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-xl font-black text-gray-900">Séries de Faturação</h2>
-                <p className="text-gray-500 text-sm font-medium">Configure as sequências numéricas para as suas faturas e documentos.</p>
+                <h2 className="text-xl font-black text-white uppercase italic">Séries de Faturação</h2>
+                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">Configure as sequências numéricas para as suas faturas e documentos profissionais.</p>
               </div>
               <button
                 onClick={() => setShowSeriesModal(true)}
-                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+                className="flex items-center gap-2 bg-gold-primary text-black px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gold-secondary transition-all shadow-lg shadow-gold-primary/20 active:scale-95"
               >
                 <Plus size={16} /> Nova Série
               </button>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left dark-table">
                 <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400">Tipo</th>
-                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400">Série</th>
-                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400 text-center">Último Nº</th>
-                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400 text-center">Estado</th>
-                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-gray-400 text-right">Acções</th>
+                  <tr className="border-b border-white/5">
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-white/20">Tipo</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-white/20">Série</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-white/20 text-center">Último Nº</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-white/20 text-center">Estado</th>
+                    <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-white/20 text-right">Acções</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-white/5">
                   {billingSeries.length > 0 ? billingSeries.map((s) => (
-                    <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={s.id} className="hover:bg-white/5 transition-colors">
                       <td className="py-4 px-2">
-                        <span className="px-3 py-1 bg-gray-100 rounded-lg font-black text-[10px] uppercase text-gray-600">{s.doc_type}</span>
+                        <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg font-black text-[10px] uppercase text-white/40">{s.doc_type}</span>
                       </td>
-                      <td className="py-4 px-2 font-bold text-gray-700">{s.series_name}</td>
-                      <td className="py-4 px-2 text-center font-mono font-bold text-emerald-600">{String(s.last_number).padStart(3, '0')}</td>
+                      <td className="py-4 px-2 font-black text-white/60 text-[10px] uppercase tracking-widest">{s.series_name}</td>
+                      <td className="py-4 px-2 text-center font-mono font-black text-gold-primary">{String(s.last_number).padStart(3, '0')}</td>
                       <td className="py-4 px-2 text-center">
-                        <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase ${s.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                        <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase ${s.is_active ? 'bg-gold-primary/10 text-gold-primary border border-gold-primary/20' : 'bg-white/5 text-white/10'}`}>
                           {s.is_active ? 'Activa' : 'Inactiva'}
                         </span>
                       </td>
                       <td className="py-4 px-2 text-right">
                         <button
                           onClick={() => toggleSeriesStatus(s.id, s.is_active)}
-                          className={`p-2 rounded-xl transition-all ${s.is_active ? 'text-orange-500 hover:bg-orange-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+                          className={`p-2 rounded-xl transition-all ${s.is_active ? 'text-amber-500 hover:bg-amber-500/10' : 'text-gold-primary hover:bg-gold-primary/10'}`}
                           title={s.is_active ? 'Desactivar' : 'Activar'}
                         >
                           {s.is_active ? <X size={18} /> : <CheckCircle2 size={18} />}
@@ -462,7 +561,9 @@ export default function Settings() {
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-gray-400 font-bold italic">Nenhuma série configurada. O sistema usará o formato padrão (FAC-Timestamp).</td>
+                      <td colSpan={5} className="py-20 text-center text-white/10 font-black uppercase tracking-[0.3em] text-[10px] italic bg-white/[0.01]">
+                        Neutral Void: Nenhuma série configurada. Usando fallback FAC-Timestamp.
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -471,34 +572,34 @@ export default function Settings() {
           </div>
 
           {showSeriesModal && (
-            <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-              <div className="bg-white rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl">
-                <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                  <h3 className="text-xl font-black text-gray-900">Nova Série de Faturação</h3>
-                  <button onClick={() => setShowSeriesModal(false)} className="text-gray-400 hover:text-gray-600">
+            <div className="fixed inset-0 bg-[#0B0B0B]/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
+              <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/20">
+                <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+                  <h3 className="text-xl font-black text-gold-primary uppercase italic">Nova Série</h3>
+                  <button onClick={() => setShowSeriesModal(false)} className="text-white/20 hover:text-white transition-colors">
                     <X size={24} />
                   </button>
                 </div>
                 <form onSubmit={handleCreateSeries} className="p-8 space-y-6">
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Tipo de Documento</label>
+                      <label className="block text-[10px] font-black uppercase text-white/30 tracking-widest mb-2">Tipo de Documento</label>
                       <select
-                        className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                        className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary font-bold text-white outline-none"
                         value={newSeries.doc_type}
                         onChange={e => setNewSeries({ ...newSeries, doc_type: e.target.value })}
                       >
-                        <option value="FAC">Factura (FAC)</option>
-                        <option value="PRO">Factura Pro-forma (PRO)</option>
-                        <option value="NC">Nota de Crédito (NC)</option>
+                        <option value="FAC" className="bg-zinc-900 text-white">Factura (FAC)</option>
+                        <option value="PRO" className="bg-zinc-900 text-white">Factura Pro-forma (PRO)</option>
+                        <option value="NC" className="bg-zinc-900 text-white">Nota de Crédito (NC)</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Nome da Série (Ex: 2024)</label>
+                      <label className="block text-[10px] font-black uppercase text-white/30 tracking-widest mb-2">Nome da Série (Ex: 2026)</label>
                       <input
                         type="text"
                         required
-                        className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-bold"
+                        className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary font-bold text-white"
                         value={newSeries.series_name}
                         onChange={e => setNewSeries({ ...newSeries, series_name: e.target.value })}
                       />
@@ -508,13 +609,13 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={() => setShowSeriesModal(false)}
-                      className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all"
+                      className="flex-1 py-4 bg-white/5 text-white/20 rounded-3xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all border border-white/5"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-4 bg-emerald-600 text-white rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-100 transition-all"
+                      className="flex-1 py-4 bg-gold-primary text-black rounded-3xl font-black uppercase text-[10px] tracking-widest hover:bg-gold-secondary shadow-xl shadow-gold-primary/10 transition-all active:scale-95"
                     >
                       Criar Série
                     </button>
@@ -528,112 +629,116 @@ export default function Settings() {
         <SystemDocumentation isAdmin={user?.role === 'admin' || user?.role === 'master'} />
       ) : (
         <div className="space-y-6">
-          <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
+          <div className="glass-panel p-8 rounded-[32px] shadow-sm border border-white/10">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-xl font-black text-gray-900 flex items-center gap-2 uppercase tracking-tight italic">
-                  <Database className="text-emerald-600" size={24} />
+                <h3 className="text-xl font-black text-white flex items-center gap-2 uppercase tracking-tight italic">
+                  <Database className="text-gold-primary" size={24} />
                   {dbState?.is_master_mode ? 'Diagnóstico Global do Sistema' : 'Diagnóstico da Empresa'}
                 </h3>
-                <p className="text-gray-500 text-sm font-medium">
+                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">
                   {dbState?.is_master_mode ? 'Visão completa de todas as instâncias e dados da plataforma' : 'Informações técnicas e estado operacional da sua conta'}
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${dbState?.db_status === 'Online' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                  <div className={`w-2 h-2 rounded-full ${dbState?.db_status === 'Online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border ${dbState?.db_status === 'Online' ? 'bg-gold-primary/10 text-gold-primary border-gold-primary/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                  <div className={`w-2 h-2 rounded-full ${dbState?.db_status === 'Online' ? 'bg-gold-primary animate-pulse' : 'bg-red-500'}`} />
                   DB {dbState?.db_status || 'OFFLINE'}
                 </div>
-                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-gold-primary bg-white/5 border border-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">
                   <Server size={14} /> {dbState?.system_status || 'OPERACIONAL'}
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">
-                  {dbState?.is_master_mode ? 'UTILIZADORES TOTAIS (SISTEMA)' : 'UTILIZADORES ACTIVOS'}
+              <div className="bg-white/5 p-6 rounded-3xl border border-white/10 gold-glow-hover transition-all">
+                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-3 italic">
+                  {dbState?.is_master_mode ? 'UTILIZADORES TOTAIS' : 'UTILIZADORES ACTIVOS'}
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <p className="text-4xl font-black text-gray-900 italic">{dbState?.current_users || 0}</p>
-                  {!dbState?.is_master_mode && <p className="text-gray-400 font-black text-lg">/ {dbState?.user_limit || '---'}</p>}
+                  <p className="text-4xl font-black text-white italic">{dbState?.current_users || 0}</p>
+                  {!dbState?.is_master_mode && <p className="text-white/20 font-black text-lg">/ {dbState?.user_limit || '---'}</p>}
                 </div>
-                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">
-                  {dbState?.is_master_mode ? 'Contagem global em todas as empresas' : 'Limite do seu plano'}
+                <p className="text-[9px] text-gold-primary/50 font-black uppercase mt-2">
+                  {dbState?.is_master_mode ? 'Contagem global da plataforma' : 'Limite do seu plano premium'}
                 </p>
               </div>
 
-              <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">TABELAS GERIDAS</p>
-                <p className="text-4xl font-black text-gray-900 italic">{dbState?.total_tables || 0}</p>
-                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">Estrutura de dados activa</p>
+              <div className="bg-white/5 p-6 rounded-3xl border border-white/10 gold-glow-hover transition-all">
+                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-3 italic">TABELAS GERIDAS</p>
+                <p className="text-4xl font-black text-white italic">{dbState?.total_tables || 0}</p>
+                <p className="text-[9px] text-gold-primary/50 font-black uppercase mt-2">Estrutura de dados activa</p>
               </div>
 
-              <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 italic">ESTADO DO BANCO</p>
-                <p className="text-2xl font-black text-emerald-600 uppercase italic">{dbState?.is_master_mode ? 'INFRAESTRUTURA OK' : 'OPERACIONAL'}</p>
-                <p className="text-[10px] text-gray-500 font-black uppercase mt-2">Supabase Cloud + Edge</p>
+              <div className="bg-white/5 p-6 rounded-3xl border border-white/10 gold-glow-hover transition-all">
+                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-3 italic">ESTADO DO BANCO</p>
+                <p className="text-2xl font-black text-gold-primary uppercase italic">{dbState?.is_master_mode ? 'INFRAESTRUTURA OK' : 'OPERACIONAL'}</p>
+                <p className="text-[9px] text-gold-primary/50 font-black uppercase mt-2">Supabase Cloud + Edge Runtime</p>
               </div>
             </div>
 
-            <div className="w-full h-px bg-gray-100 mb-10" />
+            <div className="w-full h-px bg-white/5 mb-10" />
 
-            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6 italic">RESUMO DE REGISTOS POR TABELA</h4>
+            <h4 className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-6 italic">RESUMO DE REGISTOS POR TABELA</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {dbState?.table_stats ? Object.entries(dbState.table_stats).map(([table, count]: any) => (
-                <div key={table} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm transition-transform hover:scale-[1.02]">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1 italic">{table.replace(/_/g, ' ')}</p>
-                  <p className="text-xl font-black text-gray-900 italic">{count}</p>
+                <div key={table} className="bg-white/5 p-5 rounded-2xl border border-white/10 shadow-sm transition-all hover:border-gold-primary/30 group">
+                  <p className="text-[9px] font-black text-gold-primary/40 uppercase tracking-widest mb-1 italic group-hover:text-gold-primary transition-colors">{table.replace(/_/g, ' ')}</p>
+                  <p className="text-xl font-black text-white italic">{count}</p>
                 </div>
               )) : (
-                <div className="col-span-full py-12 text-center text-gray-400 font-black uppercase tracking-widest text-xs animate-pulse italic">
-                  SINCRONIZANDO ESTATÍSTICAS...
+                <div className="col-span-full py-12 text-center text-white/10 font-black uppercase tracking-widest text-[10px] animate-pulse italic">
+                  SINCRONIZANDO ESTATÍSTICAS DO NÚCLEO...
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-slate-900 p-8 rounded-[32px] text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20" />
+          <div className="glass-panel border-gold-primary/20 p-12 rounded-[40px] text-white overflow-hidden relative shadow-3xl bg-bg-deep/40 mt-12">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-gold-primary/5 rounded-full blur-[120px] -mr-32 -mt-32 opacity-80 pointer-events-none" />
             <div className="relative z-10">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                  <Download size={24} className="text-emerald-400" />
+              <div className="flex items-center gap-6 mb-10">
+                <div className="p-5 bg-gold-primary/10 rounded-3xl border border-gold-primary/20">
+                  <Download className="text-gold-primary" size={32} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black">Cópia de Segurança (Backup)</h3>
-                  <p className="text-slate-400 text-sm">Descarregue todos os dados da sua empresa para segurança local.</p>
+                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Exportar <span className="text-gold-gradient">Cloud Matrix</span></h3>
+                  <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.4em] mt-1">Backup completo da instância relacional da plataforma</p>
                 </div>
               </div>
 
-              <div className="bg-white/5 p-6 rounded-2xl mb-8 border border-white/10">
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                    <CheckCircle2 size={14} className="text-emerald-500" /> Exportação completa em formato JSON optimizado.
-                  </li>
-                  <li className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                    <CheckCircle2 size={14} className="text-emerald-500" /> Inclui produtos, clientes, vendas e histórico financeiro.
-                  </li>
-                  <li className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                    <CheckCircle2 size={14} className="text-emerald-500" /> Compatível com ferramentas de importação padrão.
-                  </li>
-                </ul>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                <div className="space-y-4">
+                  <p className="text-sm font-bold text-white/40 leading-relaxed">
+                    Isto irá gerar um ficheiro <span className="text-white/60 font-black italic">JSON de alta fidelidade</span> contendo todos os dados, configurações e histórico.
+                  </p>
+                  <ul className="space-y-3">
+                    {['Schemas Relacionais', 'Metadados de Vendas', 'Registos Contabilísticos'].map(item => (
+                      <li key={item} className="flex items-center gap-3 text-[10px] font-black uppercase text-gold-primary/60 tracking-widest">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gold-primary" /> {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="bg-white/[0.02] border border-white/5 rounded-[32px] p-8 flex items-center justify-center">
+                  <div className="text-center">
+                    <Database size={40} className="text-white/10 mx-auto mb-4" />
+                    <p className="text-[10px] font-black uppercase text-white/20 tracking-widest italic">Instância: Global SaaS</p>
+                  </div>
+                </div>
               </div>
 
               <button
                 onClick={handleExport}
                 disabled={exporting}
-                className="w-full md:w-auto px-10 py-5 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                className="group relative flex items-center gap-4 bg-gold-gradient text-bg-deep px-12 py-5 rounded-[24px] font-black uppercase tracking-[0.3em] text-[11px] hover:scale-105 transition-all shadow-2xl shadow-gold-primary/20 active:scale-95 border border-white/10 overflow-hidden"
               >
-                {exporting ? (
-                  <>A processar...</>
-                ) : (
-                  <>
-                    <Download size={20} />
-                    Exportar Base de Dados
-                  </>
-                )}
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                <span className="relative z-10 flex items-center gap-3">
+                  {exporting ? <RefreshCw size={20} className="animate-spin text-bg-deep" /> : <Download size={20} />}
+                  {exporting ? 'A SINCRONIZAR EXPORTAÇÃO...' : 'EXTRAIR MATRIZ DE DADOS'}
+                </span>
               </button>
             </div>
           </div>

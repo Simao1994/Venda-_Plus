@@ -18,6 +18,7 @@ import RelatoriosFarmacia from './RelatoriosFarmacia';
 import PharmacyFinance from './PharmacyFinance';
 import PharmacyInventory from './PharmacyInventory';
 import PharmacyStockAdjustment from './PharmacyStockAdjustment';
+import PharmacyEmployeeSales from './PharmacyEmployeeSales';
 
 export default function PharmacyModule() {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export default function PharmacyModule() {
     { id: 'clientes', label: 'Pacientes', icon: Users, roles: ['admin', 'manager', 'cashier', 'master'] },
     { id: 'alertas', label: 'Alertas', icon: Bell, roles: ['admin', 'manager', 'cashier', 'master'] },
     { id: 'relatorios', label: 'Relatórios', icon: BarChart3, roles: ['admin', 'manager', 'master'] },
+    { id: 'relatorios_vendedores', label: 'Desempenho Equipa', icon: Users, roles: ['admin', 'manager', 'master'] },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign, roles: ['admin', 'manager', 'master'] },
     { id: 'inventario', label: 'Inventário', icon: FileSignature, roles: ['admin', 'manager', 'master'] },
     { id: 'ajustes', label: 'Ajustes de Stock', icon: Activity, roles: ['admin', 'manager', 'master'] },
@@ -79,6 +81,7 @@ export default function PharmacyModule() {
           {activeTab === 'financeiro' && <PharmacyFinance />}
           {activeTab === 'inventario' && <PharmacyInventory />}
           {activeTab === 'ajustes' && <PharmacyStockAdjustment />}
+          {activeTab === 'relatorios_vendedores' && <PharmacyEmployeeSales />}
         </div>
       </div>
     </div>

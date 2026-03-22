@@ -329,7 +329,7 @@ export default function Reports() {
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+    <div className="p-8 space-y-10 relative animate-in fade-in duration-700">
       {/* Hidden Printable Area */}
       <div style={{ display: 'none' }}>
         <PrintableReport
@@ -345,135 +345,153 @@ export default function Reports() {
         />
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Centro de Relatórios</h1>
-          <p className="text-gray-500">Analise o desempenho do seu negócio em tempo real</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative">
+        <div className="relative">
+           <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-1 h-12 bg-gold-primary rounded-full shadow-[0_0_20px_rgba(212,175,55,0.4)]" />
+           <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">
+            Intelligence <span className="text-gold-gradient">Matrix</span>
+          </h1>
+          <p className="text-[10px] font-black text-gold-primary/40 uppercase tracking-[0.4em] mt-2 italic">Data visualization & performance analytics</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex gap-4 w-full md:w-auto">
           <button
             onClick={() => handlePrint()}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 font-black uppercase tracking-widest text-xs transition-all shadow-sm"
+            className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-white/5 border border-white/10 text-white/60 rounded-2xl hover:bg-white/10 font-black uppercase tracking-widest text-[10px] transition-all shadow-xl backdrop-blur-md active:scale-95"
           >
-            <Printer size={18} />
-            Imprimir A4
+            <Printer size={18} className="text-gold-primary/60" />
+            Export Archive (A4)
           </button>
           <button
             onClick={handleExport}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-emerald-200"
+            className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-gold-gradient text-bg-deep rounded-2xl hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] font-black uppercase tracking-widest text-[10px] transition-all shadow-2xl active:scale-95 border border-white/10"
           >
             <Download size={18} />
-            Exportar CSV
+            Data Extraction (CSV)
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Tabs */}
-      <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 mb-8 overflow-x-auto">
+      <nav className="flex bg-white/[0.02] p-1.5 rounded-[24px] border border-white/5 shadow-inner overflow-x-auto no-scrollbar gap-2 max-w-fit">
         {[
-          { id: 'sales', label: 'Vendas', icon: TrendingUp },
-          { id: 'products', label: 'Produtos', icon: BarChart3 },
-          { id: 'profit', label: 'Lucro', icon: DollarSign },
-          { id: 'hr', label: 'RH / Folha', icon: Users },
+          { id: 'sales', label: 'Revenue Streams', icon: TrendingUp },
+          { id: 'products', label: 'Asset Velocity', icon: BarChart3 },
+          { id: 'profit', label: 'Margin Analysis', icon: DollarSign },
+          { id: 'hr', label: 'Human Capital', icon: Users },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all whitespace-nowrap border-2 ${activeTab === tab.id 
+              ? 'bg-gold-primary/10 border-gold-primary/30 text-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.1)]' 
+              : 'border-transparent text-white/30 hover:text-white/60 hover:bg-white/5'}`}
           >
-            <tab.icon size={16} />
+            <tab.icon size={16} className={activeTab === tab.id ? 'text-gold-primary' : ''} />
             {tab.label}
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center py-24">
-          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center justify-center py-32 space-y-6">
+          <div className="w-16 h-16 border-4 border-gold-primary/10 border-t-gold-primary rounded-full animate-spin shadow-[0_0_30px_rgba(212,175,55,0.2)]" />
+          <p className="text-[10px] font-black text-gold-primary/40 uppercase tracking-[0.5em] animate-pulse">Sincronizando Banco de Dados...</p>
         </div>
       )}
 
       {/* ── SALES TAB ── */}
       {!loading && activeTab === 'sales' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
-              <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Total de Vendas</h3>
-              <p className="text-3xl font-black text-emerald-600">{filteredSales.reduce((acc, s) => acc + s.total, 0).toLocaleString('pt-AO')} {user?.currency}</p>
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gold-primary/5 rounded-full -mr-16 -mt-16 group-hover:bg-gold-primary/10 transition-all blur-3xl" />
+              <h3 className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-4 italic">Faturamento Total</h3>
+              <p className="text-4xl font-black text-white italic tracking-tighter">
+                {filteredSales.reduce((acc, s) => acc + s.total, 0).toLocaleString('pt-AO')} <span className="text-gold-gradient">{user?.currency}</span>
+              </p>
             </div>
-            <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
-              <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Volume de Faturas</h3>
-              <p className="text-3xl font-black text-gray-900">{filteredSales.length}</p>
+            <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden group">
+              <h3 className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-4 italic">Volume de Faturas</h3>
+              <p className="text-4xl font-black text-white italic tracking-tighter">{filteredSales.length.toLocaleString()}</p>
             </div>
-            <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
-              <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Ticket Médio</h3>
-              <p className="text-3xl font-black text-blue-600">
-                {filteredSales.length > 0 ? Math.round(filteredSales.reduce((acc, s) => acc + s.total, 0) / filteredSales.length).toLocaleString('pt-AO') : 0} {user?.currency}
+            <div className="glass-panel p-8 rounded-[32px] border border-white/5 relative overflow-hidden group">
+              <h3 className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-4 italic">Ticket Médio</h3>
+              <p className="text-4xl font-black text-gold-primary italic tracking-tighter">
+                {filteredSales.length > 0 ? Math.round(filteredSales.reduce((acc, s) => acc + s.total, 0) / filteredSales.length).toLocaleString('pt-AO') : 0} <span className="text-[0.6em] opacity-40 uppercase ml-1 font-black">{user?.currency}</span>
               </p>
             </div>
           </div>
 
-          <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex flex-wrap items-center gap-4 w-full">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    placeholder="Pesquisar fatura ou cliente..."
-                    className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-gray-900"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center gap-4 bg-white p-2.5 rounded-2xl border-2 border-zinc-100 shadow-sm">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 rounded-xl">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">De:</span>
-                    <input type="date" className="bg-transparent border-none focus:ring-0 font-black text-xs text-zinc-800 outline-none" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <div className="glass-panel rounded-[40px] border border-white/5 overflow-hidden shadow-2xl relative">
+            <div className="p-10 border-b border-white/5 flex flex-col xl:flex-row justify-between items-center gap-8 bg-white/[0.02]">
+              <div className="relative flex-1 w-full max-w-2xl">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gold-primary/40" size={20} />
+                <input
+                  type="text"
+                  placeholder="LOCALIZAR TRANSACÇÃO OU ENTIDADE..."
+                  className="w-full pl-16 pr-6 py-5 rounded-2xl bg-white/5 border border-white/10 focus:ring-4 focus:ring-gold-primary/10 focus:border-gold-primary/30 font-black text-[11px] text-white uppercase tracking-widest placeholder:text-white/10 outline-none transition-all"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto">
+                <div className="flex items-center gap-6 bg-white/5 p-3 rounded-3xl border border-white/10">
+                  <div className="flex items-center gap-3 px-4 py-2 hover:bg-white/5 rounded-xl transition-all group">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gold-primary/40 group-hover:text-gold-primary/90">De</span>
+                    <input type="date" className="bg-transparent border-none focus:ring-0 font-black text-[11px] text-white outline-none cursor-pointer [color-scheme:dark]" value={startDate} onChange={e => setStartDate(e.target.value)} />
                   </div>
-                  <div className="w-[2px] h-4 bg-zinc-100" />
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 rounded-xl">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Até:</span>
-                    <input type="date" className="bg-transparent border-none focus:ring-0 font-black text-xs text-zinc-800 outline-none" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                  <div className="w-[1px] h-6 bg-white/10" />
+                  <div className="flex items-center gap-3 px-4 py-2 hover:bg-white/5 rounded-xl transition-all group">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gold-primary/40 group-hover:text-gold-primary/90">Até</span>
+                    <input type="date" className="bg-transparent border-none focus:ring-0 font-black text-[11px] text-white outline-none cursor-pointer [color-scheme:dark]" value={endDate} onChange={e => setEndDate(e.target.value)} />
                   </div>
                 </div>
-                <div className="flex items-center gap-2 min-w-[200px]">
-                  <Filter size={14} className="text-gray-400" />
-                  <select className="flex-1 px-4 py-2 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 font-bold text-xs" value={registerId} onChange={e => setRegisterId(e.target.value)}>
-                    <option value="">Todos os Turnos</option>
+
+                <div className="flex items-center gap-4 bg-white/5 p-3 rounded-3xl border border-white/10 flex-1 xl:flex-none">
+                  <Filter size={16} className="text-gold-primary/40 ml-2" />
+                  <select className="flex-1 min-w-[180px] bg-transparent border-none focus:ring-0 font-black text-[10px] text-white uppercase tracking-widest outline-none cursor-pointer" value={registerId} onChange={e => setRegisterId(e.target.value)}>
+                    <option value="" className="bg-bg-deep">Sessões Globais</option>
                     {registers.map(reg => (
-                      <option key={reg.id} value={reg.id}>{new Date(reg.opened_at).toLocaleDateString()} — {reg.users?.name}</option>
+                      <option key={reg.id} value={reg.id} className="bg-bg-deep">{new Date(reg.opened_at).toLocaleDateString()} — {reg.users?.name?.toUpperCase()}</option>
                     ))}
                   </select>
                 </div>
               </div>
             </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    <th className="p-6">Nº</th>
-                    <th className="p-6">Fatura</th>
-                    <th className="p-6">Data / Hora</th>
-                    <th className="p-6">Cliente</th>
-                    <th className="p-6">Método</th>
-                    <th className="p-6 text-right">Total ({user?.currency})</th>
-                    <th className="p-6 text-center">Estado</th>
+                  <tr className="bg-[#0B0B0B] text-[10px] font-black text-white/20 uppercase tracking-[0.2em] border-b border-white/5">
+                    <th className="px-10 py-6">ID</th>
+                    <th className="px-10 py-6">Voucher/Hash</th>
+                    <th className="px-10 py-6">Timestamp</th>
+                    <th className="px-10 py-6">Client Identity</th>
+                    <th className="px-10 py-6">Protocol</th>
+                    <th className="px-10 py-6 text-right">Magnitude ({user?.currency})</th>
+                    <th className="px-10 py-6 text-center">Security Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-white/5">
                   {filteredSales.map((sale, i) => (
-                    <tr key={sale.id} className="hover:bg-emerald-50 transition-all group">
-                      <td className="p-6 text-gray-400 text-sm">{i + 1}</td>
-                      <td className="p-6 font-black text-gray-900">{sale.invoice_number}</td>
-                      <td className="p-6 text-gray-500 text-sm">{new Date(sale.created_at).toLocaleString('pt-AO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="p-6 text-gray-900 font-bold">{sale.customer_name || 'Consumidor Final'}</td>
-                      <td className="p-6 text-gray-600 capitalize text-sm">{sale.payment_method || '—'}</td>
-                      <td className="p-6 text-right font-black text-emerald-600">{sale.total.toLocaleString('pt-AO')}</td>
-                      <td className="p-6 text-center">
-                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${sale.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {sale.status === 'paid' ? 'Pago' : 'Pendente'}
+                    <tr key={sale.id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="px-10 py-6 text-white/20 text-[10px] font-black italic">{i + 1}</td>
+                      <td className="px-10 py-6 font-black text-white italic tracking-tighter uppercase">{sale.invoice_number}</td>
+                      <td className="px-10 py-6 text-white/60 text-[11px] font-bold">
+                        {new Date(sale.created_at).toLocaleString('pt-AO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-10 py-6 text-white text-[11px] font-black uppercase italic tracking-tight">{sale.customer_name || 'CONSUMIDOR FINAL'}</td>
+                      <td className="px-10 py-6 text-gold-primary/60 font-black uppercase text-[9px] tracking-widest italic">{sale.payment_method || '—'}</td>
+                      <td className="px-10 py-6 text-right font-black text-white italic tracking-tighter text-base">{sale.total.toLocaleString('pt-AO')}</td>
+                      <td className="px-10 py-6 text-center">
+                        <span className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] border shadow-sm ${
+                          sale.status === 'paid' 
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                            : 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                        }`}>
+                          {sale.status === 'paid' ? 'Authenticated' : 'Unsigned'}
                         </span>
                       </td>
                     </tr>
@@ -481,7 +499,9 @@ export default function Reports() {
                 </tbody>
               </table>
               {filteredSales.length === 0 && (
-                <div className="py-20 text-center text-gray-400 font-black uppercase text-[11px] tracking-widest">Nenhuma venda encontrada para o período</div>
+                <div className="py-32 text-center text-white/10 font-black uppercase text-[12px] tracking-[0.4em] italic bg-[#0B0B0B]/40 animate-pulse">
+                  No records detected in current vector.
+                </div>
               )}
             </div>
           </div>
@@ -490,32 +510,53 @@ export default function Reports() {
 
       {/* ── PRODUCTS TAB ── */}
       {!loading && activeTab === 'products' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
-            <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2"><TrendingUp className="text-emerald-600" /> Mais Vendidos (Qtd)</h3>
-            <div className="h-[400px]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in zoom-in duration-500">
+          <div className="glass-panel p-10 rounded-[40px] border border-white/5 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32 opacity-30" />
+            <h3 className="text-xl font-black text-white mb-10 flex items-center gap-4 italic tracking-tighter uppercase">
+              <TrendingUp className="text-gold-primary" /> Velocity Indices <span className="text-gold-primary/20">(Units)</span>
+            </h3>
+            <div className="h-[450px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                <BarChart data={topProducts} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.03)" />
                   <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fontWeight: 700 }} />
-                  <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} itemStyle={{ fontWeight: 900, color: '#10b981' }} />
-                  <Bar dataKey="total_quantity" fill="#10b981" radius={[0, 8, 8, 0]} />
+                  <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }} axisLine={false} tickLine={false} />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                    contentStyle={{ borderRadius: '20px', border: '1px solid rgba(212,175,55,0.2)', backgroundColor: '#0B0B0B', padding: '16px' }} 
+                    itemStyle={{ fontWeight: 900, color: '#D4AF37', fontSize: '11px', textTransform: 'uppercase' }}
+                  />
+                  <Bar dataKey="total_quantity" fill="#D4AF37" radius={[0, 12, 12, 0]} barSize={24} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
-            <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2"><PieChart className="text-blue-600" /> Distribuição de Receita</h3>
-            <div className="h-[400px]">
+          
+          <div className="glass-panel p-10 rounded-[40px] border border-white/5 shadow-2xl relative overflow-hidden group">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-gold-primary/5 rounded-full blur-3xl -mr-32 -mt-32 opacity-30" />
+            <h3 className="text-xl font-black text-white mb-10 flex items-center gap-4 italic tracking-tighter uppercase">
+              <PieChart className="text-gold-primary" /> Revenue Spectrum
+            </h3>
+            <div className="h-[450px]">
               <ResponsiveContainer width="100%" height="100%">
                 <RePieChart>
-                  <Pie data={topProducts} dataKey="total_revenue" nameKey="name" cx="50%" cy="50%" outerRadius={120} innerRadius={60} paddingAngle={5}>
-                    {topProducts.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                  <Pie data={topProducts} dataKey="total_revenue" nameKey="name" cx="50%" cy="45%" outerRadius={140} innerRadius={90} paddingAngle={8} stroke="transparent">
+                    {topProducts.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity cursor-pointer shadow-lg" />))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#0B0B0B', fontSize: '10px', color: '#fff' }}
+                  />
                 </RePieChart>
               </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-6 mt-4">
+                {topProducts.slice(0, 4).map((p, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                    <span className="text-[9px] font-black uppercase text-white/40 tracking-widest">{p.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -523,24 +564,33 @@ export default function Reports() {
 
       {/* ── PROFIT TAB ── */}
       {!loading && activeTab === 'profit' && profitReport && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 text-center">
-              <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-4">Receita Total</h3>
-              <p className="text-4xl font-black text-gray-900">{profitReport.revenue?.toLocaleString('pt-AO')} {user?.currency}</p>
+        <div className="space-y-10 animate-in fade-in zoom-in duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div className="glass-panel p-10 rounded-[40px] border border-white/5 text-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-white/[0.01] group-hover:bg-white/[0.03] transition-all" />
+              <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] mb-6 italic">Gross Cash Inflow</h3>
+              <p className="text-5xl font-black text-white italic tracking-tighter">
+                {profitReport.revenue?.toLocaleString('pt-AO')} <span className="text-gold-gradient text-2xl">{user?.currency}</span>
+              </p>
             </div>
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 text-center">
-              <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-4">Custo de Mercadoria</h3>
-              <p className="text-4xl font-black text-red-500">{profitReport.cost?.toLocaleString('pt-AO')} {user?.currency}</p>
+            <div className="glass-panel p-10 rounded-[40px] border border-white/5 text-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-red-500/[0.01] group-hover:bg-red-500/[0.03] transition-all" />
+              <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] mb-6 italic">Operational Asset Liability</h3>
+              <p className="text-5xl font-black text-red-500/80 italic tracking-tighter">
+                {profitReport.cost?.toLocaleString('pt-AO')} <span className="text-red-500/30 text-2xl">{user?.currency}</span>
+              </p>
             </div>
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 z-0" />
+            <div className="glass-panel p-10 rounded-[40px] border border-gold-primary/20 text-center relative overflow-hidden group bg-bg-deep/40">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gold-primary/10 rounded-full -mr-24 -mt-24 z-0 blur-[80px]" />
               <div className="relative z-10">
-                <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-4">Lucro Estimado</h3>
-                <p className="text-4xl font-black text-emerald-600">{profitReport.profit?.toLocaleString('pt-AO')} {user?.currency}</p>
-                <p className="text-sm font-bold text-emerald-500 mt-2">
-                  Margem: {profitReport.revenue > 0 ? ((profitReport.profit / profitReport.revenue) * 100).toFixed(1) : 0}%
+                <h3 className="text-gold-primary/30 text-[10px] font-black uppercase tracking-[0.3em] mb-6 italic">Net Yield Surplus</h3>
+                <p className="text-5xl font-black text-gold-gradient italic tracking-tighter">
+                  {profitReport.profit?.toLocaleString('pt-AO')} <span className="text-gold-primary/30 text-2xl">{user?.currency}</span>
                 </p>
+                <div className="mt-6 inline-flex items-center gap-3 px-6 py-2 bg-gold-primary/10 rounded-full border border-gold-primary/20 shadow-xl">
+                  <div className="w-2 h-2 rounded-full bg-gold-primary animate-pulse" />
+                  <span className="text-[11px] font-black text-gold-primary uppercase tracking-[0.2em]">Efficiency: {profitReport.revenue > 0 ? ((profitReport.profit / profitReport.revenue) * 100).toFixed(1) : 0}%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -549,37 +599,50 @@ export default function Reports() {
 
       {/* ── HR TAB ── */}
       {!loading && activeTab === 'hr' && (
-        <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-8 border-b border-gray-100">
-            <h3 className="text-xl font-black text-gray-900">Histórico de Folhas Salariais</h3>
+        <div className="glass-panel rounded-[40px] border border-white/5 overflow-hidden shadow-2xl animate-in slide-in-from-right-4 duration-500">
+          <div className="p-10 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+            <div>
+               <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Valkyrie <span className="text-gold-gradient">Payroll</span></h3>
+               <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mt-1 italic">Human asset allocation history</p>
+            </div>
+            <Users className="text-gold-primary/20" size={32} />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  <th className="p-6">Período</th>
-                  <th className="p-6 text-right">Total Bruto</th>
-                  <th className="p-6 text-right">Total Líquido</th>
-                  <th className="p-6 text-right">Impostos (IRT+INSS)</th>
-                  <th className="p-6 text-center">Estado</th>
+                <tr className="bg-[#0B0B0B] text-[10px] font-black text-white/20 uppercase tracking-[0.2em] border-b border-white/5">
+                  <th className="px-10 py-6">Fiscal Cycle</th>
+                  <th className="px-10 py-6 text-right">Gross Magnitude</th>
+                  <th className="px-10 py-6 text-right">Net Liquidity</th>
+                  <th className="px-10 py-6 text-right">State Impost (IRT+INSS)</th>
+                  <th className="px-10 py-6 text-center">Batch Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-white/5">
                 {payrollSummary.map(p => (
-                  <tr key={p.id} className="hover:bg-gray-50 transition-all">
-                    <td className="p-6 font-black text-gray-900 uppercase">{p.month}/{p.year}</td>
-                    <td className="p-6 text-right font-bold text-gray-600">{p.total_gross?.toLocaleString('pt-AO')} {user?.currency}</td>
-                    <td className="p-6 text-right font-black text-emerald-600">{p.total_net?.toLocaleString('pt-AO')} {user?.currency}</td>
-                    <td className="p-6 text-right font-bold text-red-500">{((p.total_irt || 0) + (p.total_inss_employee || 0) + (p.total_inss_employer || 0)).toLocaleString('pt-AO')} {user?.currency}</td>
-                    <td className="p-6 text-center">
-                      <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${p.status === 'finalized' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {p.status === 'finalized' ? 'Finalizada' : 'Rascunho'}
+                  <tr key={p.id} className="hover:bg-white/[0.02] transition-all group">
+                    <td className="px-10 py-6 font-black text-white uppercase italic tracking-tighter text-base">{p.month}/{p.year}</td>
+                    <td className="px-10 py-6 text-right font-bold text-white/40 group-hover:text-white/70 transition-colors">{p.total_gross?.toLocaleString('pt-AO')} <span className="text-[9px] opacity-30">{user?.currency}</span></td>
+                    <td className="px-10 py-6 text-right font-black text-gold-primary text-xl italic tracking-tighter">{p.total_net?.toLocaleString('pt-AO')} <span className="text-[10px] opacity-40">{user?.currency}</span></td>
+                    <td className="px-10 py-6 text-right font-bold text-red-500/60 transition-colors uppercase italic text-[11px]">{((p.total_irt || 0) + (p.total_inss_employee || 0) + (p.total_inss_employer || 0)).toLocaleString('pt-AO')} {user?.currency}</td>
+                    <td className="px-10 py-6 text-center">
+                      <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
+                        p.status === 'finalized' 
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                          : 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-lg shadow-amber-900/10'
+                      }`}>
+                        {p.status === 'finalized' ? 'Committed' : 'Draft'}
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {payrollSummary.length === 0 && (
+               <div className="py-32 text-center text-white/10 font-black uppercase text-[12px] tracking-[0.4em] italic bg-[#0B0B0B]/40">
+                  No payroll batches deployed.
+                </div>
+            )}
           </div>
         </div>
       )}

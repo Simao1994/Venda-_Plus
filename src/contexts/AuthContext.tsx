@@ -9,6 +9,7 @@ interface User {
   company_name: string;
   currency: string;
   branch_id: number;
+  company_home_image?: string;
 }
 
 interface AuthContextType {

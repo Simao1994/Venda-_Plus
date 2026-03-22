@@ -23,7 +23,9 @@ import {
   CreditCard,
   MessageSquare,
   Truck,
-  User
+  User,
+  BarChart,
+  FolderOpen
 } from 'lucide-react';
 import { supabase } from "./lib/supabase";
 import Support from "./components/Support";
@@ -45,6 +47,9 @@ import Suppliers from './components/Suppliers';
 import BlogPage from './components/Blog';
 import { api } from './lib/api';
 import SaftModule from './components/saft/SaftModule';
+import EmployeeSales from './components/reports/EmployeeSales';
+import LabelsModule from './components/labels/LabelsModule';
+import FilesModule from './components/files/FilesModule';
 
 function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void, onGoToRegister: () => void }) {
   const { login } = useAuth();
@@ -263,7 +268,7 @@ export default function App() {
 
   const fetchSubscription = async () => {
     try {
-      const token = sessionStorage.getItem('erp_token');
+      const token = localStorage.getItem('erp_token');
       const res = await fetch('/api/company/subscription', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -351,10 +356,13 @@ export default function App() {
     { id: 'hr', label: "RH", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
     { id: 'accounting', label: "Contabilidade", icon: Calculator, roles: ['admin', 'manager', 'master'], feature: 'sales' },
     { id: 'saft', label: "SAF-T (AGT)", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'sales' },
+    { id: 'employee_sales', label: "Desempenho Vendas", icon: BarChart, roles: ['admin', 'manager', 'master'], feature: 'sales' },
     { id: 'marketing', label: "Marketing", icon: Smartphone, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'blog', label: "Blog Corporativo", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'subscription', label: "Gestão de Assinatura", icon: CreditCard, roles: ['admin', 'manager'], feature: 'settings' },
     { id: 'mobile', label: "APP Mobile", icon: Smartphone, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'marketing' },
+    { id: 'labels', label: "Etiquetas", icon: Tag, roles: ['admin', 'manager', 'master'], feature: 'settings' },
+    { id: 'files', label: "Arquivos", icon: FolderOpen, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'users', label: "Utilizadores", icon: Users, roles: ['admin', 'master'], feature: 'settings' },
     { id: 'suppliers', label: "Fornecedores", icon: Truck, roles: ['admin', 'manager', 'master'], feature: 'settings' },
     { id: 'settings', label: "Configurações", icon: SettingsIcon, roles: ['admin', 'master'], feature: 'settings' },
@@ -444,6 +452,19 @@ export default function App() {
         {/* Background Glows for Main Area */}
         <div className="absolute top-[10%] right-[10%] w-[40%] h-[40%] bg-gold-primary/5 rounded-full blur-[150px] pointer-events-none" />
 
+        {/* Custom Home Background */}
+        {user?.company_home_image && (
+          <div
+            className="absolute inset-0 z-0 pointer-events-none opacity-[0.07] transition-all duration-1000"
+            style={{
+              backgroundImage: `url(${user.company_home_image})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'grayscale(0.5) contrast(1.2)'
+            }}
+          />
+        )}
+
         {/* Header */}
         <header className="h-20 glass-panel border-b border-white/5 flex items-center justify-between px-8 shrink-0 z-10 relative">
           <div className="flex items-center gap-6">
@@ -469,14 +490,14 @@ export default function App() {
             {user?.email === 'simaopambo94@gmail.com' && user?.role !== 'master' && (
               <button
                 onClick={() => {
-                  const savedUser = JSON.parse(sessionStorage.getItem('erp_user') || '{}');
+                  const savedUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
                   const masterUser = {
                     ...savedUser,
                     role: 'master',
                     company_id: 1,
                     company_name: 'Venda Plus Global'
                   };
-                  sessionStorage.setItem('erp_user', JSON.stringify(masterUser));
+                  localStorage.setItem('erp_user', JSON.stringify(masterUser));
                   window.location.reload();
                 }}
                 className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white px-5 py-2.5 rounded-2xl font-black text-[9px] uppercase tracking-[0.2em] hover:shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all border border-indigo-500/30"
@@ -513,10 +534,13 @@ export default function App() {
           {activeTab === 'blog' && <BlogPage user={user as any} />}
           {activeTab === 'subscription' && <SubscriptionManagement />}
           {activeTab === 'mobile' && <MobileAppInfo />}
+          {activeTab === 'labels' && <LabelsModule />}
+          {activeTab === 'files' && <FilesModule />}
           {activeTab === 'users' && <UsersList />}
           {activeTab === 'suppliers' && <Suppliers />}
           {activeTab === 'settings' && <Settings />}
           {activeTab === 'support' && <Support />}
+          {activeTab === 'employee_sales' && <EmployeeSales />}
         </div>
       </main>
 

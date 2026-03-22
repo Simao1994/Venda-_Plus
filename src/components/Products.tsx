@@ -7,6 +7,7 @@ export default function Products() {
   const { token, user } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState<'list' | 'history'>('list');
@@ -17,6 +18,7 @@ export default function Products() {
     name: '',
     barcode: '',
     category_id: '',
+    supplier_id: '',
     cost_price: '',
     sale_price: '',
     stock: '',
@@ -49,15 +51,17 @@ export default function Products() {
 
   const fetchData = async () => {
     try {
-      const [prodRes, catRes, movRes] = await Promise.all([
+      const [prodRes, catRes, movRes, suppRes] = await Promise.all([
         fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/categories', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/inventory/movements', { headers: { Authorization: `Bearer ${token}` } })
+        fetch('/api/inventory/movements', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/suppliers', { headers: { Authorization: `Bearer ${token}` } })
       ]);
-      const [prodData, catData, movData] = await Promise.all([prodRes.json(), catRes.json(), movRes.json()]);
+      const [prodData, catData, movData, suppData] = await Promise.all([prodRes.json(), catRes.json(), movRes.json(), suppRes.json()]);
       setProducts(prodData);
       setCategories(catData);
       setMovements(movData || []);
+      setSuppliers(suppData || []);
     } finally {
       setLoading(false);
     }
@@ -114,7 +118,7 @@ export default function Products() {
     });
     if (res.ok) {
       setShowModal(false);
-      setFormData({ name: '', barcode: '', category_id: '', cost_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'un', expiry_date: '', tipo: 'produto', lote: '' });
+      setFormData({ name: '', barcode: '', category_id: '', supplier_id: '', cost_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'un', expiry_date: '', tipo: 'produto', lote: '' });
       fetchData();
     } else {
       const data = await res.json();
@@ -430,8 +434,8 @@ export default function Products() {
                     type="button"
                     onClick={() => setFormData({ ...formData, tipo: 'produto', lote: '' })}
                     className={`flex-1 p-4 rounded-2xl border font-black uppercase tracking-widest text-[10px] transition-all flex justify-center items-center gap-2 ${formData.tipo === 'produto'
-                        ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]'
-                        : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                      ? 'bg-gold-primary text-bg-deep border-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.3)]'
+                      : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
                       }`}
                   >
                     Standard Asset
@@ -440,8 +444,8 @@ export default function Products() {
                     type="button"
                     onClick={() => setFormData({ ...formData, tipo: 'medicamento' })}
                     className={`flex-1 p-4 rounded-2xl border font-black uppercase tracking-widest text-[10px] transition-all flex justify-center items-center gap-2 ${formData.tipo === 'medicamento'
-                        ? 'bg-blue-500 text-bg-deep border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
-                        : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                      ? 'bg-blue-500 text-bg-deep border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
+                      : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
                       }`}
                   >
                     Medicine / Pharmacy
@@ -499,6 +503,22 @@ export default function Products() {
                     <option value="" className="bg-bg-deep">Unclassified</option>
                     {categories.map(cat => (
                       <option key={cat.id} value={cat.id} className="bg-bg-deep">{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-2">Fornecedor / Supplier</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all text-left">
+                  <select
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight appearance-none"
+                    value={formData.supplier_id}
+                    onChange={e => setFormData({ ...formData, supplier_id: e.target.value })}
+                  >
+                    <option value="" className="bg-bg-deep">Sem Fornecedor</option>
+                    {suppliers.map(supp => (
+                      <option key={supp.id} value={supp.id} className="bg-bg-deep">{supp.name}</option>
                     ))}
                   </select>
                 </div>

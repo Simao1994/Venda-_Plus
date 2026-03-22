@@ -8,7 +8,7 @@ import {
    Plus, Download, FileText, BookOpen, Briefcase,
    Save, X, Printer, FileCheck, ShieldCheck, RefreshCw, ShieldAlert as AuditIcon,
    ListFilter, Share2, PieChart as PieChartIcon, ShoppingCart, RotateCcw,
-   LayoutList, TrendingUp, Package, Shield, Mail, Phone, Play, UserPlus
+   LayoutList, TrendingUp, Package, Shield, Mail, Phone, Play, UserPlus, Edit2, Trash2
 } from 'lucide-react';
 import {
    ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -21,7 +21,7 @@ import {
    PeriodoContabil, User
 } from '../../types';
 import { supabase } from '../../lib/supabase';
-import { safeQuery } from '../../lib/supabaseUtils';
+import { safeQuery, clearQueryCache } from '../../lib/supabaseUtils';
 import { formatAOA } from '../../constants';
 import { useReactToPrint } from 'react-to-print';
 import Select from '../ui/Select';
@@ -92,8 +92,8 @@ const Input = ({ label, ...props }: any) => (
 );
 
 const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
-   const [activeTab, setActiveTab] = useState<'dashboard' | 'facturas' | 'proformas' | 'guias' | 'encomendas' | 'contactos' | 'itens' | 'relatorios' | 'diario' | 'plano' | 'folha' | 'fiscal' | 'periodos' | 'auditoria' | 'ia' | 'conciliacao' | 'consolidacao' | 'fontes'>('dashboard');
-   const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>('');
+   const [activeTab, setActiveTab] = useState<'dashboard' | 'facturas' | 'proformas' | 'guias' | 'encomendas' | 'clientes' | 'itens' | 'relatorios' | 'diario' | 'plano' | 'folha' | 'fiscal' | 'periodos' | 'auditoria' | 'ia' | 'conciliacao' | 'consolidacao' | 'fontes'>('dashboard');
+   const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>(() => localStorage.getItem('empresa_id') || user?.company_id?.toString() || '');
    const [selectedPeriodoId, setSelectedPeriodoId] = useState<string>('');
    const [loading, setLoading] = useState(false);
    const [compras, setCompras] = useState<any[]>(() => AmazingStorage.get('amazing_compras', []));
@@ -121,7 +121,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [lastCreatedDoc, setLastCreatedDoc] = useState<any>(null);
 
    const handlePrintInvoiceAction = useReactToPrint({
-      content: () => invoicePrintRef.current,
+      contentRef: invoicePrintRef,
       documentTitle: 'Documento_AGT'
    });
 
@@ -143,6 +143,51 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    // --- ESTADO DE FATURAÇÃO ---
    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+   const [showPaymentModal, setShowPaymentModal] = useState(false);
+   const [selectedDocForPayment, setSelectedDocForPayment] = useState<any>(null);
+   const [paymentAmount, setPaymentAmount] = useState(0);
+
+   const [receivables, setReceivables] = useState<any[]>([]);
+   const [loadingReceivables, setLoadingReceivables] = useState(false);
+   const [receivablesFilter, setReceivablesFilter] = useState('');
+   const [receivablesStatusFilter, setReceivablesStatusFilter] = useState('Todos');
+
+   const fetchReceivables = async () => {
+      setLoadingReceivables(true);
+      try {
+         const res = await fetch(`${AmazingStorage.get(STORAGE_KEYS.API_URL) || ''}/api/receivables?company_id=${selectedEmpresaId || ''}`, {
+            headers: { 'Authorization': `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}` }
+         });
+         const data = await res.json();
+         setReceivables(data || []);
+      } catch (err) {
+         console.error('Erro ao carregar contas a receber:', err);
+      } finally {
+         setLoadingReceivables(false);
+      }
+   };
+
+
+   const handlePayment = async () => {
+      if (!selectedDocForPayment || paymentAmount <= 0) return;
+      try {
+         const res = await fetch(`${AmazingStorage.get(STORAGE_KEYS.API_URL) || ''}/api/documents/${selectedDocForPayment.id}/payment`, {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+               'Authorization': `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
+            },
+            body: JSON.stringify({ amount: paymentAmount })
+         });
+         if (!res.ok) throw new Error('Falha ao registar pagamento');
+         alert('Pagamento registado com sucesso!');
+         setShowPaymentModal(false);
+         fetchAccountingData();
+      } catch (err: any) {
+         alert(err.message);
+      }
+   };
+
    const [isSavingInvoice, setIsSavingInvoice] = useState(false);
    const [invoiceForm, setInvoiceForm] = useState({
       cliente_id: '',
@@ -161,8 +206,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [contactos, setContactos] = useState<any[]>(() => AmazingStorage.get(STORAGE_KEYS.ACC_CONTACTOS, []));
    const [showContactModal, setShowContactModal] = useState(false);
    const [isSavingContact, setIsSavingContact] = useState(false);
+   const [clientSearch, setClientSearch] = useState('');
    const [newContact, setNewContact] = useState({
-      email: '', telefone: '', morada: ''
+      id: '', nome: '', nif: '', tipo: 'Cliente' as 'Cliente' | 'Fornecedor' | 'Ambos',
+      email: '', telefone: '', morada: '', company_id: ''
    });
 
    // --- ESTADO DE EXPORTAÇÃO SAFT-AO ---
@@ -303,6 +350,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                type: invoiceForm.tipo,
                customer_name: invoiceForm.cliente_nome,
                customer_id: invoiceForm.cliente_id,
+               customer_nif: contactos.find(c => c.id === invoiceForm.cliente_id)?.nif || '',
                items: invoiceForm.itens,
                company_id: selectedEmpresaId,
                metadata: { observacoes: invoiceForm.observacoes },
@@ -314,20 +362,20 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          if (!res.ok) {
             const rawBody = await res.text().catch(() => 'No error body');
             console.error('❌ API Error Response:', { status: res.status, body: rawBody });
-            
+
             let message = rawBody;
             try {
                const json = JSON.parse(rawBody);
                message = json.error || json.message || rawBody;
-            } catch (e) {}
-            
+            } catch (e) { }
+
             throw new Error(`Erro [HTTP ${res.status}]: ${message.substring(0, 200)}`);
          }
 
-         const doc = await res.json();
-         setLastCreatedDoc(doc);
+         const resData = await res.json();
+         setLastCreatedDoc(resData.doc);
 
-         alert(`${invoiceForm.tipo} emitida com sucesso: ${doc.numero_fatura}`);
+         alert(`${invoiceForm.tipo} emitida com sucesso: ${resData.doc.numero_fatura}`);
 
          // Trigger print
          setTimeout(() => handlePrintInvoiceAction(), 500);
@@ -400,13 +448,20 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             });
             if (!res.ok) throw new Error(await res.text());
          } else {
-            // Caso contrário, apenas marcar como anulado
-            const { error } = await supabase.from('contabil_faturas')
-               .update({ status: 'Anulado' })
-               .eq('id', fatura.id)
-               .eq('company_id', selectedEmpresaId);
+            // Caso contrário, usar a nova rota de cancelamento de documentos
+            const res = await fetch(`/api/documents/${fatura.id}/cancel`, {
+               method: 'POST',
+               headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
+               },
+               body: JSON.stringify({ reason: 'Anulação via Contabilidade' })
+            });
 
-            if (error) throw error;
+            if (!res.ok) {
+               const errorData = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
+               throw new Error(errorData.error || 'Falha ao anular documento');
+            }
          }
 
          alert("Documento anulado com sucesso.");
@@ -418,7 +473,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    };
 
 
-   // --- LÓGICA DE PERÃODOS ---
+   // --- LÓGICA DE PERÃ ODOS ---
    const handleOpenYear = async () => {
       if (!selectedEmpresaId) return alert("Selecione uma empresa primeiro.");
 
@@ -518,7 +573,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       { id: 'notas', label: 'Notas (NC/ND)', icon: <ArrowLeftRight size={20} /> },
       { id: 'guias', label: 'Guias', icon: <Briefcase size={20} /> },
       { id: 'encomendas', label: 'Encomendas', icon: <ShoppingCart size={20} /> },
-      { id: 'contactos', label: 'Contactos', icon: <Users size={20} /> },
+      { id: 'clientes', label: 'Clientes', icon: <Users size={20} /> },
       { id: 'itens', label: 'Itens', icon: <Plus size={20} /> },
       { id: 'relatorios', label: 'Relatórios', icon: <PieChartIcon size={20} /> },
    ] as const;
@@ -679,13 +734,27 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleCreateContact = async (e?: any) => {
       if (e) e.preventDefault();
       if (!newContact.nome) return alert("O nome é obrigatório.");
+      if (!newContact.nif) return alert("O NIF é obrigatório.");
+      if (!newContact.telefone) return alert("O telefone é obrigatório.");
       if (!selectedEmpresaId) return alert("Selecione uma empresa primeiro.");
 
       setIsSavingContact(true);
       try {
          const table = newContact.tipo === 'Fornecedor' ? 'suppliers' : 'customers';
-         const payload = {
-            company_id: selectedEmpresaId,
+         const companyIdToUse = newContact.company_id || selectedEmpresaId;
+
+         const { data: existing } = await supabase.from(table)
+            .select('id')
+            .eq('nif', newContact.nif)
+            .eq('company_id', companyIdToUse)
+            .maybeSingle();
+
+         if (existing && existing.id !== newContact.id) {
+            return alert(`Já existe um ${newContact.tipo} com este NIF registado nesta empresa.`);
+         }
+
+         const payload: any = {
+            company_id: companyIdToUse,
             name: newContact.nome,
             nif: newContact.nif,
             email: newContact.email,
@@ -693,21 +762,68 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             address: newContact.morada
          };
 
-         const { error } = await supabase.from(table).insert(payload);
+         let newRecord, error;
+         if (newContact.id) {
+            const res = await supabase.from(table).update(payload).eq('id', newContact.id).select().single();
+            newRecord = res.data; error = res.error;
+         } else {
+            const res = await supabase.from(table).insert(payload).select().single();
+            newRecord = res.data; error = res.error;
+         }
          if (error) throw error;
-         
-         alert("Contacto criado com sucesso!");
+
+         if (newRecord) {
+            const novoContacto = { ...newRecord, nome: newRecord.name || newContact.nome, tipo: newContact.tipo };
+            setContactos(prev => {
+               const exists = prev.some(c => c.id === newRecord.id);
+               const updatedList = exists ? prev.map(c => c.id === newRecord.id ? novoContacto : c) : [novoContacto, ...prev];
+               AmazingStorage.save(STORAGE_KEYS.ACC_CONTACTOS, updatedList);
+               return updatedList;
+            });
+            if (showInvoiceModal && newContact.tipo === 'Cliente') {
+               setInvoiceForm(prev => ({ ...prev, cliente_id: newRecord.id, cliente_nome: novoContacto.nome }));
+            }
+         }
+
+         alert(`Contacto ${newContact.id ? 'atualizado' : 'criado'} com sucesso!`);
          setShowContactModal(false);
          setNewContact({
-            nome: '', nif: '', tipo: 'Cliente',
-            email: '', telefone: '', morada: ''
+            id: '', nome: '', nif: '', tipo: 'Cliente',
+            email: '', telefone: '', morada: '', company_id: selectedEmpresaId || ''
          });
-         fetchAccountingData();
+
+         // Invalidate cache and bypass debounce to ensure immediate fresh fetch
+         clearQueryCache('acc-customers-global');
+         clearQueryCache(`acc-suppliers-${companyIdToUse}`);
+         (fetchAccountingData as any).lastSync = 0;
+
+         // Fix: Avoid calling fetchAccountingData() here to prevent race conditions 
+         // that obliterate the optimistic UI update with slightly stale DB reads.
       } catch (e: any) {
          console.error(e);
          alert("Erro ao guardar contacto: " + (e.message || "Tente novamente"));
       } finally {
          setIsSavingContact(false);
+      }
+   };
+
+   const handleDeleteContact = async (contact_id: string, contact_tipo: string) => {
+      if (!confirm("Pretende eliminar permanentemente este registo? Esta ação não pode ser desfeita.")) return;
+      try {
+         const table = contact_tipo === 'Fornecedor' ? 'suppliers' : 'customers';
+         const { error } = await supabase.from(table).delete().eq('id', contact_id).eq('company_id', selectedEmpresaId);
+         if (error) throw error;
+         alert("Registo eliminado com sucesso!");
+         setContactos(prev => {
+            const updated = prev.filter(c => c.id !== contact_id);
+            AmazingStorage.save(STORAGE_KEYS.ACC_CONTACTOS, updated);
+            return updated;
+         });
+         clearQueryCache(`acc-customers-${selectedEmpresaId}`);
+         clearQueryCache(`acc-suppliers-${selectedEmpresaId}`);
+         (fetchAccountingData as any).lastSync = 0;
+      } catch (err: any) {
+         alert("Erro ao eliminar: " + err.message);
       }
    };
 
@@ -756,7 +872,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    };
 
    const fetchAccountingData = async () => {
-      if (!user?.company_id && !selectedEmpresaId) return;
+      if (!user?.id) return;
 
       // Debounce/Throttling: Avoid sync if we just synced less than 15s ago
       const lastSync = (fetchAccountingData as any).lastSync || 0;
@@ -766,14 +882,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       setLoadingStatus('Sincronizando...');
       try {
          // 1. Carregar Dados Estruturais (Prioridade Alta)
-         const { data: emps, error: empsError } = await safeQuery<EmpresaAfiliada[]>(() =>
-            supabase.from('empresas').select('*').eq('company_id', user?.company_id || selectedEmpresaId).order('nome'),
-            { cacheKey: `acc-empresas-${user?.company_id || selectedEmpresaId}`, cacheTTL: 60000 }
+         const { data: emps, error: empsError } = await safeQuery<any[]>(() =>
+            supabase.from('companies').select('*').order('name'),
+            { cacheKey: `acc-companies-rls`, cacheTTL: 60000 }
          );
 
          if (emps) {
-            setEmpresas(emps);
-            AmazingStorage.save(STORAGE_KEYS.ERP_EMPRESAS, emps);
+            const mappedEmps = emps.map(e => ({ ...e, company_id: e.id, nome: e.name || e.nome }));
+            setEmpresas(mappedEmps);
+            AmazingStorage.save(STORAGE_KEYS.ERP_EMPRESAS, mappedEmps);
          }
 
          const effEmpId = selectedEmpresaId || emps?.[0]?.company_id || user?.company_id;
@@ -814,7 +931,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }
 
          if (emps && emps.length > 0 && !selectedEmpresaId) {
-            setSelectedEmpresaId(emps[0].company_id);
+            setSelectedEmpresaId(emps[0].id);
          }
 
          // 2. Carregar Dados Transacionais em PARALELO (Background)
@@ -851,7 +968,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             safeQuery<any[]>(() => supabase.from('rh_recibos').select('*').eq('company_id', effEmpId).order('data_emissao', { ascending: false }), { cacheKey: `acc-recibos-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('products').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<any[]>(() => supabase.from('customers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-customers-${effEmpId}`, cacheTTL: 30000 }),
+            safeQuery<any[]>(() => supabase.from('customers').select('*').order('name'), { cacheKey: `acc-customers-global`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('suppliers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-suppliers-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('vendas_farmacia').select('*, clientes_farmacia(nome)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000 }),
@@ -895,25 +1012,25 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          AmazingStorage.save('amazing_ext_rh_recibos', rhRecibosRes.data);
 
          if (prodRes.data) {
-             const mappedData = prodRes.data.map((p: any) => ({
-                ...p,
-                nome: p.name,
-                preco_unitario: p.sale_price || p.price,
-                quantidade_atual: p.stock,
-                quantidade_minima: p.min_stock,
-                unidade: p.unit || 'un'
-             }));
-             setExtInventario(mappedData);
-          }
+            const mappedData = prodRes.data.map((p: any) => ({
+               ...p,
+               nome: p.name,
+               preco_unitario: p.sale_price || p.price,
+               quantidade_atual: p.stock,
+               quantidade_minima: p.min_stock,
+               unidade: p.unit || 'un'
+            }));
+            setExtInventario(mappedData);
+         }
 
          if (comprasRes.data) {
             setCompras(comprasRes.data);
          }
 
-                  // Merge Customers and Suppliers into Contactos
+         // Merge Customers and Suppliers into Contactos
          const mergedContactos = [
-            ...(customersRes?.data || []).map((c: any) => ({ ...c, nome: c.name, tipo: 'Cliente' })),
-            ...(suppliersRes?.data || []).map((s: any) => ({ ...s, nome: s.name, tipo: 'Fornecedor' }))
+            ...(customersRes?.data || []).filter(Boolean).map((c: any) => ({ ...c, nome: c.name || 'Cliente Sem Nome', tipo: 'Cliente' })),
+            ...(suppliersRes?.data || []).filter(Boolean).map((s: any) => ({ ...s, nome: s.name || 'Fornecedor Sem Nome', tipo: 'Fornecedor' }))
          ];
          setContactos(mergedContactos);
          AmazingStorage.save(STORAGE_KEYS.ACC_CONTACTOS, mergedContactos);
@@ -969,17 +1086,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       setIsSavingItem(true);
       try {
          const { error } = await supabase.from('products').insert({
-             name: newInventoryItem.nome,
-             description: newInventoryItem.descricao,
-             category_id: parseInt(newInventoryItem.categoria_id) || null,
-             unit: newInventoryItem.unidade,
-             stock: newInventoryItem.quantidade_atual,
-             min_stock: newInventoryItem.quantidade_minima,
-             sale_price: newInventoryItem.preco_unitario,
-             barcode: newInventoryItem.codigo,
-             tipo: 'produto',
-             company_id: selectedEmpresaId
-          });
+            name: newInventoryItem.nome,
+            description: newInventoryItem.descricao,
+            category_id: parseInt(newInventoryItem.categoria_id) || null,
+            unit: newInventoryItem.unidade,
+            stock: newInventoryItem.quantidade_atual,
+            min_stock: newInventoryItem.quantidade_minima,
+            sale_price: newInventoryItem.preco_unitario,
+            barcode: newInventoryItem.codigo,
+            tipo: 'produto',
+            company_id: selectedEmpresaId
+         });
          if (error) throw error;
          alert("Item adicionado com sucesso!");
          setShowItemModal(false);
@@ -997,8 +1114,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    };
 
    useEffect(() => {
+      const empId = localStorage.getItem('empresa_id') || user?.company_id?.toString();
+      if (!empId) {
+         window.location.href = '/';
+         return;
+      }
+      if (!selectedEmpresaId) {
+         setSelectedEmpresaId(empId);
+      }
       fetchAccountingData();
-   }, [selectedEmpresaId]);
+   }, [selectedEmpresaId, user]);
 
    // Garantir que o período selecionado pertence Ã  empresa selecionada
    useEffect(() => {
@@ -1026,16 +1151,32 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       const _sales = extSales || [];
 
       const notas = [
-         ..._fat.map(f => ({
-            ...f,
-            valor: Number(f.valor_total) || 0,
-            iva: Number(f.metadata?.iva) || 0,
-            entidade: f.cliente_nome,
-            numero: f.numero_fatura,
-            data: f.data_emissao,
-            tipo: 'Venda ' + (f.tipo || '')
-         })),
-         ..._tes.filter(t => t.documento_contabil).map(t => ({
+         ...(extFaturas || []).filter(Boolean).map(f => {
+            let resolvedTipo = (typeof f.tipo === 'string' ? f.tipo : '');
+            if (f.type_prefix === 'PRO' || resolvedTipo.toLowerCase().includes('proforma') || resolvedTipo.toLowerCase().includes('pró-forma')) {
+               resolvedTipo = 'Pró-forma';
+            } else if (f.type_prefix === 'FR' || resolvedTipo.toLowerCase().includes('factura-recibo')) {
+               resolvedTipo = 'Factura-Recibo';
+            } else if (f.type_prefix === 'FAC' || resolvedTipo.toLowerCase().includes('factura')) {
+               resolvedTipo = 'Factura';
+            } else if (f.type_prefix === 'RE' || resolvedTipo.toLowerCase().includes('recibo')) {
+               resolvedTipo = 'Recibo';
+            } else if (f.type_prefix === 'NC' || resolvedTipo.toLowerCase().includes('nota de crédito')) {
+               resolvedTipo = 'Nota de Crédito';
+            } else if (f.type_prefix === 'ND' || resolvedTipo.toLowerCase().includes('nota de débito')) {
+               resolvedTipo = 'Nota de Débito';
+            }
+            return {
+               ...f,
+               valor: Number(f.valor_total) || 0,
+               iva: Number(f.metadata?.iva) || 0,
+               entidade: f.cliente_nome || 'Cliente',
+               numero: f.numero_fatura,
+               data: f.data_emissao,
+               tipo: 'Venda ' + resolvedTipo
+            };
+         }),
+         ...(extTesouraria || []).filter(t => t && t.documento_contabil).map(t => ({
             ...t,
             valor: Number(t.valor) || 0,
             iva: 0,
@@ -1044,7 +1185,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             data: t.data,
             tipo: 'Tesouraria'
          })),
-         ..._farm.map(v => ({
+         ...(extVendasFarmacia || []).filter(Boolean).map(v => ({
             ...v,
             valor: Number(v.total) || 0,
             iva: Number(v.iva) || 0,
@@ -1053,15 +1194,21 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             data: v.created_at?.split('T')[0],
             tipo: 'Venda Farmácia'
          })),
-         ..._sales.map(s => ({
-            ...s,
-            valor: Number(s.total) || 0,
-            iva: Number(s.tax) || 0,
-            entidade: s.customers?.name || 'Cliente POS',
-            numero: s.invoice_number,
-            data: s.created_at?.split('T')[0],
-            tipo: 'Venda POS'
-         }))
+         ...(extSales || []).filter(Boolean).map(s => {
+            const prefix = s.invoice_number?.split('-')[0];
+            const resolvedTipo = (s.is_pro_forma || prefix === 'PRO') ? 'Pró-forma' :
+               (prefix === 'FR' ? 'Factura-Recibo' :
+                  prefix === 'FAC' ? 'Factura' : 'Venda');
+            return {
+               ...s,
+               valor: Number(s.total) || 0,
+               iva: Number(s.tax) || 0,
+               entidade: s.customers?.name || 'Cliente POS',
+               numero: s.invoice_number,
+               data: s.created_at?.split('T')[0],
+               tipo: (resolvedTipo === 'Pró-forma' ? 'Pró-forma' : 'Venda POS ' + resolvedTipo)
+            };
+         })
       ];
 
       const facturado = notas.filter(n =>
@@ -2277,7 +2424,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            className="bg-transparent border-none focus:ring-0 text-[10px] font-black uppercase tracking-widest uppercase text-white/90 pr-8 cursor-pointer outline-none"
                         >
                            {empresas?.map(e => (
-                              <option key={e.id} value={e.company_id}>{e?.nome || 'Entidade'}</option>
+                              <option key={e.id} value={e.id}>{e?.name || e?.nome || 'Entidade'}</option>
                            ))}
                         </select>
                      </div>
@@ -2631,6 +2778,92 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   );
                })()}
 
+               {/* --- CLIENTES --- */}
+               {
+                  activeTab === 'clientes' && (
+                     <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/5 p-8 rounded-[3rem] shadow-[0_0_30px_rgba(212,175,55,0.05)] border border-white/10">
+                           <div className="flex items-center gap-4 w-full md:w-auto">
+                              <div className="relative flex-1 md:w-80">
+                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                                 <input
+                                    type="text"
+                                    placeholder="Pesquisar cliente por nome ou NIF..."
+                                    value={clientSearch}
+                                    onChange={e => setClientSearch(e.target.value)}
+                                    className="w-full pl-12 pr-6 py-3.5 bg-bg-deep border-none rounded-2xl text-sm focus:ring-2 focus:ring-yellow-500/20"
+                                 />
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              <button
+                                 onClick={() => {
+                                    setNewContact({ id: '', nome: '', nif: '', tipo: 'Cliente', email: '', telefone: '', morada: '', company_id: selectedEmpresaId || '' });
+                                    setShowContactModal(true);
+                                 }}
+                                 className="px-8 py-4 bg-gold-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-gold-primary hover:text-white transition-all shadow-xl"
+                              >
+                                 <Plus size={20} /> Novo Cliente
+                              </button>
+                           </div>
+                        </div>
+
+                        <div className="bg-white/5 rounded-[3.5rem] shadow-xl border border-white/10 overflow-hidden">
+                           <div className="overflow-x-auto">
+                              <table className="w-full text-left min-w-[1000px]">
+                                 <thead className="bg-gold-primary text-white border-b border-zinc-800">
+                                    <tr className="text-[10px] font-black uppercase tracking-widest uppercase tracking-[0.2em]">
+                                       <th className="px-10 py-6">Nome do Cliente</th>
+                                       <th className="px-10 py-6">NIF</th>
+                                       <th className="px-10 py-6">Telefone</th>
+                                       <th className="px-10 py-6">Email</th>
+                                       <th className="px-10 py-6">Endereço</th>
+                                       <th className="px-6 py-6 text-center">Acções</th>
+                                    </tr>
+                                 </thead>
+                                 <tbody className="divide-y divide-zinc-100">
+                                    {(contactos || []).filter(c => c.tipo !== 'Fornecedor' && (!clientSearch || c.nome?.toLowerCase().includes(clientSearch.toLowerCase()) || c.nif?.includes(clientSearch))).length > 0 ? (
+                                       (contactos || []).filter(c => c.tipo !== 'Fornecedor' && (!clientSearch || c.nome?.toLowerCase().includes(clientSearch.toLowerCase()) || c.nif?.includes(clientSearch))).map((c) => (
+                                          <tr key={c.id} className="group hover:bg-bg-deep/50 transition-all cursor-pointer">
+                                             <td className="px-10 py-8">
+                                                <p className="font-black uppercase tracking-widest text-white text-lg group-hover:text-gold-primary transition-colors">{c.nome}</p>
+                                             </td>
+                                             <td className="px-10 py-8 font-mono text-white/40 text-xs">
+                                                {c.nif || 'S/ NIF'}
+                                             </td>
+                                             <td className="px-10 py-8 text-white/70">
+                                                {c.telefone || 'S/ Tel'}
+                                             </td>
+                                             <td className="px-10 py-8 text-white/70">
+                                                {c.email || 'S/ Email'}
+                                             </td>
+                                             <td className="px-10 py-8 text-white/70">
+                                                {c.address || c.morada || 'S/ Endereço'}
+                                             </td>
+                                             <td className="px-6 py-8 text-center flex items-center justify-center gap-2 mt-3">
+                                                <button onClick={() => {
+                                                   setNewContact({ ...c, company_id: c.company_id || selectedEmpresaId });
+                                                   setShowContactModal(true);
+                                                }} className="p-3 bg-bg-deep hover:bg-white/10 text-white/30 hover:text-white rounded-xl transition-all" title="Editar">
+                                                   <Edit2 size={16} />
+                                                </button>
+                                                <button onClick={() => handleDeleteContact(c.id, c.tipo)} className="p-3 bg-bg-deep hover:bg-red-500/10 text-red-500/50 hover:text-red-500 rounded-xl transition-all" title="Eliminar">
+                                                   <Trash2 size={16} />
+                                                </button>
+                                             </td>
+                                          </tr>
+                                       ))
+                                    ) : (
+                                       <tr><td colSpan={6} className="text-center py-20 text-white/30 font-bold italic">Nenhum cliente registado.</td></tr>
+                                    )}
+                                 </tbody>
+                              </table>
+                           </div>
+                        </div>
+                     </div>
+                  )
+               }
+
                {/* --- DIARIO --- */}
                {
                   activeTab === 'diario' && (
@@ -2676,7 +2909,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                        <th className="px-10 py-6">Data</th>
                                        <th className="px-10 py-6">Referência</th>
                                        <th className="px-10 py-6">Histórico / Descrição</th>
-                                       <th className="px-10 py-6 text-right">Valor Total</th>
+                                       <th className="px-10 py-6 text-right">'Total', 'Pago', 'Dívida'</th>
                                        <th className="px-10 py-6 text-center">Status</th>
                                        <th className="px-10 py-6 text-center">Tipo</th>
                                        <th className="px-6 py-6 text-center">Acções</th>
@@ -3937,7 +4170,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <Input name="descricao" label="Descrição / Artigos" value={newCompra.descricao}
                                  onChange={e => setNewCompra({ ...newCompra, descricao: e.target.value })} placeholder="Ex: Aquisição de materiais de escritório" />
                               <div className="grid grid-cols-3 gap-4">
-                                 <Input name="valor_total" label="Valor Total (AOA)" type="number" required value={newCompra.valor_total}
+                                 <Input name="valor_total" label="Total (AOA)" type="number" required value={newCompra.valor_total}
                                     onChange={e => setNewCompra({ ...newCompra, valor_total: Number(e.target.value) })} />
                                  <Input name="iva" label="IVA (AOA)" type="number" value={newCompra.iva}
                                     onChange={e => setNewCompra({ ...newCompra, iva: Number(e.target.value) })} />
@@ -4026,16 +4259,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           <Plus size={12} /> Novo Cliente
                                        </button>
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                       {contactos.filter(c => c.company_id === selectedEmpresaId && c.tipo !== 'Fornecedor').slice(0, 6).map(c => (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto p-1">
+                                       {(contactos || []).filter(c => c.tipo !== 'Fornecedor').map(c => (
                                           <button key={c.id} onClick={() => setInvoiceForm({ ...invoiceForm, cliente_id: c.id, cliente_nome: c.nome })}
-                                             className={`p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest uppercase tracking-tighter transition-all text-left ${invoiceForm.cliente_id === c.id ? 'bg-gold-primary text-gold-primary border-zinc-900 shadow-lg' : 'bg-white/5 text-white/40 border-white/10 hover:border-yellow-400 hover:bg-bg-deep'}`}>
-                                             <div className="truncate">{c.nome}</div>
-                                             <div className={`text-[8px] font-bold ${invoiceForm.cliente_id === c.id ? 'text-white/30' : 'text-white/20'}`}>{c.nif || 'S/ NIF'}</div>
+                                             className={`p-3 rounded-xl border text-[9px] font-black uppercase tracking-widest uppercase tracking-tighter transition-all text-left flex flex-col justify-center ${invoiceForm.cliente_id === c.id ? 'bg-gold-primary text-white border-gold-primary shadow-lg' : 'bg-white/5 text-white/40 border-white/10 hover:border-gold-primary hover:bg-white/10'}`}>
+                                             <div className="truncate w-full">{c.nome}</div>
+                                             <div className={`text-[7px] font-bold mt-1 ${invoiceForm.cliente_id === c.id ? 'text-white/70' : 'text-white/20'}`}>{c.nif || 'S/ NIF'}</div>
                                           </button>
                                        ))}
                                     </div>
-                                    <Input placeholder="Ou digite o nome do cliente manualmente..." value={invoiceForm.cliente_nome} onChange={(e: any) => setInvoiceForm({ ...invoiceForm, cliente_nome: e.target.value, cliente_id: '' })} />
                                  </div>
 
                                  <div className="space-y-4 bg-bg-deep p-6 rounded-3xl border border-white/10">
@@ -4291,7 +4523,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                               <table className="w-full text-left">
                                  <thead>
                                     <tr className="border-b border-white/5">
-                                       {['Nº Documento', 'Entidade', 'Valor Total', 'Data', 'Status', ''].map(h => (
+                                       {['Nº Documento', 'Entidade', 'Total', 'Pago', 'Dívida', 'Data', 'Status', ''].map(h => (
                                           <th key={h} className="pb-4 px-4 text-[9px] font-black uppercase tracking-widest text-white/30">{h}</th>
                                        ))}
                                     </tr>
@@ -4311,10 +4543,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           </td>
                                           <td className="py-5 px-4 text-xs font-bold text-white/70 uppercase">{n.cliente_nome || n.entidade}</td>
                                           <td className="py-5 px-4 text-xs font-black uppercase tracking-widest text-white">{safeFormatAOA(n.valor_total || n.valor)}</td>
+
+                                          <td className="py-5 px-4 text-xs font-bold text-green-500">{safeFormatAOA(n.valor_pago || 0)}</td>
+
+                                          <td className="py-5 px-4 text-xs font-bold text-red-500">{safeFormatAOA(n.valor_em_divida ?? (n.valor_total || n.valor))}</td>
                                           <td className="py-5 px-4 text-[10px] font-bold text-white/30 uppercase">{n.data_emissao || n.data}</td>
                                           <td className="py-5 px-4">
-                                             <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${n.status === 'Pago' ? 'bg-green-50 text-green-700' : (n.status === 'Anulado' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700')}`}>
-                                                {n.status || 'Pendente'}
+                                             <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${n.status === 'PAGO' || n.status === 'Pago' ? 'bg-green-500/10 text-green-500' : (n.status === 'Anulado' ? 'bg-red-500/10 text-red-500' : (n.status === 'PARCIAL' ? 'bg-blue-500/10 text-blue-500' : 'bg-yellow-500/10 text-yellow-500'))}`}>
+                                                {n.status || 'PENDENTE'}
                                              </span>
                                           </td>
                                           <td className="py-5 px-4 text-right">
@@ -4330,6 +4566,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                    </button>
                                                 )}
                                                 <button onClick={(e) => { e.stopPropagation(); handlePrintFatura(n); }} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/70" title="Imprimir"><Printer size={14} /></button>
+
+                                                {(n.valor_em_divida > 0 || (n.status !== 'PAGO' && n.status !== 'Pago' && n.status !== 'Anulado')) && (
+
+                                                   <button onClick={(e) => { e.stopPropagation(); setSelectedDocForPayment(n); setPaymentAmount(n.valor_em_divida || n.valor_total); setShowPaymentModal(true); }}
+
+                                                      className="p-2 hover:bg-green-500/10 rounded-lg transition-all text-green-500" title="Pagar">
+
+                                                      <DollarSign size={14} />
+
+                                                   </button>
+
+                                                )}
                                                 {n.status !== 'Anulado' && (
                                                    <button onClick={(e) => { e.stopPropagation(); handleAnularFatura(n); }} className="p-2 hover:bg-white/5 rounded-lg transition-all text-red-500" title="Anular"><X size={14} /></button>
                                                 )}
@@ -4423,6 +4671,45 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                }
 
                {/* --- ITENS --- */}
+
+               {/* ===== MODAL DE PAGAMENTO ===== */}
+               {showPaymentModal && (
+                  <div className="fixed inset-0 z-[150] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in">
+                     <div className="bg-white/5 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 p-8 border border-white/10">
+                        <div className="text-center space-y-4 mb-8">
+                           <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-2xl flex items-center justify-center mx-auto">
+                              <DollarSign size={32} />
+                           </div>
+                           <h2 className="text-xl font-black uppercase tracking-widest text-white">Registar Pagamento</h2>
+                           <p className="text-xs text-white/40 font-bold uppercase tracking-widest">{selectedDocForPayment?.numero_fatura}</p>
+                        </div>
+
+                        <div className="space-y-6">
+                           <div>
+                              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">
+                                 <span>Total: {selectedDocForPayment?.valor_total}</span>
+                                 <span>Dívida: {selectedDocForPayment?.valor_em_divida}</span>
+                              </div>
+
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gold-primary block mb-2 text-center">Valor a Receber (AOA)</label>
+                              <input
+                                 type="number"
+                                 autoFocus
+                                 value={paymentAmount}
+                                 onChange={e => setPaymentAmount(Number(e.target.value))}
+                                 className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-center text-2xl font-black text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                           </div>
+
+                           <div className="grid grid-cols-2 gap-4">
+                              <button onClick={() => setShowPaymentModal(false)} className="py-4 bg-white/5 text-white/40 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white/10 transition-all">Sair</button>
+                              <button onClick={handlePayment} className="py-4 bg-green-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-green-600 shadow-lg shadow-green-500/20 transition-all">Confirmar</button>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               )}
+
                {/* ===== MODAL EXPORTAÇÃO SAFT-AO ===== */}
                {
                   showSaftModal && (
@@ -5189,6 +5476,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <form onSubmit={handleCreateContact} className="p-10 space-y-8">
                               <div className="grid grid-cols-2 gap-6">
                                  <div className="col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/30 uppercase tracking-widest block mb-2">Empresa / Entidade</label>
+                                    <Select
+                                       value={newContact.company_id || selectedEmpresaId}
+                                       onChange={(e: any) => setNewContact({ ...newContact, company_id: e.target.value })}
+                                       options={empresas.map(e => ({ value: e.id, label: e.name || e.nome }))}
+                                    />
+                                 </div>
+                                 <div className="col-span-2">
                                     <Input label="Nome Completo / Razão Social" required placeholder="Ex: Amazing Corporation Lda"
                                        value={newContact.nome} onChange={(e: any) => setNewContact({ ...newContact, nome: e.target.value })}
                                     />
@@ -5550,13 +5845,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                   )
                }
                {/* Print Template (Hidden) */}
-               <div style={{ display: 'none' }}>
+               <div style={{ position: 'absolute', top: '-10000px', left: '-10000px', width: '80mm' }}>
                   <div ref={invoicePrintRef} className="invoice" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', padding: '2mm', background: '#fff', color: '#000' }}>
                      <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
                         <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
                         <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '999999999'}</p>
                         <p style={{ margin: '0', fontSize: '10px' }}>{user?.address || 'Angola'}</p>
-                        <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>{lastCreatedDoc?.tipo?.toUpperCase() || 'FACTURA'}</p>
+                        <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>
+                           {lastCreatedDoc?.tipo?.toUpperCase().includes('PRÓ-FORMA') ? 'PRÓ-FORMA' :
+                              lastCreatedDoc?.tipo?.toUpperCase().includes('FACTURA-RECIBO') ? 'FACTURA-RECIBO' :
+                                 lastCreatedDoc?.tipo?.toUpperCase().includes('FACTURA') ? 'FACTURA' :
+                                    lastCreatedDoc?.tipo?.toUpperCase() || 'FACTURA'}
+                        </p>
                      </div>
 
                      <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm' }}>
@@ -5575,13 +5875,21 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            </tr>
                         </thead>
                         <tbody>
-                           {(lastCreatedDoc?.metadata?.items || []).map((it: any, i: number) => (
-                              <tr key={i}>
-                                 <td style={{ padding: '2mm 0' }}>{it.nome}</td>
-                                 <td style={{ textAlign: 'center', padding: '2mm 0' }}>{it.qtd}</td>
-                                 <td style={{ textAlign: 'right', padding: '2mm 0' }}>{safeFormatAOA(it.total)}</td>
+                           {(lastCreatedDoc?.metadata?.items || []).length > 0 ? (
+                              (lastCreatedDoc.metadata.items).map((it: any, i: number) => (
+                                 <tr key={i}>
+                                    <td style={{ padding: '2mm 0' }}>{it.nome}</td>
+                                    <td style={{ textAlign: 'center', padding: '2mm 0' }}>{it.qtd}</td>
+                                    <td style={{ textAlign: 'right', padding: '2mm 0' }}>{safeFormatAOA(it.total)}</td>
+                                 </tr>
+                              ))
+                           ) : (
+                              <tr>
+                                 <td colSpan={3} style={{ padding: '4mm 0', textAlign: 'center', fontStyle: 'italic', fontSize: '9px', color: '#666' }}>
+                                    Italização de itens não disponível para este documento antigo.
+                                 </td>
                               </tr>
-                           ))}
+                           )}
                         </tbody>
                      </table>
 

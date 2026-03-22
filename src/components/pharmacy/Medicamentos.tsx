@@ -18,11 +18,13 @@ const initialForm = {
   estoque_minimo: '5',
   iva: '14',
   temperatura_armazenamento: '25',
+  fornecedor_id: '',
 };
 
 export default function Medicamentos() {
   const { token, user } = useAuth();
   const [medicamentos, setMedicamentos] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -33,8 +35,12 @@ export default function Medicamentos() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } });
+      const [res, suppRes] = await Promise.all([
+        fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/suppliers', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
       setMedicamentos(await res.json());
+      setSuppliers(await suppRes.json() || []);
     } finally { setLoading(false); }
   };
 
@@ -213,6 +219,14 @@ export default function Medicamentos() {
               <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-emerald-500/30 transition-all">
                 <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-2">Categoria Terapêutica</label>
                 <input type="text" className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight placeholder:text-white/10" placeholder="ANALGÉSICO..." value={formData.categoria_terapeutica} onChange={e => f('categoria_terapeutica', e.target.value)} />
+              </div>
+
+              <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-emerald-500/30 transition-all">
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-2">Fornecedor / Supplier</label>
+                <select className="w-full bg-transparent border-none outline-none font-black text-white/80 text-[11px] uppercase tracking-widest appearance-none cursor-pointer" value={formData.fornecedor_id} onChange={e => f('fornecedor_id', e.target.value)}>
+                  <option value="" className="bg-bg-deep">Sem Fornecedor</option>
+                  {suppliers.map(supp => <option key={supp.id} value={supp.id} className="bg-bg-deep">{supp.name}</option>)}
+                </select>
               </div>
 
               <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-emerald-500/30 transition-all">

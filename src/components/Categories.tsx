@@ -73,63 +73,78 @@ export default function Categories() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <header className="flex justify-between items-center mb-8">
+    <div className="p-8 space-y-10 relative">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10 text-left">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Categorias</h1>
-          <p className="text-gray-500 font-medium">Organize os seus produtos por grupos para facilitar a gestão.</p>
+          <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+            Sector <span className="text-gold-gradient">Classification</span>
+          </h1>
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">Inventory grouping & structural taxonomy</p>
         </div>
         <button
           onClick={openNewModal}
-          className="bg-gray-900 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-2 hover:bg-black shadow-lg shadow-gray-100 transition-all active:scale-95"
+          className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl"
         >
           <Plus size={18} />
-          Nova Categoria
+          Initialize Sector
         </button>
-      </header>
+      </div>
 
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="glass-panel rounded-3xl border border-white/5 overflow-hidden shadow-2xl relative z-10">
+        <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                <th className="px-8 py-4">Nome da Categoria</th>
-                <th className="px-8 py-4 text-right">Acções</th>
+            <thead className="bg-white/[0.02] text-gold-primary/40 text-[9px] uppercase tracking-[0.3em] border-b border-white/5 font-black">
+              <tr>
+                <th className="px-8 py-5">Classification Identifier</th>
+                <th className="px-8 py-5 text-right">Control Protocol</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {categories.map((cat) => (
-                <tr key={cat.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-8 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                        <Tag size={16} />
-                      </div>
-                      <span className="font-bold text-gray-900">{cat.name}</span>
+            <tbody className="divide-y divide-white/5 text-left">
+              {loading ? (
+                <tr>
+                  <td colSpan={2} className="px-8 py-20 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-10 h-10 border-2 border-gold-primary/20 border-t-gold-primary rounded-full animate-spin"></div>
+                      <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Synchronizing Taxonomy...</p>
                     </div>
                   </td>
-                  <td className="px-8 py-4 text-right flex justify-end gap-2">
-                    <button
-                      onClick={() => openEditModal(cat)}
-                      className="text-gray-300 hover:text-indigo-500 transition-colors p-2"
-                    >
-                      <Pencil size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(cat.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors p-2"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
                 </tr>
-              ))}
-              {categories.length === 0 && !loading && (
+              ) : categories.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="px-8 py-20 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">
-                    Nenhuma categoria registada.
+                  <td colSpan={2} className="px-8 py-20 text-center opacity-20">
+                    <Tag size={48} className="mx-auto mb-4 text-white" />
+                    <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">No registry sectors detected</p>
                   </td>
                 </tr>
+              ) : (
+                categories.map((cat) => (
+                  <tr key={cat.id} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white/20 group-hover:text-gold-primary/40 transition-colors border border-white/5">
+                          <Tag size={18} />
+                        </div>
+                        <span className="font-black text-white uppercase tracking-tight group-hover:text-gold-primary transition-colors text-xs">{cat.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <div className="flex justify-end gap-3 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => openEditModal(cat)}
+                          className="p-3 text-white/40 hover:text-gold-primary bg-white/5 hover:bg-gold-primary/10 rounded-xl transition-all border border-transparent hover:border-gold-primary/30"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(cat.id)}
+                          className="p-3 text-white/40 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/30"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -137,47 +152,56 @@ export default function Categories() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-8 border-b bg-gray-50/50">
-              <h3 className="text-xl font-black text-gray-900 tracking-tight">{editingCategory ? 'Editar Categoria' : 'Nova Categoria'}</h3>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
-                {editingCategory ? 'Altere o nome da categoria selecionada' : 'Defina um nome para o novo grupo'}
-              </p>
+        <div className="fixed inset-0 bg-bg-deep/80 backdrop-blur-xl flex items-center justify-center z-[110] p-4 text-left">
+          <div className="glass-panel rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-white/10 relative">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-gold-primary/40 to-transparent" />
+
+            <div className="p-8 border-b border-white/5 bg-gold-primary/[0.02] flex justify-between items-center text-left">
+              <div>
+                <h3 className="text-xl font-black text-white italic uppercase tracking-widest text-left">
+                  {editingCategory ? 'Sector Modification' : 'Sector Initialization'}
+                </h3>
+                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] text-left mt-2">Structural grouping vector</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40">
+                <Plus size={24} className="rotate-45" />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-4">
+            <form onSubmit={handleSubmit} className="p-10 space-y-6">
               {error && (
-                <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-100 italic">
-                  Erro: {error}
+                <div className="p-5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-in fade-in">
+                  Protocol Error: {error}
                 </div>
               )}
-              <div>
-
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nome da Categoria</label>
-                <input
-                  required
-                  autoFocus
-                  type="text"
-                  className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-gray-900"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                />
+              <div className="text-left">
+                <label className="block text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-3 text-left">Sector Denomination</label>
+                <div className="glass-panel p-4 rounded-2xl border border-white/5 focus-within:border-gold-primary/30 transition-all">
+                  <input
+                    required
+                    autoFocus
+                    type="text"
+                    className="w-full bg-transparent border-none outline-none font-black text-white uppercase tracking-tight text-left"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="ENTER CLASSIFICATION..."
+                  />
+                </div>
               </div>
 
-              <div className="pt-6 flex gap-3">
+              <div className="pt-6 flex gap-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-4 border border-gray-100 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+                  className="flex-1 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 border border-white/5 hover:bg-white/5 transition-all"
                 >
-                  Cancelar
+                  Terminate
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-4 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95"
+                  className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-xl"
                 >
-                  Guardar Categoria
+                  {editingCategory ? 'Update Sector' : 'Inject Sector'}
                 </button>
               </div>
             </form>

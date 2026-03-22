@@ -13,10 +13,16 @@ try {
     // Em Node (backend), import.meta.env vai atirar TypeError
 }
 
-// 2. Tentar ler do backend (Node.js)
-if (!supabaseUrl && typeof process !== 'undefined' && process.env) {
-    supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-    supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+// 2. Tentar ler do backend (Node.js) - Priorizar Service Role se disponível para operações administrativas
+if (typeof process !== 'undefined' && process.env) {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceKey) {
+        supabaseKey = serviceKey;
+        supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || supabaseUrl;
+    } else if (!supabaseUrl) {
+        supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+        supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+    }
 }
 
 if (!supabaseUrl || !supabaseKey) {

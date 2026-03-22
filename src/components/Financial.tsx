@@ -261,66 +261,80 @@ export default function Financial() {
       </div>
 
       {/* Analytics Chart */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-            <BarChart2 size={18} className="text-emerald-600" />
-            Fluxo de Caixa (Anual)
-          </h3>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Entradas</span>
+      <div className="glass-panel p-10 rounded-[40px] border border-white/5 shadow-3xl mb-10 relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/20 to-transparent opacity-50" />
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 relative z-10">
+          <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center gap-4 italic">
+              <BarChart2 size={20} className="text-gold-primary animate-pulse" />
+              Dynamic Cash Flow <span className="text-gold-gradient tracking-tighter italic font-black">Velocity</span>
+            </h3>
+            <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em] mt-2 ml-9">Real-time analytical vector analysis</p>
+          </div>
+          <div className="flex gap-8 bg-white/5 p-4 rounded-2xl border border-white/5 shadow-inner">
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_#10B981]"></div>
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest text-left">Inflow Stream</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Saídas</span>
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_10px_#EF4444]"></div>
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest text-left">Outflow Vector</span>
             </div>
           </div>
         </div>
-        <div className="h-[300px] w-full">
+        <div className="h-[350px] w-full relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorEntrada" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
                   <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorSaida" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
               <XAxis
                 dataKey="name"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fontWeight: 900, fill: '#64748b' }}
-                dy={10}
+                tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em' }}
+                dy={15}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
+                tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.2)' }}
               />
               <Tooltip
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '12px' }}
-                itemStyle={{ fontSize: '12px', fontWeight: '900' }}
+                contentStyle={{ 
+                  background: 'rgba(11,11,11,0.9)', 
+                  backdropFilter: 'blur(20px)',
+                  borderRadius: '24px', 
+                  border: '1px solid rgba(255,255,255,0.1)', 
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                  padding: '20px'
+                }}
+                itemStyle={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                labelStyle={{ color: 'rgba(255,255,255,0.2)', marginBottom: '8px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}
               />
               <Area
                 type="monotone"
                 dataKey="entrada"
+                name="Entradas"
                 stroke="#10b981"
-                strokeWidth={4}
+                strokeWidth={5}
                 fillOpacity={1}
                 fill="url(#colorEntrada)"
               />
               <Area
                 type="monotone"
                 dataKey="saida"
+                name="Saídas"
                 stroke="#ef4444"
-                strokeWidth={4}
+                strokeWidth={5}
                 fillOpacity={1}
                 fill="url(#colorSaida)"
               />
@@ -376,33 +390,44 @@ export default function Financial() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-wrap gap-4 mb-10 relative z-10">
         <button
           onClick={() => setActiveTab('receivable')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'receivable'
-            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200'
-            : 'bg-white text-gray-400 hover:text-gray-600 border border-gray-100'
+          className={`flex-1 min-w-[160px] flex flex-col items-center gap-3 p-6 rounded-[32px] border transition-all group ${activeTab === 'receivable'
+            ? 'bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.1)]'
+            : 'bg-white/5 border-white/5 grayscale opacity-40 hover:opacity-100 hover:grayscale-0'
             }`}
         >
-          Contas a Receber
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'receivable' ? 'bg-emerald-500 text-bg-deep' : 'bg-white/5 text-emerald-500/40'}`}>
+            <ArrowUpCircle size={24} />
+          </div>
+          <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'receivable' ? 'text-emerald-500' : 'text-white/20'}`}>Accounts Receivable</span>
         </button>
+        
         <button
           onClick={() => setActiveTab('payable')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'payable'
-            ? 'bg-red-600 text-white shadow-lg shadow-red-200'
-            : 'bg-white text-gray-400 hover:text-gray-600 border border-gray-100'
+          className={`flex-1 min-w-[160px] flex flex-col items-center gap-3 p-6 rounded-[32px] border transition-all group ${activeTab === 'payable'
+            ? 'bg-red-500/10 border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.1)]'
+            : 'bg-white/5 border-white/5 grayscale opacity-40 hover:opacity-100 hover:grayscale-0'
             }`}
         >
-          Contas a Pagar
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'payable' ? 'bg-red-500 text-bg-deep' : 'bg-white/5 text-red-500/40'}`}>
+            <ArrowDownCircle size={24} />
+          </div>
+          <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'payable' ? 'text-red-500' : 'text-white/20'}`}>Accounts Payable</span>
         </button>
+
         <button
           onClick={() => setActiveTab('cashflow')}
-          className={`px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'cashflow'
-            ? 'bg-gold-primary text-white shadow-lg shadow-gold-primary/20'
-            : 'bg-white text-gray-400 hover:text-gray-600 border border-gray-100'
+          className={`flex-1 min-w-[160px] flex flex-col items-center gap-3 p-6 rounded-[32px] border transition-all group ${activeTab === 'cashflow'
+            ? 'bg-gold-primary/10 border-gold-primary/20 shadow-[0_0_40px_rgba(212,175,55,0.1)]'
+            : 'bg-white/5 border-white/5 grayscale opacity-40 hover:opacity-100 hover:grayscale-0'
             }`}
         >
-          Fluxo de Caixa
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'cashflow' ? 'bg-gold-primary text-bg-deep' : 'bg-white/5 text-gold-primary/40'}`}>
+            <Wallet size={24} />
+          </div>
+          <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'cashflow' ? 'text-gold-primary' : 'text-white/20'}`}>Financial Flow</span>
         </button>
       </div>
 
