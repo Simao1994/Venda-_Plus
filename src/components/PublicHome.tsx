@@ -345,29 +345,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
         </div>
       </section>
 
-      {/* Biographies Section */}
-      {companies.some(c => c.bio_nome) && (
-        <section className="pt-10 pb-20 bg-bg-deep relative overflow-hidden z-20">
-          <div className="absolute inset-0 bg-gradient-to-b from-bg-deep via-gold-primary/5 to-bg-deep" />
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 px-4 py-2 bg-gold-primary/10 rounded-full border border-gold-primary/20 italic">
-                <Users size={14} className="animate-pulse" />
-                LIDERANÇA & ADMINISTRAÇÃO
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight italic uppercase pb-2">
-                Nossa <span className="text-gold-gradient">Sénior Liderança</span>
-              </h2>
-            </div>
 
-            <div className="flex flex-col gap-10">
-              {companies.filter(c => c.bio_nome).map(company => (
-                <BiographyCard key={company.id} company={company} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Market Preview */}
       <section id="market" className="py-40 overflow-hidden bg-bg-deep relative">
@@ -789,26 +767,45 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               </form>
             </div>
           </div>
-        </div>
-      </section>
+      {/* Biographies Section - Moved for better space flow */}
+      {companies.some(c => c.bio_nome) && (
+        <section className="py-16 bg-bg-deep relative overflow-hidden z-20">
+          <div className="max-w-7xl mx-auto px-6 relative z-10">
+            <div className="mb-12 text-center">
+              <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 italic">
+                <Users size={16} />
+                HUB DE LIDERANÇA
+              </div>
+              <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight italic uppercase">
+                EQUIPAS DE <span className="text-gold-gradient">ALTA PERFORMANCE</span>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {companies.filter(c => c.bio_nome).map(company => (
+                <BiographyCard key={company.id} company={company} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
-      {/* CTA Section */}
-      <section className="py-20 relative">
+      {/* CTA Section - Compact for better flow */}
+      <section className="py-12 relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-gold-primary rounded-[60px] p-16 md:p-32 text-center text-bg-deep relative overflow-hidden shadow-[0_0_80px_rgba(212,175,55,0.2)] metallic-border">
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white opacity-10 rounded-full -mr-60 -mt-60 blur-3xl animate-pulse" />
+          <div className="bg-gold-primary rounded-[48px] p-10 md:p-20 text-center text-bg-deep relative overflow-hidden shadow-[0_0_80px_rgba(212,175,55,0.1)] border border-white/10">
+            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white opacity-10 rounded-full -mr-40 -mt-40 blur-3xl" />
             <div className="relative z-10">
-              <h2 className="text-5xl md:text-8xl font-black tracking-tight mb-10 leading-tight italic uppercase pb-4">
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight mb-6 leading-tight italic uppercase">
                 Pronto para digitalizar <br /> o seu negócio?
               </h2>
-              <p className="text-bg-deep/60 text-xl font-black mb-16 max-w-2xl mx-auto uppercase tracking-normal italic pb-2">
+              <p className="text-bg-deep/70 text-base font-bold mb-10 max-w-xl mx-auto uppercase tracking-normal italic leading-relaxed">
                 Junte-se à Venda Plus e tenha total controlo administrativo com as ferramentas mais modernas do mercado angolano.
               </p>
               <button
                 onClick={onStartClick}
-                className="px-16 py-8 bg-bg-deep text-white rounded-[32px] font-black text-xl uppercase tracking-[0.4em] hover:bg-white hover:text-bg-deep transition-all shadow-2xl flex items-center justify-center gap-4 mx-auto italic active:scale-95"
+                className="px-12 py-6 bg-bg-deep text-white rounded-[28px] font-black text-sm uppercase tracking-[0.3em] hover:bg-white hover:text-bg-deep transition-all shadow-2xl flex items-center justify-center gap-4 mx-auto italic active:scale-95"
               >
-                ACESSO À GESTÃO <ExternalLink size={28} />
+                ACESSO À GESTÃO <ExternalLink size={20} />
               </button>
             </div>
           </div>
