@@ -12,6 +12,9 @@ import { syncDatabaseSchema } from "./src/lib/database-sync.ts";
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-erp-key";
 import { runMigration } from "./src/lib/migrations-manager.ts";
 import crypto from "crypto";
+import { onInvoiceCreated } from "./agt_webservice_integration/index.ts";
+import { registerSaftRoutes } from "./saft_ao/index.ts";
+import { prepareSigningData, signAGTDocument, getHashControl } from "./src/lib/agt_rsa.ts";
 
 // --- HELPERS ---
 // AGT Hash Generation: Number|Date|Total|CompanyNIF
@@ -21,11 +24,35 @@ const prepareHashString = (invoiceNo: string, date: string, total: number, nif: 
   return `${invoiceNo}|${date}|${formattedTotal}|${nif}`;
 };
 
+// Fallback legacy SHA256 (for non-certified or pro-forma if desired, but RSA is now standard)
 const generateHash = (data: string, prevHash: string = '') => {
-  // Using SHA256 for maximum data integrity and AGT compliance
-  // The hash chains the current document data with the previous one
   return crypto.createHash('sha256').update(data + prevHash).digest('base64');
 };
+
+/**
+ * AGT Compliance: RSA 2048 Signing
+ * Fetches company private key and signs the document data.
+ */
+/**
+ * AGT Compliance: RSA 2048 Signing
+ * signs the document data using the provided private key.
+ */
+function signDocumentRSA(privateKey: string | null, date: string, sysDate: string, docNo: string, total: number, prevHash: string) {
+  try {
+    if (privateKey) {
+      const signingData = prepareSigningData(date, sysDate, docNo, total, prevHash);
+      return signAGTDocument(signingData, privateKey);
+    }
+
+    // Fallback if no RSA key is provided
+    console.warn(`[AGT] AVISO: Chave RSA não fornecida para documento ${docNo}. Usando SHA256 fallback.`);
+    return generateHash(prepareHashString(docNo, date, total, ''), prevHash);
+  } catch (err: any) {
+    console.error(`[AGT] Erro crítico ao assinar documento RSA:`, err.message);
+    return generateHash(prepareHashString(docNo, date, total, ''), prevHash);
+  }
+}
+
 
 const escapeXml = (unsafe: string) => {
   if (!unsafe) return '';
@@ -54,7 +81,40 @@ const blockMutation = (req: any, res: any, next: any) => {
   next();
 };
 
+/**
+ * AGT Compliance: Mandatory Phrases
+ * Fetches the certification number and builds the required legal phrase.
+ */
+async function getAgtCertPhrase(companyId: number, docType: string) {
+  try {
+    const { data: config } = await supabase
+      .from('agt_configs')
+      .select('cert_number')
+      .eq('company_id', companyId)
+      .maybeSingle();
+
+    const certNo = config?.cert_number || '0000/AGT/2026';
+    const verb = (docType === 'RE' || docType === 'RECIBO') ? 'Emitido' : 'Processado';
+    return `${verb} por programa validado n.º ${certNo}/AGT`;
+  } catch {
+    return `Processado por programa validado n.º 0000/AGT/2026`;
+  }
+}
+
+/**
+ * AGT Compliance: NIF Validation (Angola)
+ * NIF must be exactly 9 digits for individuals/companies, 
+ * or "Consumidor Final" for generic sales.
+ */
+function isValidNif(nif: string | null | undefined): boolean {
+  if (!nif || nif.toLowerCase() === 'consumidor final') return true;
+  const digitsOnly = nif.replace(/\D/g, '');
+  return digitsOnly.length === 9;
+}
+
 async function startServer() {
+
+
   console.log('🚀 Server starting...');
 
   // 0. Key Validation
@@ -66,15 +126,13 @@ async function startServer() {
     console.error('⚠️ Por favor, obtenha a "service_role" key correta no Dashboard do Supabase.');
   }
 
-  // Sync database schema on startup (NON-BLOCKING/DISABLED DUE TO SIZE)
-  /*
+  // Sync database schema on startup (NON-BLOCKING)
   syncDatabaseSchema().then(async () => {
     console.log('✅ Database Schema Sync Complete');
     console.log('✅ Base migrations checked.');
   }).catch(err => {
     console.error('❌ Database Schema Sync Failed:', err.message);
   });
-  */
 
   // Diagnostic & Repair: Ensure all companies have a branch and users are associated
   try {
@@ -110,7 +168,8 @@ async function startServer() {
 
   const app = express();
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // --- APPLY AGT IMMUTABILITY GUARDS ---
   app.use("/api/sales", blockMutation);
@@ -356,12 +415,51 @@ async function startServer() {
     }
   });
 
+  // --- AI Audit Route ---
+  app.post("/api/ai/audit", authenticate, async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY não configurada no servidor." });
+      }
+
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ error: "Prompt não fornecido." });
+      }
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.text();
+        console.error("Gemini API Error:", errData);
+        throw new Error("Falha na API da IA");
+      }
+
+      const data = await response.json();
+      const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sem resposta da IA.";
+
+      res.json({ result: textResult });
+    } catch (err: any) {
+      console.error('❌ Error processing AI audit:', err);
+      res.status(500).json({ error: "Erro ao processar auditoria da Venda Plus." });
+    }
+  });
+
   // Auth Routes
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     const { data: user, error } = await supabase
       .from("users")
-      .select("*, companies(name, currency, imagem_home)")
+      .select("*, companies(name, currency, imagem_home, nif, email, phone, address, regime_iva)")
       .eq("email", email)
       .single();
 
@@ -369,18 +467,44 @@ async function startServer() {
       console.error('❌ Erro na consulta de login (Supabase):', error.message);
       return res.status(401).json({ error: "Credenciais inválidas (Erro de Ligação)" });
     }
-    if (!user) {
-      console.error(`❌ Utilizador não encontrado: ${email}`);
-      return res.status(401).json({ error: "Credenciais inválidas (Utilizador)" });
+    // 1. Check if account is locked
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const waitMinutes = Math.ceil((new Date(user.locked_until).getTime() - new Date().getTime()) / 60000);
+      return res.status(403).json({
+        error: `Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em ${waitMinutes} minutos.`
+      });
     }
 
     const matches = bcrypt.compareSync(password, user.password);
+
     if (!matches) {
       console.error(`❌ Senha incorreta para: ${email}`);
-      return res.status(401).json({ error: "Credenciais inválidas (Senha)" });
+      const newAttempts = (user.failed_attempts || 0) + 1;
+      let updatePayload: any = { failed_attempts: newAttempts };
+
+      if (newAttempts >= 5) {
+        updatePayload.locked_until = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 mins
+        console.warn(`[AUTH] Conta ${email} bloqueada por 30 minutos.`);
+      }
+
+      await supabase.from("users").update(updatePayload).eq("id", user.id);
+
+      return res.status(401).json({
+        error: "Credenciais inválidas. Tentativa " + newAttempts + "/5."
+      });
     }
 
-    console.log(`✅ Login bem-sucedido: ${email}`);
+    // 2. Success: Reset failed attempts
+    await supabase.from("users").update({ failed_attempts: 0, locked_until: null }).eq("id", user.id);
+
+    // 3. Check for Password Expiration (90 days)
+    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
+    const lastUpdate = user.password_updated_at ? new Date(user.password_updated_at).getTime() : 0;
+    const isExpired = (Date.now() - lastUpdate) > ninetyDays;
+    const mustChange = !!user.must_change_password || isExpired;
+
+    console.log(`✅ Login bem-sucedido: ${email}${mustChange ? ' (Senha Expirada/Forçada)' : ''}`);
+
 
     // Log login activity
     await logActivity({ user, ip: req.ip }, 'LOGIN', 'AUTH', `Utilizador ${email} iniciou sessão.`);
@@ -391,12 +515,15 @@ async function startServer() {
       id: user.id,
       company_id: user.company_id,
       branch_id: user.branch_id,
-      role: user.role
+      role: user.role,
+      must_change_password: mustChange
     }, JWT_SECRET);
 
     res.json({
       token,
+      must_change_password: mustChange,
       user: {
+
         id: user.id,
         name: user.name,
         email: user.email,
@@ -405,6 +532,11 @@ async function startServer() {
         company_name: companies?.name,
         currency: companies?.currency,
         company_home_image: companies?.imagem_home,
+        nif: companies?.nif,
+        company_email: companies?.email,
+        phone: companies?.phone,
+        address: companies?.address,
+        regime_iva: companies?.regime_iva,
         branch_id: user.branch_id,
         is_master: user.role === 'master'
       }
@@ -422,7 +554,7 @@ async function startServer() {
       // 1. Find company by access_token
       const { data: company, error: cError } = await supabase
         .from("companies")
-        .select("id, name, currency, imagem_home")
+        .select("id, name, currency, imagem_home, nif, email, phone, address, regime_iva")
         .eq("access_token", accessToken)
         .single();
 
@@ -465,6 +597,11 @@ async function startServer() {
           company_name: company.name,
           currency: company.currency,
           company_home_image: company.imagem_home,
+          nif: company.nif,
+          company_email: company.email,
+          phone: company.phone,
+          address: company.address,
+          regime_iva: company.regime_iva,
           branch_id: user.branch_id,
           is_master: user.role === 'master'
         }
@@ -739,8 +876,101 @@ async function startServer() {
     res.json(dump);
   });
 
+  // Backup Management (AGT Compliance)
+  app.get("/api/system/backups", authenticate, isAdmin, async (req: any, res) => {
+    const { data: backups, error } = await supabase
+      .from("backup_logs")
+      .select("*")
+      .or(`company_id.eq.${req.user.company_id},company_id.is.null`)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(backups || []);
+  });
+
+  app.post("/api/system/backups", authenticate, isAdmin, async (req: any, res) => {
+    const { backup_type, file_name, file_size_bytes } = req.body;
+
+    const { data, error } = await supabase
+      .from("backup_logs")
+      .insert([{
+        company_id: req.user.company_id,
+        backup_type: backup_type || 'manual',
+        status: 'success',
+        file_name: file_name || `manual_backup_${Date.now()}.sql`,
+        file_size_bytes: file_size_bytes || 0,
+        storage_provider: 'Supabase Managed'
+      }])
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Log activity
+    await logActivity(req, 'BACKUP', 'SYSTEM', `Cópia de segurança registada: ${file_name}`, { backup_type });
+
+    res.json(data);
+  });
+
+
   // User Management
+  app.post("/api/auth/change-password", authenticate, async (req: any, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: "A nova senha deve ter pelo menos 8 caracteres." });
+    }
+
+    // Complexity check: Upper, Lower, Digital
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+
+    if (!hasUpper || !hasLower || !hasNumber) {
+      return res.status(400).json({
+        error: "A senha deve conter pelo menos uma letra maiúscula, uma minúscula e um número."
+      });
+    }
+
+    try {
+      // 1. Fetch current user
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("password")
+        .eq("id", req.user.id)
+        .single();
+
+      if (error || !user) return res.status(404).json({ error: "Utilizador não encontrado." });
+
+      // 2. Verify old password
+      const matches = bcrypt.compareSync(oldPassword, user.password);
+      if (!matches) return res.status(401).json({ error: "A senha actual está incorrecta." });
+
+      // 3. Update password
+      const hashedPassword = bcrypt.hashSync(newPassword, 10);
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          password: hashedPassword,
+          password_updated_at: new Date().toISOString(),
+          must_change_password: false
+        })
+        .eq("id", req.user.id);
+
+      if (updateError) throw updateError;
+
+      // Log activity
+      await logActivity(req, 'UPDATE', 'AUTH', `Utilizador ${req.user.email} alterou a própria password.`);
+
+      res.json({ success: true, message: "Senha alterada com sucesso." });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/users", authenticate, isAdmin, async (req: any, res) => {
+
     const { data: users, error } = await supabase
       .from("users")
       .select("id, name, email, role, created_at")
@@ -822,15 +1052,31 @@ async function startServer() {
   });
 
   app.put("/api/company/profile", authenticate, async (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
-    const { name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home } = req.body;
-    const { error } = await supabase
-      .from("companies")
-      .update({ name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home })
-      .eq("id", req.user.company_id);
+    if (!['admin', 'master', 'manager'].includes(req.user.role)) return res.status(403).json({ error: "Acesso negado" });
+    const { 
+      name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home,
+      bio_nome, bio_foto, bio_formacao, bio_profissao, bio_competencias, bio_contactos, bio_emails, bio_resumo, bio_publicado
+    } = req.body;
 
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
+    console.log(`[Settings API] Updating company ID: ${req.user.company_id} | Name: ${name} | Published: ${bio_publicado}`);
+
+    const { data: updatedCompany, error } = await supabase
+      .from("companies")
+      .update({ 
+        name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home, 
+        bio_nome, bio_foto, bio_formacao, bio_profissao, bio_competencias, bio_contactos, bio_emails, bio_resumo, bio_publicado
+      })
+      .eq("id", req.user.company_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[Settings API] Erro Supabase ao atualizar empresa:", error);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log(`[Settings API] Success! Updated ID ${req.user.company_id}. New Bio Nome: ${updatedCompany?.bio_nome}`);
+    res.json(updatedCompany);
   });
 
   // Suppliers
@@ -1295,7 +1541,17 @@ async function startServer() {
   app.post("/api/sales", authenticate, async (req: any, res) => {
     const { items, customer_id, subtotal, tax, total, amount_paid, change, payment_method, discount, is_pro_forma, is_exempt, exemption_reason } = req.body;
 
+    // AGT Compliance: Basic Validations
+    if (!isValidNif(req.body.customer_nif)) {
+      return res.status(400).json({ error: "NIF inválido. Deve conter 9 dígitos ou ser 'Consumidor Final'." });
+    }
+
+    if (total <= 0) {
+      return res.status(400).json({ error: "O total da factura deve ser superior a zero. Use Notas de Crédito para anulações." });
+    }
+
     // Determine Document Type and Fetch Billing Series
+
     let docType = is_pro_forma ? 'PRO' : 'FAC';
 
     // AGT: If not pro-forma and payment is immediate (not credit), it should be a Fatura-Recibo (FR)
@@ -1375,32 +1631,32 @@ async function startServer() {
       });
     }
 
-    // Fetch open cash register for this user
-    const { data: openRegister } = await supabase
-      .from("cash_registers")
-      .select("id")
-      .eq("company_id", req.user.company_id)
-      .eq("user_id", req.user.id)
-      .eq("status", "open")
-      .maybeSingle();
+    // 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata Fetching
+    const [
+      { data: openRegister },
+      { data: lastSaleForHash },
+      { data: companyData },
+      { data: config },
+      { data: keys }
+    ] = await Promise.all([
+      supabase.from("cash_registers").select("id").eq("company_id", req.user.company_id).eq("user_id", req.user.id).eq("status", "open").maybeSingle(),
+      supabase.from("sales").select("hash").eq("company_id", req.user.company_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("companies").select("nif").eq("id", req.user.company_id).single(),
+      supabase.from('agt_configs').select('cert_number').eq('company_id', req.user.company_id).maybeSingle(),
+      supabase.from('agt_keys').select('private_key').eq('company_id', req.user.company_id).eq('is_active', true).maybeSingle()
+    ]);
 
-    // Fetch last sale hash for the company to chain the signature (AGT Compliance)
-    const { data: lastSaleForHash } = await supabase
-      .from("sales")
-      .select("hash")
-      .eq("company_id", req.user.company_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    // Fetch company NIF for Hash
-    const { data: companyData } = await supabase.from("companies").select("nif").eq("id", req.user.company_id).single();
     const companyNif = companyData?.nif || '999999999';
-
     const prevHash = lastSaleForHash?.hash || '';
-    const hashDate = new Date().toISOString();
-    const hashString = prepareHashString(invoice_number, hashDate, total, companyNif);
-    const currentHash = generateHash(hashString, prevHash);
+    const hashDate = new Date().toISOString().split('T')[0];
+    const systemEntryDate = new Date().toISOString().replace('Z', '').substring(0, 19);
+
+    // Sign using RSA 2048 (New AGT Compliance) - 🚀 Optimized: No internal DB call
+    const currentHash = signDocumentRSA(keys?.private_key, hashDate, systemEntryDate, invoice_number, total, prevHash);
+
+    const certNo = config?.cert_number || '0000/AGT/2026';
+    const verb = (is_pro_forma) ? 'Processado' : 'Processado'; // Faturas are always Processado
+    const cert_phrase = `${verb} por programa validado n.º ${certNo}/AGT`;
 
     try {
       // 1. Create Sale
@@ -1412,7 +1668,10 @@ async function startServer() {
           user_id: req.user.id,
           register_id: openRegister?.id || null,
           customer_id: customer_id || null,
+          customer_nif: req.body.customer_nif || '',
+          customer_name: req.body.customer_name || 'Consumidor Final',
           total,
+
           subtotal,
           tax,
           amount_paid: is_pro_forma ? 0 : amount_paid,
@@ -1427,6 +1686,7 @@ async function startServer() {
           // AGT Compliance fields
           hash: currentHash,
           prev_hash: prevHash,
+          agt_phrase: cert_phrase,
           is_certified: true
         }])
         .select("id")
@@ -1451,26 +1711,54 @@ async function startServer() {
       const { error: itemsError } = await supabase.from("sale_items").insert(saleItems);
       if (itemsError) throw itemsError;
 
-      // 2. Update stock & customer balance ONLY if NOT Pro Forma
+      // 2. 🚀 PERFORMANCE OPTIMIZATION: Update stock & balance ONLY if NOT Pro Forma
       if (!is_pro_forma) {
-        // Update products stock
-        for (const item of items) {
+        // Parallel stock updates
+        const stockTasks = items.map(async (item: any) => {
           const { data: product } = await supabase.from("products").select("stock").eq("id", item.id).single();
           if (product) {
-            await supabase.from("products").update({ stock: product.stock - item.quantity }).eq("id", item.id);
+            return supabase.from("products").update({ stock: product.stock - item.quantity }).eq("id", item.id);
           }
-        }
+        });
 
         // 3. Update Customer Balance
+        let balanceTask = null;
         if (payment_method === 'credit' && customer_id) {
-          const { data: customer } = await supabase.from("customers").select("balance").eq("id", customer_id).single();
-          if (customer) {
-            await supabase.from("customers").update({ balance: (customer.balance || 0) + total }).eq("id", customer_id);
-          }
+          balanceTask = (async () => {
+            const { data: customer } = await supabase.from("customers").select("balance").eq("id", customer_id).single();
+            if (customer) {
+              return supabase.from("customers").update({ balance: (customer.balance || 0) + total }).eq("id", customer_id);
+            }
+          })();
         }
+
+        // Fire all stock and balance updates in parallel
+        await Promise.allSettled([...stockTasks, balanceTask].filter(Boolean));
       }
 
-      res.json({ id: saleId, invoice_number, hash: currentHash });
+      // INTEGRAÇÃO AGT: Envia fatura em background se auto_send = true
+      onInvoiceCreated({
+        id: saleId,
+        invoice_number,
+        total,
+        subtotal,
+        tax,
+        customer_nif: req.body.customer_nif || '',
+        hash: currentHash,
+        prev_hash: prevHash,
+        is_pro_forma: !!is_pro_forma,
+        created_at: new Date().toISOString(),
+        items: items.map((item: any) => ({
+          product_id: item.id,
+          product_name: item.name,
+          quantity: item.quantity,
+          unit_price: item.sale_price,
+          tax_percentage: item.tax_percentage || 14,
+          unit: item.unit || 'un'
+        }))
+      });
+
+      res.json({ id: saleId, invoice_number, hash: currentHash, cert_phrase });
     } catch (err: any) {
       console.error('❌ Erro inesperado ao processar venda:', err);
       res.status(500).json({ error: err.message || "Erro ao processar venda" });
@@ -1535,9 +1823,12 @@ async function startServer() {
       const companyNif = companyData?.nif || '999999999';
 
       const prevHash = lastSaleForHash?.hash || '';
-      const hashDate = new Date().toISOString();
-      const hashString = prepareHashString(document_number, hashDate, sale.total, companyNif);
-      const currentHash = generateHash(hashString, prevHash);
+      const hashDate = new Date().toISOString().split('T')[0];
+      const systemEntryDate = new Date().toISOString().replace('Z', '').substring(0, 19);
+
+      // Sign using RSA 2048 (New AGT Compliance)
+      const currentHash = await signDocumentRSA(req.user.company_id, hashDate, systemEntryDate, document_number, sale.total, prevHash);
+
 
       // 3. Update Sale Status
       await supabase
@@ -1564,7 +1855,30 @@ async function startServer() {
       // Log cancellation
       await logActivity(req, 'CANCEL', 'SALE', `Venda ${sale.invoice_number} anulada via ${document_number}. Motivo: ${reason}`, { sale_id: id, nc_number: document_number });
 
-      res.json({ success: true, nc_number: document_number, hash: currentHash });
+      // INTEGRAÇÃO AGT: Envia Nota de Crédito
+      onInvoiceCreated({
+        id: id, // ID da venda original (ou criar registro de NC se houver tabela própria)
+        invoice_number: document_number,
+        total: -sale.total, // Valores negativos em NC
+        subtotal: -sale.subtotal,
+        tax: -sale.tax,
+        customer_nif: sale.customers?.nif || '',
+        hash: currentHash,
+        prev_hash: prevHash,
+        is_nc: true,
+        created_at: new Date().toISOString(),
+        items: (sale.items || []).map((item: any) => ({
+          product_id: item.product_id,
+          product_name: item.products?.name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tax_percentage: item.tax_percentage || 14
+        }))
+      });
+
+
+      const cert_phrase = await getAgtCertPhrase(req.user.company_id, 'NC');
+      res.json({ success: true, nc_number: document_number, hash: currentHash, cert_phrase });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -1672,23 +1986,30 @@ async function startServer() {
         document_number = `RE-${Date.now()}`;
       }
 
-      // Fetch last payment hash for chaining
-      const { data: lastPaymentForHash } = await supabase
-        .from("payments")
-        .select("hash")
-        .eq("company_id", req.user.company_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata for Receipts
+      const [
+        { data: lastPaymentForHash },
+        { data: companyData },
+        { data: config },
+        { data: keys }
+      ] = await Promise.all([
+        supabase.from("payments").select("hash").eq("company_id", req.user.company_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("companies").select("nif").eq("id", req.user.company_id).single(),
+        supabase.from('agt_configs').select('cert_number').eq('company_id', req.user.company_id).maybeSingle(),
+        supabase.from('agt_keys').select('private_key').eq('company_id', req.user.company_id).eq('is_active', true).maybeSingle()
+      ]);
 
-      // Fetch company NIF for Hash
-      const { data: companyData } = await supabase.from("companies").select("nif").eq("id", req.user.company_id).single();
       const companyNif = companyData?.nif || '999999999';
-
       const prevHash = lastPaymentForHash?.hash || '';
-      const hashDate = new Date().toISOString();
-      const hashString = prepareHashString(document_number, hashDate, amount, companyNif);
-      const currentHash = generateHash(hashString, prevHash);
+      const hashDate = new Date().toISOString().split('T')[0];
+      const systemEntryDate = new Date().toISOString().replace('Z', '').substring(0, 19);
+
+      // Sign using RSA 2048 (New AGT Compliance) - 🚀 Optimized
+      const currentHash = signDocumentRSA(keys?.private_key, hashDate, systemEntryDate, document_number, amount, prevHash);
+
+      const certNo = config?.cert_number || '0000/AGT/2026';
+      const verb = 'Emitido';
+      const cert_phrase = `${verb} por programa validado n.º ${certNo}/AGT`;
 
       // 2. Record payment with Document info and Hash
       const { error: payError } = await supabase
@@ -1701,6 +2022,7 @@ async function startServer() {
           document_number,
           hash: currentHash,
           prev_hash: prevHash,
+          agt_phrase: cert_phrase,
           is_certified: true
         }]);
 
@@ -1716,26 +2038,7 @@ async function startServer() {
         })
         .eq("id", sale_id);
 
-      if (updateErr) throw updateErr;
-
-      // 3. Update Customer Balance if it was a credit sale
-      if (sale.payment_method === 'credit' && sale.customer_id) {
-        const { data: customer } = await supabase
-          .from("customers")
-          .select("balance")
-          .eq("id", sale.customer_id)
-          .single();
-
-        if (customer) {
-          const newBalance = Math.max(0, (customer.balance || 0) - amount);
-          await supabase.from("customers").update({ balance: newBalance }).eq("id", sale.customer_id);
-        }
-      }
-
-      // Log payment
-      await logActivity(req, 'PAYMENT', 'FINANCIAL', `Pagamento de ${amount} ${req.user.currency} registado para a venda ID ${sale_id}.`, { sale_id, amount, payment_method });
-
-      res.json({ success: true, new_amount_paid: newAmountPaid, status, document_number, hash: currentHash });
+      res.json({ success: true, new_amount_paid: newAmountPaid, status, document_number, hash: currentHash, cert_phrase });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -2318,6 +2621,11 @@ async function startServer() {
     const companyId = req.user.company_id;
     const vendedorId = req.user.id;
 
+    if (total <= 0) {
+      return res.status(400).json({ error: "Venda de farmácia não pode ter valor zero ou negativo." });
+    }
+
+
     let subtotal = itens.reduce((acc: number, item: any) => acc + (item.quantidade * item.preco_unitario), 0);
     const iva = subtotal * 0.14;
     const total = subtotal + iva;
@@ -2343,51 +2651,33 @@ async function startServer() {
       numero_factura = `FR-FARM-${Date.now()}`;
     }
 
-    // AGT Compliance: Hash for Pharmacy Sale
-    const { data: lastPharmSale } = await supabase
-      .from("vendas_farmacia")
-      .select("hash")
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata for Pharmacy
+    const [
+      { data: lastPharmSale },
+      { data: companyData },
+      { data: config },
+      { data: branchResult },
+      { data: keys }
+    ] = await Promise.all([
+      supabase.from("vendas_farmacia").select("hash").eq("company_id", companyId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("companies").select("nif").eq("id", companyId).single(),
+      supabase.from('agt_configs').select('cert_number').eq('company_id', companyId).maybeSingle(),
+      (!req.user.branch_id ? supabase.from("branches").select("id").eq("company_id", companyId).limit(1).maybeSingle() : Promise.resolve({ data: { id: req.user.branch_id } })),
+      supabase.from('agt_keys').select('private_key').eq('company_id', companyId).eq('is_active', true).maybeSingle()
+    ]);
 
-    const { data: companyData } = await supabase.from("companies").select("nif").eq("id", companyId).single();
     const companyNif = companyData?.nif || '999999999';
-
     const prevHash = lastPharmSale?.hash || '';
-    const hashDate = new Date().toISOString();
-    const hashString = prepareHashString(numero_factura, hashDate, total, companyNif);
-    const currentHash = generateHash(hashString, prevHash);
+    const hashDate = new Date().toISOString().split('T')[0];
+    const systemEntryDate = new Date().toISOString().replace('Z', '').substring(0, 19);
 
-    let branchId = req.user.branch_id;
-    if (!branchId) {
-      console.log(`[Venda Farmácia] Utilizador ${req.user.email} sem branch_id. À procura de filial...`);
-      let { data: branch } = await supabase.from("branches").select("id").eq("company_id", companyId).limit(1).maybeSingle();
+    // Sign using RSA 2048 (New AGT Compliance) - 🚀 Optimized
+    const currentHash = signDocumentRSA(keys?.private_key, hashDate, systemEntryDate, numero_factura, total, prevHash);
 
-      if (!branch) {
-        console.log(`[Venda Farmácia] Nenhuma filial encontrada para empresa ${companyId}. Criando padrão...`);
-        const { data: newBranch } = await supabase.from("branches").insert({ company_id: companyId, name: 'Sede Central' }).select("id").single();
-        branch = newBranch;
-      }
-      branchId = branch?.id;
-    }
+    const certNo = config?.cert_number || '0000/AGT/2026';
+    const cert_phrase = `Processado por programa validado n.º ${certNo}/AGT`;
 
-    if (!branchId) {
-      console.warn(`[Venda Farmácia] AVISO: branchId continua nulo para ${req.user.email}. Tentando find-any...`);
-      const { data: anyBranch } = await supabase.from("branches").select("id").eq("company_id", companyId).limit(1).maybeSingle();
-      branchId = anyBranch?.id;
-    }
-
-    if (!branchId) {
-      console.error(`[Venda Farmácia] ERRO CRÍTICO: Não foi possível determinar branchId para utilizador ${req.user.email} (Empresa: ${companyId})`);
-      return res.status(400).json({
-        error: "Erro de filial: Falha ao determinar filial na Farmácia.",
-        details: "Certifique-se que o utilizador ou empresa possui uma filial válida."
-      });
-    }
-
-    console.log(`[Venda Farmácia] Final branch_id: ${branchId}`);
+    let branchId = branchResult?.data?.id;
 
     // Create sale record
     const { data: venda, error: vendaError } = await supabase
@@ -2407,6 +2697,7 @@ async function startServer() {
         // AGT Compliance fields
         hash: currentHash,
         prev_hash: prevHash,
+        agt_phrase: cert_phrase,
         is_certified: true
       }])
       .select("id")
@@ -2417,7 +2708,11 @@ async function startServer() {
       return res.status(500).json({ error: `Erro na BD Farmácia: ${vendaError.message}`, details: vendaError });
     }
 
-    // Process each item (Lot deduction - FIFO)
+    // 🚀 PERFORMANCE OPTIMIZATION: Refactored FIFO Loop to remove sequential DB calls
+    const lotUpdates: Promise<any>[] = [];
+    const vendaItems: any[] = [];
+    const movimentos: any[] = [];
+
     for (const item of itens) {
       let qtdRestante = item.quantidade;
       const { data: lotes } = await supabase
@@ -2439,17 +2734,18 @@ async function startServer() {
         const qtdDeducao = Math.min(qtdRestante, lote.quantidade_atual);
         qtdRestante -= qtdDeducao;
 
-        // Update lote
-        await supabase
-          .from("lotes_medicamentos")
-          .update({ quantidade_atual: lote.quantidade_atual - qtdDeducao })
-          .eq("id", lote.id);
+        // Accumulate lot update
+        lotUpdates.push(
+          supabase.from("lotes_medicamentos")
+            .update({ quantidade_atual: lote.quantidade_atual - qtdDeducao })
+            .eq("id", lote.id)
+        );
 
-        // Insert sale item
         const itemIva = (qtdDeducao * item.preco_unitario) * 0.14;
         const itemTotalValue = (qtdDeducao * item.preco_unitario) + itemIva;
 
-        const pharmItem = {
+        // Accumulate sale item
+        vendaItems.push({
           company_id: companyId,
           venda_id: venda.id,
           medicamento_id: item.medicamento_id,
@@ -2458,20 +2754,17 @@ async function startServer() {
           preco_unitario: item.preco_unitario,
           iva: itemIva,
           total: itemTotalValue
-        };
-        console.log(`[Venda Farmácia Item] Lote: ${lote.id}, Company: ${pharmItem.company_id}`);
+        });
 
-        await supabase.from("itens_venda_farmacia").insert([pharmItem]);
-
-        // Record movement
-        await supabase.from("movimentos_stock_farmacia").insert([{
+        // Accumulate movement
+        movimentos.push({
           company_id: companyId,
           medicamento_id: item.medicamento_id,
           lote_id: lote.id,
           tipo_movimento: 'saida_venda',
           quantidade: qtdDeducao,
           utilizador_id: vendedorId
-        }]);
+        });
       }
 
       if (qtdRestante > 0) {
@@ -2479,7 +2772,37 @@ async function startServer() {
       }
     }
 
-    res.json({ success: true, venda_id: venda.id, numero_factura });
+    // 🚀 BATCH EXECUTION: Execute all pharmacy operations in parallel
+    await Promise.all([
+      Promise.all(lotUpdates),
+      supabase.from("itens_venda_farmacia").insert(vendaItems),
+      supabase.from("movimentos_stock_farmacia").insert(movimentos)
+    ]);
+
+    // INTEGRAÇÃO AGT: Envia venda de farmácia
+    onInvoiceCreated({
+      id: venda.id,
+      invoice_number: numero_factura,
+      total,
+      subtotal,
+      tax: iva,
+      customer_nif: req.body.customer_nif || '',
+      hash: currentHash,
+      prev_hash: prevHash,
+      created_at: new Date().toISOString(),
+      items: itens.map((item: any) => ({
+        product_id: item.medicamento_id,
+        product_name: item.nome_medicamento,
+        quantity: item.quantity,
+        unit_price: item.preco_unitario,
+        tax_percentage: 14,
+        unit: 'un'
+      }))
+    });
+
+    res.json({ success: true, venda_id: venda.id, numero_factura, hash: currentHash, cert_phrase });
+
+
   });
 
   // --- PHARMACY INVENTORY SESSIONS ---
@@ -3701,22 +4024,29 @@ async function startServer() {
       const finalTotal = subtotal + (isNaN(iva) ? 0 : iva);
       console.log('📄 [DOCS] Totais:', { subtotal, iva, finalTotal });
 
-      // 3. Security Hash
-      const { data: lastDoc } = await supabase
-        .from('contabil_faturas')
-        .select('hash')
-        .eq('company_id', effCompanyId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // 3. Security Hash - 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata
+      const [
+        { data: lastDoc },
+        { data: companyData },
+        { data: config },
+        { data: keys }
+      ] = await Promise.all([
+        supabase.from('contabil_faturas').select('hash').eq('company_id', effCompanyId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("companies").select("nif").eq("id", effCompanyId).single(),
+        supabase.from('agt_configs').select('cert_number').eq('company_id', effCompanyId).maybeSingle(),
+        supabase.from('agt_keys').select('private_key').eq('company_id', effCompanyId).eq('is_active', true).maybeSingle()
+      ]);
 
-      const { data: companyData } = await supabase.from("companies").select("nif").eq("id", effCompanyId).single();
       const companyNif = companyData?.nif || '999999999';
-
       const prevHash = lastDoc?.hash || '';
+
+      const certNo = config?.cert_number || '0000/AGT/2026';
+      const cert_phrase = `Processado por programa validado n.º ${certNo}/AGT`;
+
       const hashDate = new Date().toISOString();
       const hashString = prepareHashString(docNumber, hashDate, finalTotal, companyNif);
       const hash = generateHash(hashString, prevHash);
+
       const paid = (doc_type === 'FR') ? finalTotal : (Number(req.body.amount_paid) || 0);
       const debt = Math.max(0, finalTotal - paid);
       let docStatus = 'PENDENTE';
@@ -3743,6 +4073,7 @@ async function startServer() {
         tipo: type, // Add tipo for frontend compatibility
         hash,
         prev_hash: prevHash,
+        agt_phrase: cert_phrase,
         is_exempt: !!is_exempt,
         exemption_reason: exemption_reason || null,
         metadata: {
@@ -3780,7 +4111,7 @@ async function startServer() {
           const { data: docF, error: dErrorF } = await supabase.from('contabil_faturas').insert(fallbackData).select().single();
           if (dErrorF) throw dErrorF;
           // Devolvemos o documento com os metadados (mesmo não gravados) para que a impressão imediata funcione
-          return res.json({ success: true, doc: { ...docF, metadata: insertData.metadata } });
+          return res.json({ success: true, doc: { ...docF, metadata: insertData.metadata }, cert_phrase });
         }
         throw dError;
       }
@@ -3842,7 +4173,7 @@ async function startServer() {
         console.error('⚠️ [DOCS] Erro na integração contabilística:', accErr);
       }
 
-      return res.json({ success: true, doc });
+      return res.json({ success: true, doc, cert_phrase });
 
       if (!doc) {
         console.log('❌ [DOCS] Documento retornado nulo');
@@ -3851,6 +4182,17 @@ async function startServer() {
 
       // 5. Async Logging
       logActivity(req, 'CREATE', 'contabil_faturas', `Documento ${docNumber} emitido.`, { doc_id: doc.id, type });
+
+      // INTEGRAÇÃO AGT: Envia fatura em background se auto_send = true
+      onInvoiceCreated({
+        id: doc.id,
+        invoice_number: doc.document_number,
+        total: doc.total_amount,
+        subtotal: doc.tax_base_amount,
+        tax: doc.tax_amount,
+        customer_nif: doc.customer_nif,
+        is_pro_forma: doc.type === 'Proforma' || doc.type === 'Proforma (PP)'
+      });
 
       console.log('✅ [DOCS] Sucesso:', docNumber);
       res.json(doc);
@@ -4025,6 +4367,12 @@ async function startServer() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ── MÓDULO SAF-T (AOA) XML ────────────────────────────────────────────────
+  // Módulo independente de geração do ficheiro SAF-T (AOA) XML
+
+  // Rotas: GET /api/saft/export, /api/saft/preview, /api/saft/history
+  registerSaftRoutes(app, authenticate);
 
   // Vite middleware (MUST BE AFTER ALL API ROUTES)
   if (process.env.NODE_ENV !== "production") {

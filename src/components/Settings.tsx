@@ -38,9 +38,18 @@ export default function Settings() {
     currency: 'Kz',
     logo: '',
     imagem_home: '',
-    role_permissions: {}
+    role_permissions: {},
+    bio_nome: '',
+    bio_foto: '',
+    bio_formacao: '',
+    bio_profissao: '',
+    bio_competencias: [],
+    bio_contactos: '',
+    bio_emails: '',
+    bio_resumo: '',
+    bio_publicado: false
   });
-  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'system' | 'docs' | 'personalization'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'system' | 'docs' | 'personalization' | 'biografia'>('profile');
   const [dbState, setDbState] = useState<any>(null);
   const [billingSeries, setBillingSeries] = useState<any[]>([]);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
@@ -48,6 +57,7 @@ export default function Settings() {
   const [exporting, setExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const homeFileInputRef = useRef<HTMLInputElement>(null);
+  const bioFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCompany();
@@ -84,6 +94,18 @@ export default function Settings() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setCompany({ ...company, imagem_home: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) return alert('Imagem muito grande (máx 2MB)');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompany({ ...company, bio_foto: reader.result as string });
       };
       reader.readAsDataURL(file);
     }
@@ -142,10 +164,15 @@ export default function Settings() {
     try {
       const res = await api.put('/api/company/profile', company);
       if (res.ok) {
-        alert('Configurações guardadas com sucesso!');
+        alert('Configurações guardadas com sucesso! A sua Biografia Profissional já está disponível na Página Inicial (Portal de Vendas).');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Erro ao guardar: ${errorData.error || 'Verifique se todos os campos estão corretos.'}`);
+        console.error('API Error:', errorData);
       }
     } catch (error) {
       console.error('Error saving company:', error);
+      alert('Ocorreu um erro de rede ao guardar as configurações.');
     } finally {
       setSaving(false);
     }
@@ -240,9 +267,15 @@ export default function Settings() {
         >
           Personalização
         </button>
+        <button
+          onClick={() => setActiveTab('biografia')}
+          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'biografia' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+        >
+          Biografia Profissional
+        </button>
       </div>
 
-      {(activeTab === 'profile' || activeTab === 'personalization') ? (
+      {(activeTab === 'profile' || activeTab === 'personalization' || activeTab === 'biografia') ? (
         <form onSubmit={handleSubmit} className="space-y-6">
           {activeTab === 'profile' ? (
             <div className="glass-panel p-6 md:p-8 rounded-[32px] shadow-sm border border-white/10 space-y-6">
@@ -426,7 +459,7 @@ export default function Settings() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'personalization' ? (
             <div className="glass-panel p-6 md:p-8 rounded-[32px] shadow-sm border border-white/10 space-y-6">
               <div className="space-y-6">
                 <div>
@@ -485,6 +518,165 @@ export default function Settings() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          ) : (
+            <div className="glass-panel p-6 md:p-8 rounded-[32px] shadow-sm border border-white/10 space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <User className="text-gold-primary" size={24} />
+                <h3 className="text-xl font-black text-white uppercase italic">Biografia Profissional</h3>
+              </div>
+              <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-8">
+                Personalize os dados de apresentação do administrador. Este cartão biográfico será exibido na página inicial.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2 space-y-4">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 italic">
+                    <User size={14} /> Fotografia de Perfil
+                  </label>
+                  <div className="flex gap-6 items-center bg-white/5 p-6 rounded-[24px] border border-white/5">
+                    <div className="w-24 h-24 rounded-full border-4 border-gold-primary/30 flex items-center justify-center bg-bg-deep overflow-hidden shadow-inner relative group cursor-pointer focus-within:ring-2 focus-within:ring-gold-primary" onClick={() => bioFileInputRef.current?.click()}>
+                      {company.bio_foto ? (
+                        <>
+                          <img src={company.bio_foto} alt="Foto Bio" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="font-black text-[10px] uppercase text-white">Alterar</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center text-white/20">
+                          <User size={32} className="mx-auto" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <p className="text-[9px] font-black text-white/30 uppercase tracking-tight">Foto profissional (Recomendado: quadrada, fundo neutro).</p>
+                      <input
+                        type="file"
+                        ref={bioFileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleBioFileChange}
+                      />
+                      <div className="flex gap-3">
+                        <button type="button" onClick={() => bioFileInputRef.current?.click()} className="px-6 py-3 bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase text-gold-primary hover:bg-gold-primary hover:text-black transition-all">
+                          Upload Foto
+                        </button>
+                        {company.bio_foto && (
+                          <button type="button" onClick={() => setCompany({ ...company, bio_foto: '' })} className="px-6 py-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">
+                            Remover
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Nome Completo</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all"
+                    value={company.bio_nome || ''}
+                    placeholder="Ex: Eng.º João Silva"
+                    onChange={e => setCompany({ ...company, bio_nome: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Área de Formação</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all"
+                    value={company.bio_formacao || ''}
+                    placeholder="Ex: Engenharia Informática"
+                    onChange={e => setCompany({ ...company, bio_formacao: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Profissão / Cargo</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all"
+                    value={company.bio_profissao || ''}
+                    placeholder="Ex: Arquiteto de Software"
+                    onChange={e => setCompany({ ...company, bio_profissao: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Competências (Separadas por vírgula)</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all"
+                    value={Array.isArray(company.bio_competencias) ? company.bio_competencias.join(', ') : (company.bio_competencias || '')}
+                    placeholder="Ex: React, Node.js, Liderança"
+                    onChange={e => {
+                      const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                      setCompany({ ...company, bio_competencias: vals });
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Contactos Telefónicos</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all"
+                    value={company.bio_contactos || ''}
+                    placeholder="Ex: +244 900 000 000"
+                    onChange={e => setCompany({ ...company, bio_contactos: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Email Profissional</label>
+                  <input
+                    type="email"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all"
+                    value={company.bio_emails || ''}
+                    placeholder="Ex: email@dominio.com"
+                    onChange={e => setCompany({ ...company, bio_emails: e.target.value })}
+                  />
+                </div>
+
+                 <div className="md:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between p-6 bg-gold-primary/5 rounded-2xl border border-gold-primary/20 gold-glow">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${company.bio_publicado ? 'bg-gold-primary text-bg-deep' : 'bg-white/5 text-white/20'}`}>
+                        <Globe size={24} className={company.bio_publicado ? 'animate-pulse' : ''} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white uppercase tracking-tight italic">Publicar Biografia</h4>
+                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest leading-none mt-1">
+                          {company.bio_publicado ? 'Visível na Home e Dashboard' : 'Modo Rascunho'}
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={company.bio_publicado || false}
+                        onChange={(e) => setCompany({ ...company, bio_publicado: e.target.checked })}
+                      />
+                      <div className="w-14 h-7 bg-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white/20 after:border-transparent after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gold-primary/40 peer-checked:after:bg-gold-primary shadow-inner"></div>
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Resumo Biográfico / Sobre Mim</label>
+                    <textarea
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all min-h-[120px]"
+                      value={company.bio_resumo || ''}
+                      placeholder="Escreva um breve resumo sobre a sua trajetória profissional..."
+                      onChange={e => setCompany({ ...company, bio_resumo: e.target.value })}
+                    />
+                  </div>
+                </div>
+
               </div>
             </div>
           )}

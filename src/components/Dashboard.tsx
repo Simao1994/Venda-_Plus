@@ -8,8 +8,14 @@ import {
   DollarSign,
   ArrowUpRight,
   ArrowDownRight,
-  User
+  User,
+  GraduationCap,
+  Mail,
+  Phone,
+  Briefcase
 } from 'lucide-react';
+import { api } from '../lib/api';
+import BiographyCard from './BiographyCard';
 import {
   BarChart,
   Bar,
@@ -27,11 +33,25 @@ export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [company, setCompany] = useState<any>(null);
 
   useEffect(() => {
     fetchStats();
     fetchTopProducts();
+    fetchCompany();
   }, []);
+
+  const fetchCompany = async () => {
+    try {
+      const res = await api.get('/api/company/profile');
+      if (res.ok) {
+        const data = await res.json();
+        setCompany(data);
+      }
+    } catch (error) {
+      console.error('Error fetching company for dashboard:', error);
+    }
+  };
 
   const fetchStats = async () => {
     const res = await fetch('/api/dashboard/stats', {
@@ -116,6 +136,13 @@ export default function Dashboard() {
         </h1>
         <p className="text-gold-primary/40 font-black text-[10px] uppercase tracking-[0.4em]">Gestão Operacional Empresarial &bull; Bem-vindo, {user?.name?.toUpperCase()}</p>
       </header>
+
+      {/* Professional Biography - Internal Highlight */}
+      {company?.bio_publicado && company?.bio_nome && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-700">
+          <BiographyCard company={company} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         {cards.map((card, i) => (

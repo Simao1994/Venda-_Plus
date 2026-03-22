@@ -25,6 +25,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { api } from '../lib/api';
+import BiographyCard from './BiographyCard';
 
 function DigitalClock() {
   const [time, setTime] = useState(new Date());
@@ -164,8 +165,9 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
     try {
       const { data, error } = await supabase
         .from('companies')
-        .select('id, name')
+        .select('id, name, bio_nome, bio_foto, bio_formacao, bio_profissao, bio_competencias, bio_contactos, bio_emails, bio_resumo, bio_publicado')
         .in('status', ['active', 'pending'])
+        .eq('bio_publicado', true)
         .order('name');
       if (!error) setCompanies(data || []);
     } catch (error) {
@@ -342,6 +344,30 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           </div>
         </div>
       </section>
+
+      {/* Biographies Section */}
+      {companies.some(c => c.bio_nome) && (
+        <section className="pt-10 pb-20 bg-bg-deep relative overflow-hidden z-20">
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-deep via-gold-primary/5 to-bg-deep" />
+          <div className="max-w-7xl mx-auto px-6 relative z-10">
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 px-4 py-2 bg-gold-primary/10 rounded-full border border-gold-primary/20 italic">
+                <Users size={14} className="animate-pulse" />
+                LIDERANÇA & ADMINISTRAÇÃO
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight italic uppercase pb-2">
+                Nossa <span className="text-gold-gradient">Sénior Liderança</span>
+              </h2>
+            </div>
+
+            <div className="flex flex-col gap-10">
+              {companies.filter(c => c.bio_nome).map(company => (
+                <BiographyCard key={company.id} company={company} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Market Preview */}
       <section id="market" className="py-40 overflow-hidden bg-bg-deep relative">
@@ -658,6 +684,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           </div>
         </div>
       </section>
+
 
       {/* Contact Section */}
       <section id="contacto" className="py-40 bg-bg-deep relative overflow-hidden">
