@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet, UserPlus, X, FilePieChart, Calculator as CalcIcon } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Printer, CreditCard, User, Package, AlertTriangle, Wallet, UserPlus, X, FilePieChart, Calculator as CalcIcon, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useReactToPrint } from 'react-to-print';
 import PaymentModal from './PaymentModal';
@@ -42,6 +42,7 @@ export default function POS() {
   const [isExempt, setIsExempt] = useState(false);
   const [exemptionReason, setExemptionReason] = useState('');
   const [showCalculator, setShowCalculator] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -219,7 +220,7 @@ export default function POS() {
   const handleCheckout = async () => {
     if (paymentMethod === 'cash' && amountPaidNum < total) return alert('Valor insuficiente');
     if (paymentMethod === 'credit' && !selectedCustomer) return alert('Seleccione um cliente para venda a crédito');
-
+    setIsProcessing(true);
     try {
       const res = await fetch('/api/sales', {
         method: 'POST',
@@ -285,7 +286,16 @@ export default function POS() {
       setSelectedCustomer(null);
       setPaymentMethod('cash');
       setShowPayment(false);
-      fetchProducts(); // Refresh stock in UI
+
+      // 🚀 PERFORMANCE OPTIMIZATION: Optimistic Stock Update (Instant UI)
+      const updatedProducts = products.map(p => {
+        const cartItem = cart.find(ci => ci.id === p.id);
+        return cartItem ? { ...p, stock: p.stock - cartItem.quantity } : p;
+      });
+      setProducts(updatedProducts);
+
+      // Refresh stock in UI in the background to not block the current flow
+      setTimeout(fetchProducts, 3000);
 
       // Automatic print if enabled
       if (autoPrint) {
@@ -295,6 +305,8 @@ export default function POS() {
       }
     } catch (err: any) {
       alert(`Erro: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -394,7 +406,7 @@ export default function POS() {
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pb-10 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-            {filteredProducts.map(product => (
+            {filteredProducts.slice(0, 80).map(product => (
               <button
                 key={product.id}
                 onClick={() => addToCart(product)}
@@ -798,10 +810,17 @@ export default function POS() {
                   </button>
                   <button
                     onClick={handleCheckout}
-                    disabled={paymentMethod === 'credit' && !selectedCustomer}
-                    className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all disabled:opacity-20 disabled:grayscale"
+                    disabled={(paymentMethod === 'credit' && !selectedCustomer) || isProcessing}
+                    className="flex-1 py-5 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all disabled:opacity-20 disabled:grayscale flex items-center justify-center gap-2"
                   >
-                    {isProForma ? 'Emitir Pró-Forma' : 'Confirmar Venda'}
+                    {isProcessing ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      isProForma ? 'Emitir Pró-Forma' : 'Confirmar Venda'
+                    )}
                   </button>
                 </div>
               </div>
@@ -892,12 +911,15 @@ export default function POS() {
           <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
             <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
             <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '—'}</p>
-            <p style={{ margin: '0', fontSize: '10px' }}>Tel: {user?.phone || '—'}</p>
-            <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
+            {user?.address && <p style={{ margin: '0', fontSize: '9px' }}>{user.address}</p>}
+            {user?.phone && <p style={{ margin: '0', fontSize: '9px' }}>Tel: {user.phone}</p>}
+            {user?.company_email && <p style={{ margin: '0', fontSize: '9px' }}>Email: {user.company_email}</p>}
+            <p style={{ margin: '2mm 0 1mm 0', fontSize: '11px', fontWeight: 'bold' }}>{isProForma ? 'FATURA PRÓ-FORMA' : 'FATURA-RECIBO'}</p>
+            <p style={{ margin: '0', fontSize: '9px', fontWeight: 'bold' }}>Original</p>
           </div>
 
           <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm', fontSize: '11px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Doc:</span><span style={{ fontWeight: 'bold' }}>{lastSale?.numero_factura}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>FACT Nº:</span><span style={{ fontWeight: 'bold' }}>{lastSale?.numero_factura || lastSale?.invoice_number}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Data:</span><span>{lastSale?.date}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Cliente:</span><span style={{ textTransform: 'uppercase' }}>{lastSale?.customer?.name || 'CONSUMIDOR FINAL'}</span></div>
             {lastSale?.customer?.nif && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>NIF:</span><span>{lastSale?.customer?.nif}</span></div>}
@@ -909,6 +931,7 @@ export default function POS() {
               <tr style={{ borderBottom: '1px solid #000' }}>
                 <th style={{ textAlign: 'left', padding: '2px 0' }}>Item</th>
                 <th style={{ textAlign: 'center', padding: '2px 0' }}>Qtd</th>
+                <th style={{ textAlign: 'right', padding: '2px 0' }}>Preço Unit.</th>
                 <th style={{ textAlign: 'right', padding: '2px 0' }}>Total</th>
               </tr>
             </thead>
@@ -917,6 +940,7 @@ export default function POS() {
                 <tr key={i.id}>
                   <td style={{ padding: '2px 0' }}>{i.name}</td>
                   <td style={{ textAlign: 'center', padding: '2px 0' }}>{i.quantity}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 0' }}>{i.sale_price?.toLocaleString('pt-AO')}</td>
                   <td style={{ textAlign: 'right', padding: '2px 0' }}>{(i.quantity * i.sale_price).toLocaleString('pt-AO')}</td>
                 </tr>
               ))}
@@ -927,11 +951,9 @@ export default function POS() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
               <span>Subtotal:</span><span>{lastSale?.subtotal?.toLocaleString('pt-AO')}</span>
             </div>
-            {lastSale?.discountAmt > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
-                <span>Desconto:</span><span>-{lastSale?.discountAmt?.toLocaleString('pt-AO')}</span>
-              </div>
-            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+              <span>Desconto (0%):</span><span>-{lastSale?.discountAmt?.toLocaleString('pt-AO') || '0,00'}</span>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
               <span>IVA (14%):</span><span>{lastSale?.tax?.toLocaleString('pt-AO')}</span>
             </div>
@@ -940,36 +962,22 @@ export default function POS() {
               <span>{lastSale?.total?.toLocaleString('pt-AO')} {user?.currency}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2mm', fontSize: '10px' }}>
-              <span>Pago:</span><span>{lastSale?.amountPaid?.toLocaleString('pt-AO')}</span>
+              <span>Pago:</span><span>{lastSale?.amountPaid?.toLocaleString('pt-AO')} {user?.currency || 'Kz'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '11px' }}>
-              <span>Troco:</span><span>{lastSale?.change?.toLocaleString('pt-AO')}</span>
+              <span>Troco:</span><span>{lastSale?.change?.toLocaleString('pt-AO')} {user?.currency || 'Kz'}</span>
             </div>
           </div>
 
           {/* AGT Compliance & QR Code */}
           <div style={{ textAlign: 'center', marginTop: '6mm', padding: '4mm 0', borderTop: '1px dashed #000' }}>
-            <p style={{ fontSize: '9px', margin: '0 0 4mm 0', fontWeight: 'bold' }}>
-              {lastSale?.hash?.substring(0, 4)}-Processado por programa validado n.º 000/AGT/2024
+            <p style={{ fontSize: '9px', margin: '0 0 1mm 0', fontWeight: 'bold' }}>
+              {lastSale?.cert_phrase || 'Processado por programa validado n.º 0000/AGT/2026'}
+            </p>
+            <p style={{ fontSize: '8px', margin: '0 0 4mm 0', textTransform: 'uppercase' }}>
+              Regime: {user?.regime_iva || 'Geral'}
             </p>
 
-            {/* QR Code Placeholder */}
-            <div style={{
-              width: '35mm',
-              height: '35mm',
-              border: '1px solid #000',
-              margin: '0 auto 4mm auto',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '8px',
-              color: '#666'
-            }}>
-              <p style={{ margin: '0' }}>QR CODE</p>
-              <p style={{ margin: '0' }}>SAF-T ANGOLA</p>
-              <p style={{ margin: '4px 0 0 0', fontSize: '7px' }}>AGUARDANDO CERTIFICAÇÃO</p>
-            </div>
 
             <p style={{ fontSize: '10px', fontWeight: 'bold' }}>Obrigado pela preferência!</p>
             <p style={{ fontSize: '9px', color: '#666' }}>Software de Gestão Multi-Empresa - Venda Plus</p>
@@ -987,21 +995,21 @@ export default function POS() {
                 <Printer size={32} className="group-hover:scale-110 transition-transform" />
               </div>
               <div>
-                <h4 className="text-[10px] font-black text-gold-primary uppercase tracking-[0.4em] mb-1">Transaction Verified</h4>
-                <p className="text-white font-black text-sm italic uppercase tracking-tight">Voucher {lastSale.invoice_number}</p>
+                <h4 className="text-[10px] font-black text-gold-primary uppercase tracking-[0.4em] mb-1">Venda Confirmada</h4>
+                <p className="text-white font-black text-sm italic uppercase tracking-tight">Documento {lastSale.invoice_number}</p>
               </div>
               <div className="flex gap-3 ml-6">
                 <button
                   onClick={handlePrint}
                   className="px-6 py-3 bg-gold-primary text-bg-deep rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all"
                 >
-                  Hardcopy
+                  Imprimir
                 </button>
                 <button
                   onClick={() => setLastSale(null)}
                   className="px-6 py-3 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-white/60 transition-all border border-white/5"
                 >
-                  Discard
+                  Fechar
                 </button>
               </div>
             </div>

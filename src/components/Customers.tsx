@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Plus, Search, Phone, Mail, MapPin, CreditCard, Package, AlertTriangle } from 'lucide-react';
+import { User, Plus, Search, Phone, Mail, MapPin, CreditCard, Package, AlertTriangle, Printer } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
+import { A4ReportTemplate } from './reports/A4ReportTemplate';
 import PaymentModal from './PaymentModal';
 
 interface Customer {
@@ -27,6 +29,12 @@ export default function Customers() {
     email: '',
     phone: '',
     address: ''
+  });
+
+  const printRef = React.useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Relatorio-Clientes-${new Date().toLocaleDateString('pt-AO')}`
   });
 
   useEffect(() => {
@@ -74,13 +82,57 @@ export default function Customers() {
           </h1>
           <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">Customer relationship & balance synchronization</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl"
+        <div className="flex gap-4">
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-3 px-8 py-4 bg-white/5 text-white/60 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all shadow-xl"
+          >
+            <Printer size={18} />
+            Imprimir Relatório
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl"
+          >
+            <Plus size={18} />
+            Initialize Entity
+          </button>
+        </div>
+      </div>
+
+      {/* Hidden A4 Report */}
+      <div style={{ display: 'none' }}>
+        <A4ReportTemplate
+          ref={printRef}
+          title="Relatório de Clientes"
+          companyData={user}
+          orientation="landscape"
         >
-          <Plus size={18} />
-          Initialize Entity
-        </button>
+          <table className="a4-table">
+            <thead>
+              <tr>
+                <th>Nome do Cliente</th>
+                <th>NIF</th>
+                <th>Telefone</th>
+                <th>Email</th>
+                <th>Morada</th>
+                <th className="text-right">Saldo Aberto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCustomers.map(c => (
+                <tr key={c.id}>
+                  <td className="font-bold">{c.name}</td>
+                  <td>{c.nif || '-'}</td>
+                  <td>{c.phone || '-'}</td>
+                  <td>{c.email || '-'}</td>
+                  <td>{c.address || '-'}</td>
+                  <td className="text-right font-bold text-[#ef4444]">{c.balance > 0 ? c.balance.toLocaleString('pt-AO') : '0'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </A4ReportTemplate>
       </div>
 
       <div className="relative z-10">

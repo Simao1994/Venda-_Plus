@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS billing_series (
 ALTER TABLE billing_series ENABLE ROW LEVEL SECURITY;
 
 -- Policies
+DROP POLICY IF EXISTS "Users can view their own company's billing series" ON billing_series;
 CREATE POLICY "Users can view their own company's billing series"
     ON billing_series FOR SELECT
     USING (
@@ -23,6 +24,7 @@ CREATE POLICY "Users can view their own company's billing series"
         (company_id = get_auth_tenant())
     );
 
+DROP POLICY IF EXISTS "Admins can manage their own company's billing series" ON billing_series;
 CREATE POLICY "Admins can manage their own company's billing series"
     ON billing_series FOR ALL
     USING (

@@ -12,6 +12,7 @@ import {
     DollarSign
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
+import { A4ReportTemplate } from './A4ReportTemplate';
 
 interface EmployeeStat {
     funcionario_id: number;
@@ -35,8 +36,7 @@ export default function EmployeeSales() {
 
     const handlePrint = useReactToPrint({
         contentRef: reportRef,
-        pageStyle: `@page { size: A4 portrait; margin: 15mm; }`,
-        documentTitle: `Relatorio_Vendas_Funcionarios_${new Date().toISOString().split('T')[0]}`
+        documentTitle: `Venda Plus — Funcionários — ${new Date().toLocaleDateString('pt-AO')}`
     });
 
     const generateDateRange = () => {
@@ -125,6 +125,57 @@ export default function EmployeeSales() {
 
     return (
         <div className="p-8 h-full flex flex-col font-sans relative z-10">
+            {/* Hidden Printable A4 Report */}
+            <div style={{ display: 'none' }}>
+                <A4ReportTemplate
+                    ref={reportRef}
+                    title="Análise de Vendas por Funcionário"
+                    subtitle={`Período: ${period.toUpperCase()}`}
+                    companyData={user}
+                    orientation="portrait"
+                >
+                    <table className="a4-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Funcionário / Operador</th>
+                                <th className="text-center">Nº Vendas</th>
+                                <th className="text-right">Total Vendido</th>
+                                <th className="text-right">IVA Gerado</th>
+                                <th className="text-right">Ticket Médio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {stats.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-4">Sem dados no período selecionado</td>
+                                </tr>
+                            ) : (
+                                stats.map((stat, idx) => (
+                                    <tr key={stat.funcionario_id}>
+                                        <td>{idx + 1}</td>
+                                        <td className="font-bold">{stat.nome_funcionario}</td>
+                                        <td className="text-center">{stat.numero_vendas}</td>
+                                        <td className="text-right font-bold text-[#1a6b3c]">{stat.total_vendido.toLocaleString('pt-AO')} {user?.currency}</td>
+                                        <td className="text-right">{stat.iva_gerado.toLocaleString('pt-AO')} {user?.currency}</td>
+                                        <td className="text-right">{stat.media_por_venda.toLocaleString('pt-AO', { maximumFractionDigits: 2 })} {user?.currency}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colSpan={2} className="text-right pr-4">TOTAIS GERAIS:</td>
+                                <td className="text-center">{totals.vendas}</td>
+                                <td className="text-right text-[#1a6b3c]">{totals.total.toLocaleString('pt-AO')} {user?.currency}</td>
+                                <td className="text-right">{totals.iva.toLocaleString('pt-AO')} {user?.currency}</td>
+                                <td className="text-right">-</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </A4ReportTemplate>
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Relatório de <span className="text-gold-gradient">Funcionários</span></h1>
@@ -238,7 +289,7 @@ export default function EmployeeSales() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto" ref={reportRef}>
+                <div className="flex-1 overflow-y-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.03]">

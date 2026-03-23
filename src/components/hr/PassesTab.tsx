@@ -94,25 +94,25 @@ export default function PassesTab() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredEmployees.map(emp => (
-                    <div key={emp.id} className="bg-white p-6 rounded-[2.5rem] border border-zinc-100 shadow-sm flex flex-col items-center text-center hover:shadow-xl transition-all group">
+                    <div key={emp.id} className="glass-panel p-6 rounded-[2.5rem] border border-white/5 flex flex-col items-center text-center hover:border-indigo-500/20 transition-all group">
                         <div className="relative mb-4">
-                            <div className="w-24 h-24 rounded-[2rem] bg-zinc-100 flex items-center justify-center overflow-hidden border-2 border-zinc-50 group-hover:border-yellow-500 transition-all">
+                            <div className="w-24 h-24 rounded-[2rem] bg-white/5 flex items-center justify-center overflow-hidden border-2 border-white/10 group-hover:border-indigo-500/30 transition-all">
                                 {emp.photo_url ? (
                                     <img src={emp.photo_url} className="w-full h-full object-cover" />
                                 ) : (
-                                    <UserIcon className="text-zinc-300" size={40} />
+                                    <UserIcon className="text-white/20" size={40} />
                                 )}
                             </div>
-                            <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-zinc-900 p-1.5 rounded-xl shadow-lg">
+                            <div className="absolute -bottom-1 -right-1 bg-indigo-500 text-white p-1.5 rounded-xl shadow-lg">
                                 <ShieldCheck size={14} />
                             </div>
                         </div>
-                        <h4 className="font-black text-zinc-900 uppercase text-sm mb-1">{emp.name}</h4>
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6">{emp.position}</p>
+                        <h4 className="font-black text-white uppercase text-sm mb-1">{emp.name}</h4>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-6">{emp.position}</p>
 
                         <button
                             onClick={() => setPrintingPass(emp)}
-                            className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-[10px] hover:bg-yellow-500 hover:text-zinc-900 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-4 bg-indigo-500/20 text-indigo-400 rounded-2xl font-black uppercase text-[10px] border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2"
                         >
                             <Printer size={16} /> Emitir Passe
                         </button>
@@ -120,9 +120,9 @@ export default function PassesTab() {
                 ))}
 
                 {filteredEmployees.length === 0 && (
-                    <div className="col-span-full py-20 text-center bg-white rounded-[3rem] border border-dashed border-zinc-200">
-                        <Search className="mx-auto text-zinc-100 mb-4" size={48} />
-                        <p className="text-zinc-400 font-bold italic">Nenhum funcionário encontrado.</p>
+                    <div className="col-span-full py-20 text-center glass-panel rounded-[3rem] border border-dashed border-white/10">
+                        <Search className="mx-auto text-white/10 mb-4" size={48} />
+                        <p className="text-white/30 font-bold italic">Nenhum funcionário encontrado.</p>
                     </div>
                 )}
             </div>

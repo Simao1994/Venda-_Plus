@@ -602,7 +602,7 @@ CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_medicamentos_codigo_barras ON medicamentos(codigo_barras);
 
 -- HR VACANCIES
-CREATE TABLE IF NOT EXISTS rh_vagas (
+CREATE TABLE IF NOT EXISTS hr_vagas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     titulo TEXT NOT NULL,
@@ -620,10 +620,10 @@ CREATE TABLE IF NOT EXISTS rh_vagas (
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS rh_candidaturas (
+CREATE TABLE IF NOT EXISTS hr_candidaturas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    vaga_id UUID REFERENCES rh_vagas(id) ON DELETE CASCADE,
+    vaga_id UUID REFERENCES hr_vagas(id) ON DELETE CASCADE,
     nome TEXT NOT NULL,
     email TEXT,
     telefone TEXT,
@@ -635,32 +635,69 @@ CREATE TABLE IF NOT EXISTS rh_candidaturas (
     data_envio TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE rh_vagas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rh_candidaturas ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS hr_metas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    employee_id INTEGER REFERENCES hr_employees(id) ON DELETE CASCADE,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    progresso REAL DEFAULT 0,
+    prazo DATE,
+    status TEXT DEFAULT 'Em curso',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hr_contas_bancarias (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    funcionario_id INTEGER REFERENCES hr_employees(id) ON DELETE CASCADE,
+    banco TEXT NOT NULL,
+    numero_conta TEXT NOT NULL,
+    iban TEXT,
+    principal BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE hr_vagas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hr_candidaturas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hr_metas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hr_contas_bancarias ENABLE ROW LEVEL SECURITY;
 
 -- Vacancies Policies
--- SELECT: Public can see active vacancies
-DROP POLICY IF EXISTS allow_public_read_vagas ON rh_vagas;
-CREATE POLICY allow_public_read_vagas ON rh_vagas FOR SELECT USING (status = 'ativa');
+DROP POLICY IF EXISTS allow_public_read_vagas ON hr_vagas;
+CREATE POLICY allow_public_read_vagas ON hr_vagas FOR SELECT USING (status = 'ativa');
 
--- ALL: Master and Company members can manage
-DROP POLICY IF EXISTS tenant_isolation_vagas ON rh_vagas;
-CREATE POLICY tenant_isolation_vagas ON rh_vagas FOR ALL USING (
+DROP POLICY IF EXISTS tenant_isolation_vagas ON hr_vagas;
+CREATE POLICY tenant_isolation_vagas ON hr_vagas FOR ALL USING (
     (current_setting('request.jwt.claims', true)::jsonb ->> 'role' = 'master') 
     OR 
     (company_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'company_id')::INTEGER)
 );
 
 -- Candidates Policies
--- ALL: Master and Company members can see candidates
-DROP POLICY IF EXISTS tenant_isolation_candidaturas ON rh_candidaturas;
-CREATE POLICY tenant_isolation_candidaturas ON rh_candidaturas FOR ALL USING (
+DROP POLICY IF EXISTS tenant_isolation_candidaturas ON hr_candidaturas;
+CREATE POLICY tenant_isolation_candidaturas ON hr_candidaturas FOR ALL USING (
     (current_setting('request.jwt.claims', true)::jsonb ->> 'role' = 'master') 
     OR 
     (company_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'company_id')::INTEGER)
 );
 
--- INSERT: Public can apply to vacancies
-DROP POLICY IF EXISTS allow_public_insert_candidatura ON rh_candidaturas;
-CREATE POLICY allow_public_insert_candidatura ON rh_candidaturas FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS allow_public_insert_candidatura ON hr_candidaturas;
+CREATE POLICY allow_public_insert_candidatura ON hr_candidaturas FOR INSERT WITH CHECK (TRUE);
+
+-- Metas Policies
+DROP POLICY IF EXISTS tenant_isolation_metas ON hr_metas;
+CREATE POLICY tenant_isolation_metas ON hr_metas FOR ALL USING (
+    (current_setting('request.jwt.claims', true)::jsonb ->> 'role' = 'master') 
+    OR 
+    (company_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'company_id')::INTEGER)
+);
+
+-- Bank Accounts Policies
+DROP POLICY IF EXISTS tenant_isolation_bank_accounts ON hr_contas_bancarias;
+CREATE POLICY tenant_isolation_bank_accounts ON hr_contas_bancarias FOR ALL USING (
+    (current_setting('request.jwt.claims', true)::jsonb ->> 'role' = 'master') 
+    OR 
+    (company_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'company_id')::INTEGER)
+);
 

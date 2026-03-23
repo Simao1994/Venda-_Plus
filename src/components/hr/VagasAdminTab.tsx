@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { safeQuery } from '../../lib/supabaseUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { RhVaga, RhCandidaturaPublica } from '../../types';
-import { Plus, Edit2, Trash2, Users, ExternalLink, Download, Search, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, ExternalLink, Download, Search, CheckCircle, XCircle, Clock, X } from 'lucide-react';
 
 const VagasAdminTab: React.FC = () => {
     const { user } = useAuth();
@@ -23,7 +23,6 @@ const VagasAdminTab: React.FC = () => {
         data_encerramento: ''
     });
 
-    // Vaga selecionada para ver candidaturas
     const [selectedVaga, setSelectedVaga] = useState<RhVaga | null>(null);
 
     useEffect(() => {
@@ -33,33 +32,34 @@ const VagasAdminTab: React.FC = () => {
     }, [user?.company_id]);
 
     const fetchVagas = async () => {
-        if (!user?.company_id) return;
         setLoading(true);
-        const { data, error } = await safeQuery(() =>
-            supabase.from('rh_vagas').select('*').eq('company_id', user.company_id).order('criado_em', { ascending: false })
-        );
-        if (error) {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/hr/vagas', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Falha ao carregar vagas');
+            const data = await res.json();
+            setVagas(data || []);
+        } catch (error) {
             console.error(error);
-            alert(`Erro ao carregar vagas: ${error.message}`);
+            alert('Erro ao carregar vagas.');
+        } finally {
+            setLoading(false);
         }
-        if (!error && data) {
-            setVagas(data);
-        }
-        setLoading(false);
     };
 
     const fetchCandidaturas = async (vagaId: string) => {
-        if (!user?.company_id) return;
-        const { data, error } = await safeQuery(() =>
-            supabase.from('rh_candidaturas')
-                .select('*')
-                .eq('company_id', user.company_id)
-                .eq('vaga_id', vagaId)
-                .order('data_envio', { ascending: false })
-        );
-
-        if (!error && data) {
-            setCandidaturas(data);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/hr/candidaturas?vagaId=${vagaId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Falha ao carregar candidaturas');
+            const data = await res.json();
+            setCandidaturas(data || []);
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -71,61 +71,79 @@ const VagasAdminTab: React.FC = () => {
 
     const handleSaveVaga = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user?.tenant_id) return;
         try {
-            if (editingVaga.id) {
-                // UPDATE
-                const { error } = await safeQuery(() =>
-                    supabase.from('rh_vagas').update(editingVaga).eq('id', editingVaga.id).eq('company_id', user.company_id)
-                );
-                if (error) throw error;
-            } else {
-                // INSERT
-                const { id, ...vagaToInsert } = editingVaga;
-                const { error } = await safeQuery(() =>
-                    supabase.from('rh_vagas').insert([{ ...vagaToInsert, company_id: user.company_id }])
-                );
-                if (error) throw error;
-            }
+            const token = localStorage.getItem('token');
+            const url = editingVaga.id ? `/api/hr/vagas/${editingVaga.id}` : '/api/hr/vagas';
+            const method = editingVaga.id ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(editingVaga)
+            });
+
+            if (!res.ok) throw new Error('Falha ao guardar vaga');
+            
             setShowVagaModal(false);
             setEditingVaga({ status: 'ativa', quantidade: 1, tipo_contrato: 'Tempo Inteiro', nivel_experiencia: 'Júnior', salario: '', data_encerramento: '' });
             fetchVagas();
             alert('Vaga guardada com sucesso!');
         } catch (error: any) {
-            const msg = error?.message || JSON.stringify(error);
-            alert(`Erro do Banco de Dados ao Guardar: ${msg}`);
-            console.error('Supabase save error:', error);
+            alert(`Erro: ${error.message}`);
         }
     };
 
     const handleDeleteVaga = async (id: string, titulo: string) => {
         if (!confirm(`Apagar a vaga ${titulo}? Todas as candidaturas associadas serão apagadas.`)) return;
-        if (!user?.tenant_id) return;
-        await safeQuery(() => supabase.from('rh_vagas').delete().eq('id', id).eq('tenant_id', user.tenant_id));
-        fetchVagas();
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/hr/vagas/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Falha ao eliminar vaga');
+            fetchVagas();
+        } catch (error: any) {
+            alert(`Erro: ${error.message}`);
+        }
     };
 
     const handleUpdateCandidaturaStatus = async (id: string, newStatus: string) => {
-        if (!user?.tenant_id) return;
-        await safeQuery(() =>
-            supabase.from('rh_candidaturas').update({ status: newStatus }).eq('id', id).eq('tenant_id', user.tenant_id)
-        );
-        if (selectedVaga) fetchCandidaturas(selectedVaga.id);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/hr/candidaturas/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (!res.ok) throw new Error('Falha ao atualizar status da candidatura');
+            if (selectedVaga) fetchCandidaturas(selectedVaga.id);
+        } catch (error: any) {
+            alert(`Erro: ${error.message}`);
+        }
     };
 
+    const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-white/20";
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
+        <div className="p-8 space-y-8 max-w-7xl mx-auto relative z-10">
+            <div className="flex justify-between items-center glass-panel p-6 rounded-[2rem] border border-white/5">
                 <div>
-                    <h2 className="text-xl font-bold text-zinc-900">Portal de Vagas e Recrutamento</h2>
-                    <p className="text-sm text-zinc-500">Gestão de oportunidades públicas e análise de currículos.</p>
+                    <h2 className="text-xl font-bold text-white">Portal de Vagas e Recrutamento</h2>
+                    <p className="text-sm text-white/30">Gestão de oportunidades públicas e análise de currículos.</p>
                 </div>
                 <button
                     onClick={() => {
                         setEditingVaga({ status: 'ativa', quantidade: 1, tipo_contrato: 'Tempo Inteiro', nivel_experiencia: 'Júnior', salario: '', data_encerramento: '' });
                         setShowVagaModal(true);
                     }}
-                    className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-950 px-6 py-3 rounded-xl font-bold transition-all shadow-sm"
+                    className="flex items-center gap-2 bg-indigo-500/20 text-indigo-400 px-6 py-3 rounded-xl font-bold transition-all border border-indigo-500/30 hover:bg-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]"
                 >
                     <Plus size={20} />
                     Publicar Nova Vaga
@@ -133,50 +151,50 @@ const VagasAdminTab: React.FC = () => {
             </div>
 
             {/* LISTA DE VAGAS */}
-            <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
+            <div className="glass-panel rounded-[2rem] border border-white/5 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-zinc-50 border-b border-zinc-100">
+                        <thead className="bg-white/5 border-b border-white/5">
                             <tr>
-                                <th className="text-left py-4 px-6 font-semibold text-zinc-600">Cargo / Título</th>
-                                <th className="text-left py-4 px-6 font-semibold text-zinc-600">Localização</th>
-                                <th className="text-left py-4 px-6 font-semibold text-zinc-600">Estado</th>
-                                <th className="text-left py-4 px-6 font-semibold text-zinc-600">Publicação</th>
-                                <th className="text-right py-4 px-6 font-semibold text-zinc-600">Ações</th>
+                                <th className="text-left py-4 px-6 font-black text-[10px] uppercase tracking-widest text-white/20">Cargo / Título</th>
+                                <th className="text-left py-4 px-6 font-black text-[10px] uppercase tracking-widest text-white/20">Localização</th>
+                                <th className="text-left py-4 px-6 font-black text-[10px] uppercase tracking-widest text-white/20">Estado</th>
+                                <th className="text-left py-4 px-6 font-black text-[10px] uppercase tracking-widest text-white/20">Publicação</th>
+                                <th className="text-right py-4 px-6 font-black text-[10px] uppercase tracking-widest text-white/20">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-100">
+                        <tbody className="divide-y divide-white/5">
                             {loading ? (
-                                <tr><td colSpan={5} className="p-8 text-center text-zinc-500">A carregar vagas...</td></tr>
+                                <tr><td colSpan={5} className="p-8 text-center text-white/30">A carregar vagas...</td></tr>
                             ) : vagas.length === 0 ? (
-                                <tr><td colSpan={5} className="p-8 text-center text-zinc-500">Nenhuma vaga publicada.</td></tr>
+                                <tr><td colSpan={5} className="p-8 text-center text-white/30">Nenhuma vaga publicada.</td></tr>
                             ) : (
                                 vagas.map((vaga) => (
-                                    <tr key={vaga.id} className="hover:bg-zinc-50 transition-colors">
+                                    <tr key={vaga.id} className="hover:bg-white/5 transition-colors">
                                         <td className="py-4 px-6">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-zinc-900">{vaga.titulo}</span>
-                                                <span className="text-xs text-zinc-500">{vaga.tipo_contrato} • {vaga.nivel_experiencia}</span>
+                                                <span className="font-bold text-white">{vaga.titulo}</span>
+                                                <span className="text-xs text-white/30">{vaga.tipo_contrato} • {vaga.nivel_experiencia}</span>
                                             </div>
                                         </td>
-                                        <td className="py-4 px-6 text-sm text-zinc-600">{vaga.localizacao || 'Não definido'}</td>
+                                        <td className="py-4 px-6 text-sm text-white/40">{vaga.localizacao || 'Não definido'}</td>
                                         <td className="py-4 px-6">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${vaga.status === 'ativa' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${vaga.status === 'ativa' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
                                                 {vaga.status.toUpperCase()}
                                             </span>
                                         </td>
-                                        <td className="py-4 px-6 text-sm text-zinc-600">
+                                        <td className="py-4 px-6 text-sm text-white/40">
                                             {new Date(vaga.data_publicacao).toLocaleDateString()}
                                         </td>
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => handleOpenCandidaturas(vaga)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors tooltip-trigger relative group" title="Ver Candidaturas">
+                                                <button onClick={() => handleOpenCandidaturas(vaga)} className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors" title="Ver Candidaturas">
                                                     <Users size={18} />
                                                 </button>
-                                                <button onClick={() => { setEditingVaga(vaga); setShowVagaModal(true); }} className="p-2 text-zinc-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
+                                                <button onClick={() => { setEditingVaga(vaga); setShowVagaModal(true); }} className="p-2 text-white/20 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors">
                                                     <Edit2 size={18} />
                                                 </button>
-                                                <button onClick={() => handleDeleteVaga(vaga.id, vaga.titulo)} className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                <button onClick={() => handleDeleteVaga(vaga.id, vaga.titulo)} className="p-2 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors">
                                                     <Trash2 size={18} />
                                                 </button>
                                             </div>
@@ -191,36 +209,36 @@ const VagasAdminTab: React.FC = () => {
 
             {/* MODAL NOVA VAGA */}
             {showVagaModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-                        <div className="sticky top-0 bg-white border-b border-zinc-100 px-8 py-6 rounded-t-3xl flex justify-between items-center z-10">
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                    <div className="glass-panel rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-white/10">
+                        <div className="sticky top-0 glass-panel border-b border-white/5 px-8 py-6 rounded-t-[2rem] flex justify-between items-center z-10">
                             <div>
-                                <h3 className="text-2xl font-bold text-zinc-900">{editingVaga.id ? 'Editar Vaga' : 'Publicar Vaga de Emprego'}</h3>
-                                <p className="text-zinc-500">Detalhes visíveis no site corporativo</p>
+                                <h3 className="text-2xl font-bold text-white">{editingVaga.id ? 'Editar Vaga' : 'Publicar Vaga de Emprego'}</h3>
+                                <p className="text-white/30">Detalhes visíveis no site corporativo</p>
                             </div>
-                            <button onClick={() => setShowVagaModal(false)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-colors">
-                                <XCircle size={24} className="text-zinc-500" />
+                            <button onClick={() => setShowVagaModal(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+                                <X size={24} className="text-white/30" />
                             </button>
                         </div>
                         <form onSubmit={handleSaveVaga} className="p-8 space-y-6">
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="col-span-2 space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Título da Vaga *</label>
-                                    <input required type="text" value={editingVaga.titulo || ''} onChange={e => setEditingVaga({ ...editingVaga, titulo: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm font-bold text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="Ex: Engenheiro de Software Sênior" />
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Título da Vaga *</label>
+                                    <input required type="text" value={editingVaga.titulo || ''} onChange={e => setEditingVaga({ ...editingVaga, titulo: e.target.value })} className={inputCls} placeholder="Ex: Engenheiro de Software Sênior" />
                                 </div>
 
                                 <div className="col-span-2 space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Descrição Resumida *</label>
-                                    <textarea required rows={3} value={editingVaga.descricao || ''} onChange={e => setEditingVaga({ ...editingVaga, descricao: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="Resumo atrativo sobre a vaga e a equipa..." />
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Descrição Resumida *</label>
+                                    <textarea required rows={3} value={editingVaga.descricao || ''} onChange={e => setEditingVaga({ ...editingVaga, descricao: e.target.value })} className={inputCls} placeholder="Resumo atrativo sobre a vaga e a equipa..." />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Localização *</label>
-                                    <input required type="text" value={editingVaga.localizacao || ''} onChange={e => setEditingVaga({ ...editingVaga, localizacao: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="Ex: Luanda, Talatona (Híbrido)" />
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Localização *</label>
+                                    <input required type="text" value={editingVaga.localizacao || ''} onChange={e => setEditingVaga({ ...editingVaga, localizacao: e.target.value })} className={inputCls} placeholder="Ex: Luanda, Talatona (Híbrido)" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Tipo de Contrato</label>
-                                    <select value={editingVaga.tipo_contrato || ''} onChange={e => setEditingVaga({ ...editingVaga, tipo_contrato: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none">
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Tipo de Contrato</label>
+                                    <select value={editingVaga.tipo_contrato || ''} onChange={e => setEditingVaga({ ...editingVaga, tipo_contrato: e.target.value })} className={inputCls}>
                                         <option value="Tempo Inteiro">Tempo Inteiro</option>
                                         <option value="Meio Tempo">Meio Tempo</option>
                                         <option value="Estágio">Estágio</option>
@@ -229,8 +247,8 @@ const VagasAdminTab: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Experiência</label>
-                                    <select value={editingVaga.nivel_experiencia || ''} onChange={e => setEditingVaga({ ...editingVaga, nivel_experiencia: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none">
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Experiência</label>
+                                    <select value={editingVaga.nivel_experiencia || ''} onChange={e => setEditingVaga({ ...editingVaga, nivel_experiencia: e.target.value })} className={inputCls}>
                                         <option value="Estagiário">Estagiário</option>
                                         <option value="Júnior">Júnior</option>
                                         <option value="Pleno">Pleno</option>
@@ -239,33 +257,33 @@ const VagasAdminTab: React.FC = () => {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Pretensão Salarial (Opcional)</label>
-                                    <input type="text" value={editingVaga.salario || ''} onChange={e => setEditingVaga({ ...editingVaga, salario: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="Ex: Negociável, ou 1.000.000 Kz" />
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Pretensão Salarial (Opcional)</label>
+                                    <input type="text" value={editingVaga.salario || ''} onChange={e => setEditingVaga({ ...editingVaga, salario: e.target.value })} className={inputCls} placeholder="Ex: Negociável, ou 1.000.000 Kz" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Nº de Vagas Abertas</label>
-                                    <input type="number" min="1" value={editingVaga.quantidade || 1} onChange={e => setEditingVaga({ ...editingVaga, quantidade: parseInt(e.target.value) })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none" />
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Nº de Vagas Abertas</label>
+                                    <input type="number" min="1" value={editingVaga.quantidade || 1} onChange={e => setEditingVaga({ ...editingVaga, quantidade: parseInt(e.target.value) })} className={inputCls} />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Data de Encerramento (Opcional)</label>
-                                    <input type="date" value={editingVaga.data_encerramento ? new Date(editingVaga.data_encerramento).toISOString().split('T')[0] : ''} onChange={e => setEditingVaga({ ...editingVaga, data_encerramento: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none" />
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Data de Encerramento (Opcional)</label>
+                                    <input type="date" value={editingVaga.data_encerramento ? new Date(editingVaga.data_encerramento).toISOString().split('T')[0] : ''} onChange={e => setEditingVaga({ ...editingVaga, data_encerramento: e.target.value })} className={inputCls} />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Status da Vaga</label>
-                                    <select value={editingVaga.status || ''} onChange={e => setEditingVaga({ ...editingVaga, status: e.target.value as any })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 font-bold focus:ring-2 focus:ring-yellow-500 outline-none">
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Status da Vaga</label>
+                                    <select value={editingVaga.status || ''} onChange={e => setEditingVaga({ ...editingVaga, status: e.target.value as any })} className={inputCls}>
                                         <option value="ativa">Ativa (Visível no Site)</option>
                                         <option value="encerrada">Encerrada (Invisível)</option>
                                     </select>
                                 </div>
 
                                 <div className="col-span-2 space-y-2">
-                                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Requisitos (Um por linha)</label>
-                                    <textarea rows={4} value={editingVaga.requisitos || ''} onChange={e => setEditingVaga({ ...editingVaga, requisitos: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="- Licenciatura em...&#10;- 3 Anos de Exp..." />
+                                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Requisitos (Um por linha)</label>
+                                    <textarea rows={4} value={editingVaga.requisitos || ''} onChange={e => setEditingVaga({ ...editingVaga, requisitos: e.target.value })} className={inputCls} placeholder={"- Licenciatura em...\n- 3 Anos de Exp..."} />
                                 </div>
                             </div>
-                            <div className="pt-6 flex justify-end gap-4 border-t border-zinc-100">
-                                <button type="button" onClick={() => setShowVagaModal(false)} className="px-6 py-3 font-semibold text-zinc-600 hover:bg-zinc-100 rounded-xl transition-colors">Cancelar</button>
-                                <button type="submit" className="px-8 py-3 bg-yellow-400 hover:bg-yellow-500 text-yellow-950 font-bold rounded-xl transition-all shadow-sm">Guardar Vaga</button>
+                            <div className="pt-6 flex justify-end gap-4 border-t border-white/5">
+                                <button type="button" onClick={() => setShowVagaModal(false)} className="px-6 py-3 font-bold text-white/40 hover:bg-white/5 rounded-xl transition-colors border border-white/10">Cancelar</button>
+                                <button type="submit" className="px-8 py-3 bg-indigo-500/20 text-indigo-400 font-bold rounded-xl transition-all border border-indigo-500/30 hover:bg-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]">Guardar Vaga</button>
                             </div>
                         </form>
                     </div>
@@ -274,59 +292,59 @@ const VagasAdminTab: React.FC = () => {
 
             {/* MODAL CANDIDATURAS */}
             {showCandidaturasModal && selectedVaga && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-                        <div className="bg-zinc-900 text-white px-8 py-6 flex justify-between items-center shrink-0">
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                    <div className="glass-panel rounded-[2rem] w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-white/10">
+                        <div className="bg-gradient-to-r from-indigo-500/20 to-indigo-600/10 px-8 py-6 flex justify-between items-center shrink-0 border-b border-white/5">
                             <div>
-                                <h3 className="text-2xl font-bold">Candidatos: {selectedVaga.titulo}</h3>
-                                <p className="text-zinc-400">{candidaturas.length} Currículos Recebidos</p>
+                                <h3 className="text-2xl font-bold text-white">Candidatos: {selectedVaga.titulo}</h3>
+                                <p className="text-white/30">{candidaturas.length} Currículos Recebidos</p>
                             </div>
                             <button onClick={() => setShowCandidaturasModal(false)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
-                                <XCircle size={24} className="text-white" />
+                                <X size={24} className="text-white" />
                             </button>
                         </div>
-                        <div className="p-0 overflow-y-auto bg-zinc-50 flex-1">
+                        <div className="p-0 overflow-y-auto flex-1">
                             {candidaturas.length === 0 ? (
-                                <div className="p-12 text-center text-zinc-500 flex flex-col items-center">
-                                    <Users size={48} className="text-zinc-300 mb-4" />
+                                <div className="p-12 text-center text-white/30 flex flex-col items-center">
+                                    <Users size={48} className="text-white/10 mb-4" />
                                     <p>Ainda não há candidatos para esta vaga.</p>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-zinc-200">
+                                <div className="divide-y divide-white/5">
                                     {candidaturas.map(c => (
-                                        <div key={c.id} className="p-6 bg-white hover:bg-zinc-50/50 transition-colors flex items-center justify-between gap-6">
+                                        <div key={c.id} className="p-6 hover:bg-white/5 transition-colors flex items-center justify-between gap-6">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-3 mb-1">
-                                                    <h4 className="text-lg font-bold text-zinc-900">{c.nome}</h4>
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase
-                                                    ${c.status === 'pendente' ? 'bg-orange-100 text-orange-700' :
-                                                            c.status === 'em_analise' ? 'bg-blue-100 text-blue-700' :
-                                                                c.status === 'aprovado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    <h4 className="text-lg font-bold text-white">{c.nome}</h4>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase border
+                                                    ${c.status === 'pendente' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                            c.status === 'em_analise' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                                                c.status === 'aprovado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
                                                         {c.status.replace('_', ' ')}
                                                     </span>
                                                 </div>
-                                                <div className="text-sm text-zinc-500 flex gap-4">
+                                                <div className="text-sm text-white/30 flex gap-4">
                                                     <span>{c.email}</span>
                                                     {c.telefone && <span>• {c.telefone}</span>}
                                                     <span>• {new Date(c.data_envio).toLocaleDateString()}</span>
                                                 </div>
                                                 {c.mensagem && (
-                                                    <p className="text-sm text-zinc-600 mt-3 p-3 bg-zinc-50 rounded-lg italic">"{c.mensagem}"</p>
+                                                    <p className="text-sm text-white/40 mt-3 p-3 bg-white/5 rounded-lg italic border border-white/5">"{c.mensagem}"</p>
                                                 )}
                                             </div>
 
                                             <div className="flex flex-col items-end gap-3">
                                                 {c.cv_path && (
-                                                    <a href={c.cv_path} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-4 py-2 rounded-lg transition-colors">
+                                                    <a href={c.cv_path} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 px-4 py-2 rounded-lg transition-colors border border-indigo-500/20">
                                                         <Download size={16} /> Ver Currículo (PDF)
                                                     </a>
                                                 )}
 
-                                                <div className="flex bg-zinc-100 p-1 rounded-lg">
+                                                <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
                                                     <select
                                                         value={c.status}
                                                         onChange={(e) => handleUpdateCandidaturaStatus(c.id, e.target.value)}
-                                                        className="bg-transparent border-none text-sm font-semibold text-zinc-700 outline-none cursor-pointer focus:ring-0"
+                                                        className="bg-transparent border-none text-sm font-semibold text-white outline-none cursor-pointer focus:ring-0"
                                                     >
                                                         <option value="pendente">⏳ Pendente</option>
                                                         <option value="em_analise">👀 Em Análise</option>

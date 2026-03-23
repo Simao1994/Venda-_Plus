@@ -5,7 +5,7 @@ import {
   DollarSign, Database, Download, CheckCircle2, Server,
   Shield, Store, Package, Users, User, BarChart3,
   Plus, Newspaper, Megaphone, PieChart, Settings as SettingsIcon,
-  X, Check, FileText, Activity, HelpCircle, RefreshCw
+  X, Check, FileText, Activity, HelpCircle, RefreshCw, Tag, Smartphone, Folder
 } from 'lucide-react';
 import SystemDocumentation from './documentation/SystemDocumentation';
 import { api } from '../lib/api';
@@ -22,7 +22,33 @@ const MODULE_DEFS = [
   { key: 'reports', label: 'Relatórios', icon: <PieChart size={14} /> },
   { key: 'users', label: 'Gestão de Utilizadores', icon: <Shield size={14} /> },
   { key: 'settings', label: 'Configurações', icon: <SettingsIcon size={14} /> },
+  { key: 'files', label: 'Ficheiros & Documentos', icon: <Folder size={14} /> },
+  { key: 'labels', label: 'Etiquetas', icon: <Tag size={14} /> },
+  { key: 'support', label: 'Suporte Técnico', icon: <HelpCircle size={14} /> },
+  { key: 'mobile_app', label: 'APP Mobile', icon: <Smartphone size={14} /> },
 ];
+
+/** Default permissions auto-applied to new modules when not yet present in role_permissions */
+const DEFAULT_MODULE_PERMISSIONS: Record<string, Record<string, boolean>> = {
+  admin: { files: true, labels: true, support: true, mobile_app: true },
+  manager: { files: true, labels: true, support: true, mobile_app: false },
+  cashier: { files: false, labels: true, support: false, mobile_app: false },
+};
+
+/** Merges new module defaults into role_permissions so new modules auto-appear in the matrix */
+function syncNewModules(existingPerms: Record<string, any>): Record<string, any> {
+  const synced = { ...existingPerms };
+  for (const role of ['admin', 'manager', 'cashier']) {
+    synced[role] = { ...(synced[role] || {}) };
+    for (const mod of MODULE_DEFS) {
+      if (synced[role][mod.key] === undefined) {
+        // Apply default or false if no default is defined
+        synced[role][mod.key] = DEFAULT_MODULE_PERMISSIONS[role]?.[mod.key] ?? false;
+      }
+    }
+  }
+  return synced;
+}
 
 export default function Settings() {
   const { token, user } = useAuth();
@@ -67,6 +93,10 @@ export default function Settings() {
     try {
       const res = await api.get('/api/company/profile');
       const data = await res.json();
+      // Auto-sync: merge any new module defaults into existing permissions
+      if (data && typeof data === 'object') {
+        data.role_permissions = syncNewModules(data.role_permissions || {});
+      }
       setCompany(data);
     } catch (error) {
       console.error('Error fetching company:', error);
@@ -530,6 +560,29 @@ export default function Settings() {
                 Personalize os dados de apresentação do administrador. Este cartão biográfico será exibido na página inicial.
               </p>
 
+              <div className="flex items-center justify-between p-8 bg-gold-primary/5 rounded-[32px] border border-gold-primary/20 gold-glow mb-10">
+                <div className="flex items-center gap-5">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${company.bio_publicado ? 'bg-gold-primary text-bg-deep shadow-[0_0_30px_rgba(212,175,55,0.3)]' : 'bg-white/5 text-white/20'}`}>
+                    <Globe size={28} className={company.bio_publicado ? 'animate-pulse' : ''} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-white uppercase tracking-tighter italic">Publicar Biografia Profissional</h4>
+                    <p className="text-[10px] font-bold text-gold-primary/60 uppercase tracking-widest leading-none mt-2">
+                      {company.bio_publicado ? 'STATUS: ACTIVO (Visível para o Mundo)' : 'STATUS: RASCUNHO (Oculto)'}
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer scale-110">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={company.bio_publicado || false}
+                    onChange={(e) => setCompany({ ...company, bio_publicado: e.target.checked })}
+                  />
+                  <div className="w-16 h-8 bg-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-[4px] after:bg-white/20 after:border-transparent after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gold-primary/40 peer-checked:after:bg-gold-primary shadow-inner"></div>
+                </label>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2 space-y-4">
                   <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 italic">
@@ -642,41 +695,15 @@ export default function Settings() {
                   />
                 </div>
 
-                 <div className="md:col-span-2 space-y-4">
-                  <div className="flex items-center justify-between p-6 bg-gold-primary/5 rounded-2xl border border-gold-primary/20 gold-glow">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${company.bio_publicado ? 'bg-gold-primary text-bg-deep' : 'bg-white/5 text-white/20'}`}>
-                        <Globe size={24} className={company.bio_publicado ? 'animate-pulse' : ''} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-white uppercase tracking-tight italic">Publicar Biografia</h4>
-                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest leading-none mt-1">
-                          {company.bio_publicado ? 'Visível na Home e Dashboard' : 'Modo Rascunho'}
-                        </p>
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={company.bio_publicado || false}
-                        onChange={(e) => setCompany({ ...company, bio_publicado: e.target.checked })}
-                      />
-                      <div className="w-14 h-7 bg-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white/20 after:border-transparent after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gold-primary/40 peer-checked:after:bg-gold-primary shadow-inner"></div>
-                    </label>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Resumo Biográfico / Sobre Mim</label>
-                    <textarea
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all min-h-[120px]"
-                      value={company.bio_resumo || ''}
-                      placeholder="Escreva um breve resumo sobre a sua trajetória profissional..."
-                      onChange={e => setCompany({ ...company, bio_resumo: e.target.value })}
-                    />
-                  </div>
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Resumo Biográfico / Sobre Mim</label>
+                  <textarea
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:ring-2 focus:ring-gold-primary transition-all min-h-[120px]"
+                    value={company.bio_resumo || ''}
+                    placeholder="Escreva um breve resumo sobre a sua trajetória profissional..."
+                    onChange={e => setCompany({ ...company, bio_resumo: e.target.value })}
+                  />
                 </div>
-
               </div>
             </div>
           )}

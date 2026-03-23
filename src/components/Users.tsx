@@ -338,14 +338,14 @@ export default function Users() {
           {loading ? (
             <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-yellow-500" size={28} /></div>
           ) : (
-          <div className="glass-panel rounded-[32px] border border-white/10 shadow-sm overflow-hidden">
-            <div className="px-8 py-5 border-b border-white/5 flex items-center gap-3 bg-white/5">
-              <UsersIcon size={18} className="text-gold-primary/60" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white italic">
-                {users.length} utilizador{users.length !== 1 ? 'es' : ''} na rede activa
-              </span>
-            </div>
-            <div className="divide-y divide-white/5">
+            <div className="glass-panel rounded-[32px] border border-white/10 shadow-sm overflow-hidden">
+              <div className="px-8 py-5 border-b border-white/5 flex items-center gap-3 bg-white/5">
+                <UsersIcon size={18} className="text-gold-primary/60" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white italic">
+                  {users.length} utilizador{users.length !== 1 ? 'es' : ''} na rede activa
+                </span>
+              </div>
+              <div className="divide-y divide-white/5">
                 {users.map((u) => {
                   const perms = u.permissions || DEFAULT_PERMS[u.role] || {};
                   const activeModules = MODULE_DEFS.filter(m => perms[m.key]);

@@ -205,7 +205,16 @@ export default function PharmacyPOS() {
       setShowPayment(false);
       setAmountPaid('');
       setDiscount('0');
-      fetchMedicamentos();
+
+      // 🚀 PERFORMANCE OPTIMIZATION: Optimistic stock update for instant UI
+      const updatedMedicamentos = medicamentos.map(m => {
+        const cartItem = cart.find(ci => ci.id === m.id);
+        return cartItem ? { ...m, stock: m.stock - cartItem.quantity } : m;
+      });
+      setMedicamentos(updatedMedicamentos);
+
+      // Background refresh
+      setTimeout(fetchMedicamentos, 3000);
       if (autoPrint) setTimeout(() => handlePrint(), 500);
     } catch (err: any) {
       alert(`Erro: ${err.message}`);
@@ -227,12 +236,15 @@ export default function PharmacyPOS() {
             <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
             <p style={{ margin: '0', fontSize: '10px' }}>FARMÁCIA</p>
             <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '—'}</p>
-            <p style={{ margin: '0', fontSize: '10px' }}>Tel: {user?.phone || '—'}</p>
-            <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>FATURA-RECIBO</p>
+            {user?.address && <p style={{ margin: '0', fontSize: '9px' }}>{user.address}</p>}
+            {user?.phone && <p style={{ margin: '0', fontSize: '9px' }}>Tel: {user.phone}</p>}
+            {user?.company_email && <p style={{ margin: '0', fontSize: '9px' }}>Email: {user.company_email}</p>}
+            <p style={{ margin: '2mm 0 1mm 0', fontSize: '11px', fontWeight: 'bold' }}>{lastSale?.is_pro_forma ? 'FATURA PRÓ-FORMA' : 'FATURA-RECIBO'}</p>
+            <p style={{ margin: '0', fontSize: '9px', fontWeight: 'bold' }}>Original</p>
           </div>
 
           <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm', fontSize: '11px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Doc:</span><span style={{ fontWeight: 'bold' }}>{lastSale?.numero_factura}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>FACT Nº:</span><span style={{ fontWeight: 'bold' }}>{lastSale?.numero_factura || lastSale?.invoice_number}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Data:</span><span>{lastSale?.date}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paciente:</span><span style={{ textTransform: 'uppercase' }}>{lastSale?.customer?.name || 'CONSUMIDOR FINAL'}</span></div>
             {lastSale?.customer?.nif && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>NIF:</span><span>{lastSale?.customer?.nif}</span></div>}
@@ -244,6 +256,7 @@ export default function PharmacyPOS() {
               <tr style={{ borderBottom: '1px solid #000' }}>
                 <th style={{ textAlign: 'left', padding: '2px 0' }}>Item</th>
                 <th style={{ textAlign: 'center', padding: '2px 0' }}>Qtd</th>
+                <th style={{ textAlign: 'right', padding: '2px 0' }}>Preço Unit.</th>
                 <th style={{ textAlign: 'right', padding: '2px 0' }}>Total</th>
               </tr>
             </thead>
@@ -255,6 +268,7 @@ export default function PharmacyPOS() {
                     <div style={{ fontSize: '9px', opacity: 0.6 }}>{i.dosagem}</div>
                   </td>
                   <td style={{ textAlign: 'center', padding: '2px 0' }}>{i.quantity}</td>
+                  <td style={{ textAlign: 'right', padding: '2px 0' }}>{i.preco_venda?.toLocaleString('pt-AO')}</td>
                   <td style={{ textAlign: 'right', padding: '2px 0' }}>{(i.quantity * i.preco_venda).toLocaleString('pt-AO')}</td>
                 </tr>
               ))}
@@ -265,11 +279,7 @@ export default function PharmacyPOS() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
               <span>Subtotal:</span><span>{lastSale?.subtotal?.toLocaleString('pt-AO')}</span>
             </div>
-            {lastSale?.discountAmt > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
-                <span>Desconto:</span><span>-{lastSale?.discountAmt?.toLocaleString('pt-AO')}</span>
-              </div>
-            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}><span>Desconto (0%):</span><span>-{lastSale?.discountAmt?.toLocaleString('pt-AO') || '0,00'}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
               <span>IVA (14%):</span><span>{lastSale?.tax?.toLocaleString('pt-AO')}</span>
             </div>
@@ -278,34 +288,21 @@ export default function PharmacyPOS() {
               <span>{lastSale?.total?.toLocaleString('pt-AO')} {user?.currency}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2mm', fontSize: '10px' }}>
-              <span>Pago:</span><span>{lastSale?.amountPaid?.toLocaleString('pt-AO')}</span>
+              <span>Pago:</span><span>{lastSale?.amountPaid?.toLocaleString('pt-AO')} {user?.currency || 'Kz'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '11px' }}>
-              <span>Troco:</span><span>{lastSale?.change?.toLocaleString('pt-AO')}</span>
+              <span>Troco:</span><span>{lastSale?.change?.toLocaleString('pt-AO')} {user?.currency || 'Kz'}</span>
             </div>
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '6mm', padding: '4mm 0', borderTop: '1px dashed #000' }}>
-            <p style={{ fontSize: '9px', margin: '0 0 4mm 0', fontWeight: 'bold' }}>
-              {lastSale?.hash?.substring(0, 4)}-Processado por programa validado n.º 000/AGT/2024
+            <p style={{ fontSize: '9px', margin: '0 0 1mm 0', fontWeight: 'bold' }}>
+              {lastSale?.cert_phrase || 'Processado por programa validado n.º 0000/AGT/2026'}
+            </p>
+            <p style={{ fontSize: '8px', margin: '0 0 4mm 0', textTransform: 'uppercase' }}>
+              Regime: {user?.regime_iva || 'Geral'}
             </p>
 
-            <div style={{
-              width: '35mm',
-              height: '35mm',
-              border: '1px solid #000',
-              margin: '0 auto 4mm auto',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '8px',
-              color: '#666'
-            }}>
-              <p style={{ margin: '0' }}>QR CODE</p>
-              <p style={{ margin: '0' }}>SAF-T ANGOLA</p>
-              <p style={{ margin: '4px 0 0 0', fontSize: '7px' }}>AGUARDANDO CERTIFICAÇÃO</p>
-            </div>
 
             <p style={{ fontSize: '10px', fontWeight: 'bold' }}>Obrigado pela preferência!</p>
             <p style={{ fontSize: '9px', color: '#666' }}>Software de Gestão Multi-Empresa - Venda Plus</p>
@@ -357,7 +354,7 @@ export default function PharmacyPOS() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {filteredMedicamentos.map(med => {
+              {filteredMedicamentos.slice(0, 80).map(med => {
                 const inCart = cart.find(i => i.id === med.id);
                 const outOfStock = med.stock_total <= 0;
                 return (

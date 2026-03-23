@@ -2,12 +2,12 @@ import React from 'react';
 import { Phone, Mail, MessageSquare, Shield, Clock, Globe } from 'lucide-react';
 
 export default function Support() {
-    const contactInfo = {
-        name: "Eng.º Simão Puca",
-        phone: "945035089",
-        email: "simaopambo94@gmail.com",
-        whatsapp: "https://wa.me/244945035089?text=Olá Eng.º Simão Puca, preciso de suporte técnico no Venda Plus."
-    };
+  const contactInfo = {
+    name: "Eng.º Simão Puca",
+    phone: "945035089",
+    email: "simaopambo94@gmail.com",
+    whatsapp: "https://wa.me/244945035089?text=Olá Eng.º Simão Puca, preciso de suporte técnico no Venda Plus."
+  };
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 text-white min-h-screen bg-bg-deep/50 backdrop-blur-sm rounded-[40px]">
@@ -52,7 +52,16 @@ export default function Support() {
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gold-primary/30 to-transparent" />
             <div className="flex flex-col items-center text-center space-y-8">
               <div className="w-28 h-28 bg-white/5 rounded-full p-1.5 shadow-2xl relative">
-                <div className="w-full h-full bg-gold-gradient rounded-full flex items-center justify-center text-bg-deep border-4 border-bg-deep">
+                <img
+                  src="/simao_suporte.jpg"
+                  alt="Eng.º Simão Puca"
+                  className="w-full h-full object-cover rounded-full border-4 border-bg-deep shadow-inner"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <div className="hidden w-full h-full bg-gold-gradient rounded-full flex items-center justify-center text-bg-deep border-4 border-bg-deep">
                   <span className="text-4xl font-black italic">SP</span>
                 </div>
                 <div className="absolute bottom-2 right-2 w-7 h-7 bg-emerald-500 border-4 border-bg-deep rounded-full animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]" />

@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Trash2, Megaphone, Image as ImageIcon, Type, FileText, X, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Megaphone, Image as ImageIcon, Type, FileText, X, CheckCircle2, Edit } from 'lucide-react';
 
 export default function Marketing() {
   const { token, user } = useAuth();
   const [publications, setPublications] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     image: '',
-    type: 'news'
+    type: 'news',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: ''
   });
 
   useEffect(() => {
@@ -44,8 +47,11 @@ export default function Marketing() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/publications', {
-      method: 'POST',
+    const url = editingId ? `/api/publications/${editingId}` : '/api/publications';
+    const method = editingId ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
@@ -53,14 +59,48 @@ export default function Marketing() {
       body: JSON.stringify(formData)
     });
     if (res.ok) {
-      alert('Publicado com sucesso!');
+      alert(editingId ? 'Actualizado com sucesso!' : 'Publicado com sucesso!');
       setShowModal(false);
-      setFormData({ title: '', content: '', image: '', type: 'news' });
+      setEditingId(null);
+      setFormData({
+        title: '',
+        content: '',
+        image: '',
+        type: 'news',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: ''
+      });
       fetchData();
     } else {
       const err = await res.json();
       alert('Erro ao publicar: ' + (err.error || 'Erro desconhecido'));
     }
+  };
+
+  const handleEdit = (pub: any) => {
+    setEditingId(pub.id);
+    setFormData({
+      title: pub.title || '',
+      content: pub.content || '',
+      image: pub.image || '',
+      type: pub.type || 'news',
+      start_date: pub.start_date ? new Date(pub.start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      end_date: pub.end_date ? new Date(pub.end_date).toISOString().split('T')[0] : ''
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setFormData({
+      title: '',
+      content: '',
+      image: '',
+      type: 'news',
+      start_date: new Date().toISOString().split('T')[0],
+      end_date: ''
+    });
   };
 
   const handleDelete = async (id: number) => {
@@ -82,7 +122,18 @@ export default function Marketing() {
           <p className="text-gray-500 font-medium">Faça publicações para o <span className="text-emerald-600 font-bold">Venda Plus Mercado</span> e alcance mais clientes.</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setEditingId(null);
+            setFormData({
+              title: '',
+              content: '',
+              image: '',
+              type: 'news',
+              start_date: new Date().toISOString().split('T')[0],
+              end_date: ''
+            });
+            setShowModal(true);
+          }}
           className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-200"
         >
           <Plus size={20} />
@@ -108,15 +159,32 @@ export default function Marketing() {
               <p className="text-gray-500 text-sm line-clamp-3 mb-6">{pub.content}</p>
 
               <div className="flex justify-between items-center pt-6 border-t border-gray-50">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  {new Date(pub.created_at).toLocaleDateString()}
-                </span>
-                <button
-                  onClick={() => handleDelete(pub.id)}
-                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    Criado: {new Date(pub.created_at).toLocaleDateString()}
+                  </span>
+                  {(pub.start_date || pub.end_date) && (
+                    <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-tighter">
+                      Período: {pub.start_date ? new Date(pub.start_date).toLocaleDateString() : 'Imediato'} - {pub.end_date ? new Date(pub.end_date).toLocaleDateString() : 'Permanente'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEdit(pub)}
+                    className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all"
+                    title="Editar"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(pub.id)}
+                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    title="Eliminar"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -135,10 +203,12 @@ export default function Marketing() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="bg-white text-gray-900 rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div className="p-6 border-b flex justify-between items-center shrink-0">
-              <h3 className="text-xl font-black text-gray-900">Criar Publicação</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-xl font-black text-gray-900">
+                {editingId ? 'Editar Publicação' : 'Criar Publicação'}
+              </h3>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
@@ -192,6 +262,27 @@ export default function Marketing() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Data de Início</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 rounded-xl border-gray-200 focus:ring-2 focus:ring-emerald-500 font-bold"
+                      value={formData.start_date}
+                      onChange={e => setFormData({ ...formData, start_date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Data de Fim</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 rounded-xl border-gray-200 focus:ring-2 focus:ring-emerald-500 font-bold"
+                      value={formData.end_date}
+                      onChange={e => setFormData({ ...formData, end_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Imagem (Opcional)</label>
                   <div className="flex items-center gap-4">
@@ -219,7 +310,7 @@ export default function Marketing() {
               <div className="flex gap-3 pt-6">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={closeModal}
                   className="flex-1 py-4 border rounded-2xl font-bold text-gray-500 hover:bg-gray-50 transition-all"
                 >
                   Cancelar
@@ -228,7 +319,7 @@ export default function Marketing() {
                   type="submit"
                   className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all"
                 >
-                  Publicar Agora
+                  {editingId ? 'Guardar Alterações' : 'Publicar Agora'}
                 </button>
               </div>
             </form>

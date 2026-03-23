@@ -191,8 +191,8 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
           </div>
           <div style={{ borderTop: '1px dashed black', borderBottom: '1px dashed black', padding: '4px 0', marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Nº DOC:</span>
-              <span style={{ fontWeight: 'bold' }}>{lastPayment?.document_number}</span>
+              <span>RE Nº:</span>
+              <span style={{ fontWeight: 'bold' }}>{lastPayment?.document_number || lastPayment?.id || '---'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>DATA/HORA:</span>
@@ -219,7 +219,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
             <p style={{ fontSize: '10px', marginTop: '5px' }}>Referente à liquidação da fatura associada à transação.</p>
           </div>
           <div style={{ borderTop: '1px dashed black', paddingTop: '5px', textAlign: 'center', fontSize: '10px' }}>
-            <p style={{ margin: '0', fontWeight: 'bold' }}>{lastPayment?.hash?.substring(0, 4)}-Processado por Programas Validados</p>
+            <p style={{ margin: '0', fontWeight: 'bold' }}>Emitido por programa validado n.º 0000/AGT/2026</p>
             <p style={{ margin: '2px 0 0 0', opacity: 0.7 }}>Obrigado pela preferência!</p>
           </div>
         </div>

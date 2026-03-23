@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FileText, TrendingUp, Search, Printer, Download, Package, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useReactToPrint } from 'react-to-print';
+import { A4ReportTemplate } from '../reports/A4ReportTemplate';
 
 // ─── A4 Printable Template ────────────────────────────────────────────────────
 const PrintableA4 = React.forwardRef<HTMLDivElement, { user: any; vendas: any[]; period: string }>(
@@ -17,77 +18,60 @@ const PrintableA4 = React.forwardRef<HTMLDivElement, { user: any; vendas: any[];
     };
 
     return (
-      <div ref={ref} style={{ fontFamily: "'Segoe UI', Arial, sans-serif", background: 'white', color: '#111', width: '210mm', minHeight: '297mm', padding: '15mm 18mm', boxSizing: 'border-box' }}>
-        <style>{`
-          @page { size: A4 portrait; margin: 0; }
-          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        `}</style>
-
-        {/* Company Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #065f46', paddingBottom: '10mm', marginBottom: '8mm' }}>
-          <div>
-            <div style={{ fontWeight: 900, fontSize: '22px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{user?.company_name || 'Farmácia'}</div>
-            <div style={{ fontSize: '11px', color: '#555', marginTop: '3px' }}>NIF: {user?.nif || '—'}</div>
-            <div style={{ fontSize: '11px', color: '#065f46', fontWeight: 700, marginTop: '2px' }}>FARMÁCIA LICENCIADA</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 900, fontSize: '16px', color: '#065f46', textTransform: 'uppercase' }}>Relatório de Vendas Farmacêuticas</div>
-            <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>Período: {periodLabels[period] || period}</div>
-            <div style={{ fontSize: '11px', color: '#555' }}>Emitido em: {today}</div>
-          </div>
-        </div>
-
+      <A4ReportTemplate
+        ref={ref}
+        title="Relatório de Vendas Farmacêuticas"
+        companyData={user}
+        dateRange={periodLabels[period] || period}
+        orientation="portrait"
+      >
         {/* Summary Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6mm', marginBottom: '8mm' }}>
+        <div className="flex gap-6 mb-6 a4-print-no-break">
           {[
             { label: 'Total de Vendas', value: `${total.toLocaleString('pt-AO')} ${user?.currency}`, color: '#065f46' },
             { label: 'Número de Faturas', value: vendas.length.toString(), color: '#1e40af' },
           ].map((c, i) => (
-            <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '4mm' }}>
-              <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280', marginBottom: '3px' }}>{c.label}</div>
-              <div style={{ fontSize: '20px', fontWeight: 900, color: c.color }}>{c.value}</div>
+            <div key={i} className="border border-gray-300 rounded-md p-4 flex-1">
+              <div className="text-[9px] font-bold text-gray-500 uppercase mb-1">{c.label}</div>
+              <div className="text-xl font-black" style={{ color: c.color }}>{c.value}</div>
             </div>
           ))}
         </div>
 
         {/* Table */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+        <table className="a4-table">
           <thead>
-            <tr style={{ background: '#065f46', color: '#fff' }}>
+            <tr>
               {['Nº', 'Fatura', 'Data / Hora', 'Método Pagamento', `Total (${user?.currency})`, 'Estado'].map((h, i) => (
-                <th key={i} style={{ padding: '3mm 4mm', textAlign: i >= 4 ? 'right' : 'left', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                <th key={i} className={i >= 4 ? 'text-right' : 'text-left'}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {vendas.map((v, i) => (
-              <tr key={v.id} style={{ background: i % 2 === 0 ? '#f9fafb' : '#fff', pageBreakInside: 'avoid' }}>
-                <td style={{ padding: '2.5mm 4mm', color: '#6b7280' }}>{i + 1}</td>
-                <td style={{ padding: '2.5mm 4mm', fontWeight: 700 }}>{v.numero_factura}</td>
-                <td style={{ padding: '2.5mm 4mm', color: '#374151' }}>{new Date(v.created_at).toLocaleString('pt-AO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                <td style={{ padding: '2.5mm 4mm', textTransform: 'capitalize' }}>{v.forma_pagamento || '—'}</td>
-                <td style={{ padding: '2.5mm 4mm', textAlign: 'right', fontWeight: 700, color: '#065f46' }}>{(v.total || 0).toLocaleString('pt-AO')}</td>
-                <td style={{ padding: '2.5mm 4mm', textAlign: 'right' }}>
-                  <span style={{ background: '#d1fae5', color: '#065f46', borderRadius: '4px', padding: '1mm 2.5mm', fontWeight: 700, fontSize: '9px', textTransform: 'uppercase' }}>Pago</span>
-                </td>
-              </tr>
-            ))}
+            {vendas.length === 0 ? (
+              <tr><td colSpan={6} className="text-center">Sem dados no período</td></tr>
+            ) : (
+              vendas.map((v, i) => (
+                <tr key={v.id}>
+                  <td>{i + 1}</td>
+                  <td className="font-bold">{v.numero_factura}</td>
+                  <td>{new Date(v.created_at).toLocaleString('pt-AO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td className="capitalize">{v.forma_pagamento || '—'}</td>
+                  <td className="text-right font-bold text-[#065f46]">{(v.total || 0).toLocaleString('pt-AO')}</td>
+                  <td className="text-right font-bold text-[9px] text-[#065f46]">PAGO</td>
+                </tr>
+              ))
+            )}
           </tbody>
           <tfoot>
-            <tr style={{ background: '#065f46', color: '#fff', fontWeight: 900 }}>
-              <td colSpan={4} style={{ padding: '3mm 4mm', textAlign: 'right', textTransform: 'uppercase', fontSize: '10px' }}>TOTAL GERAL</td>
-              <td style={{ padding: '3mm 4mm', textAlign: 'right', fontSize: '13px' }}>{total.toLocaleString('pt-AO')}</td>
+            <tr>
+              <td colSpan={4} className="text-right pr-4">TOTAL GERAL:</td>
+              <td className="text-right text-[12px]">{(total || 0).toLocaleString('pt-AO')}</td>
               <td></td>
             </tr>
           </tfoot>
         </table>
-
-        {/* Footer */}
-        <div style={{ position: 'fixed', bottom: '10mm', left: '18mm', right: '18mm', borderTop: '1px solid #e5e7eb', paddingTop: '4mm', display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#9ca3af' }}>
-          <span>{user?.company_name} — Gerado automaticamente pelo Venda Plus</span>
-          <span style={{ fontWeight: 700 }}>Documento de uso interno</span>
-        </div>
-      </div>
+      </A4ReportTemplate>
     );
   }
 );
@@ -112,7 +96,6 @@ export default function RelatoriosFarmacia() {
 
   const handlePrintA4 = useReactToPrint({
     contentRef: printA4Ref,
-    pageStyle: `@page { size: A4 portrait; margin: 0; } @media print { body { -webkit-print-color-adjust: exact; } }`,
     documentTitle: `Farmácia-Relatório-${new Date().toLocaleDateString('pt-AO')}`,
   });
 

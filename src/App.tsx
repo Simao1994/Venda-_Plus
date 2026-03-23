@@ -25,7 +25,8 @@ import {
   Truck,
   User,
   BarChart,
-  FolderOpen
+  FolderOpen,
+  Globe
 } from 'lucide-react';
 import { supabase } from "./lib/supabase";
 import Support from "./components/Support";
@@ -50,6 +51,7 @@ import SaftModule from './components/saft/SaftModule';
 import EmployeeSales from './components/reports/EmployeeSales';
 import LabelsModule from './components/labels/LabelsModule';
 import FilesModule from './components/files/FilesModule';
+import AgtModule from './components/agt/AgtModule';
 
 function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void, onGoToRegister: () => void }) {
   const { login } = useAuth();
@@ -355,7 +357,9 @@ export default function App() {
     { id: 'pharmacy', label: "Farmácia", icon: Cross, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'pharmacy' },
     { id: 'hr', label: "RH", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
     { id: 'accounting', label: "Contabilidade", icon: Calculator, roles: ['admin', 'manager', 'master'], feature: 'sales' },
-    { id: 'saft', label: "SAF-T (AGT)", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'sales' },
+    { id: 'saft', label: "SAF-T (AOA) XML", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'sales' },
+
+    { id: 'agt', label: "Webservice AGT", icon: Globe, roles: ['admin', 'manager', 'master'], feature: 'sales' },
     { id: 'employee_sales', label: "Desempenho Vendas", icon: BarChart, roles: ['admin', 'manager', 'master'], feature: 'sales' },
     { id: 'marketing', label: "Marketing", icon: Smartphone, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
     { id: 'blog', label: "Blog Corporativo", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'marketing' },
@@ -530,6 +534,7 @@ export default function App() {
           {activeTab === 'hr' && <HRModule />}
           {activeTab === 'accounting' && <Accounting user={user as any} />}
           {activeTab === 'saft' && <SaftModule />}
+          {activeTab === 'agt' && <AgtModule />}
           {activeTab === 'marketing' && <Marketing />}
           {activeTab === 'blog' && <BlogPage user={user as any} />}
           {activeTab === 'subscription' && <SubscriptionManagement />}

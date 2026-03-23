@@ -134,37 +134,7 @@ async function startServer() {
     console.error('❌ Database Schema Sync Failed:', err.message);
   });
 
-  // Diagnostic & Repair: Ensure all companies have a branch and users are associated
-  try {
-    const { data: companies } = await supabase.from('companies').select('id, name');
-    if (companies) {
-      for (const company of companies) {
-        const { data: branches } = await supabase.from('branches').select('id').eq('company_id', company.id);
-        let defaultBranchId: number;
-
-        if (!branches || branches.length === 0) {
-          console.log(`🔧 Repair: Creating default branch for company ${company.name}`);
-          const { data: newBranch } = await supabase.from('branches').insert({
-            company_id: company.id,
-            name: 'Sede Central'
-          }).select('id').single();
-          defaultBranchId = newBranch?.id;
-        } else {
-          defaultBranchId = branches[0].id;
-        }
-
-        // Fix users without branch_id
-        if (defaultBranchId) {
-          await supabase.from('users').update({ branch_id: defaultBranchId }).eq('company_id', company.id).is('branch_id', null);
-        }
-      }
-    }
-  } catch (err: any) {
-    console.error('❌ Data Repair Failed:', err.message);
-  } finally {
-    const { data: testCount } = await supabase.from('branches').select('count', { count: 'exact', head: true });
-    console.log(`📊 Diagnostic: Total branches in DB: ${testCount || 0}`);
-  }
+  console.log('📊 Diagnostic: Skipping repair loop for startup speed.');
 
   const app = express();
   app.use(cors());
@@ -194,12 +164,14 @@ async function startServer() {
   const checkLicense = async (req: any, res: any, next: any) => {
     if (req.user.role === 'master') return next();
 
-    const { data: subscription, error } = await supabase
+    const { data: subs, error } = await supabase
       .from("saas_subscriptions")
       .select("*")
       .eq("company_id", req.user.company_id)
       .eq("status", "active")
-      .single();
+      .limit(1);
+
+    const subscription = subs?.[0];
 
     if (error || !subscription) return res.status(403).json({ error: "Sua licença expirou ou está suspensa. Por favor, regularize seu plano." });
 
@@ -217,12 +189,14 @@ async function startServer() {
   const checkFeature = (feature: string) => async (req: any, res: any, next: any) => {
     if (req.user.role === 'master') return next();
 
-    const { data: subscription, error } = await supabase
+    const { data: subs, error } = await supabase
       .from("saas_subscriptions")
       .select("*, saas_plans(features)")
       .eq("company_id", req.user.company_id)
       .eq("status", "active")
-      .single();
+      .limit(1);
+
+    const subscription = subs?.[0];
 
     if (error || !subscription) return res.status(403).json({ error: "Plano inativo ou expirado." });
 
@@ -457,15 +431,20 @@ async function startServer() {
   // Auth Routes
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
-    const { data: user, error } = await supabase
+    const { data: users, error } = await supabase
       .from("users")
       .select("*, companies(name, currency, imagem_home, nif, email, phone, address, regime_iva)")
       .eq("email", email)
-      .single();
+      .limit(1);
 
     if (error) {
       console.error('❌ Erro na consulta de login (Supabase):', error.message);
       return res.status(401).json({ error: "Credenciais inválidas (Erro de Ligação)" });
+    }
+
+    const user = users?.[0];
+    if (!user) {
+      return res.status(401).json({ error: "Credenciais inválidas." });
     }
     // 1. Check if account is locked
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
@@ -1053,7 +1032,7 @@ async function startServer() {
 
   app.put("/api/company/profile", authenticate, async (req: any, res) => {
     if (!['admin', 'master', 'manager'].includes(req.user.role)) return res.status(403).json({ error: "Acesso negado" });
-    const { 
+    const {
       name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home,
       bio_nome, bio_foto, bio_formacao, bio_profissao, bio_competencias, bio_contactos, bio_emails, bio_resumo, bio_publicado
     } = req.body;
@@ -1062,8 +1041,8 @@ async function startServer() {
 
     const { data: updatedCompany, error } = await supabase
       .from("companies")
-      .update({ 
-        name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home, 
+      .update({
+        name, nif, address, phone, email, tax_percentage, currency, logo, role_permissions, imagem_home,
         bio_nome, bio_foto, bio_formacao, bio_profissao, bio_competencias, bio_contactos, bio_emails, bio_resumo, bio_publicado
       })
       .eq("id", req.user.company_id)
@@ -1074,7 +1053,7 @@ async function startServer() {
       console.error("[Settings API] Erro Supabase ao atualizar empresa:", error);
       return res.status(500).json({ error: error.message });
     }
-    
+
     console.log(`[Settings API] Success! Updated ID ${req.user.company_id}. New Bio Nome: ${updatedCompany?.bio_nome}`);
     res.json(updatedCompany);
   });
@@ -1739,6 +1718,7 @@ async function startServer() {
       // INTEGRAÇÃO AGT: Envia fatura em background se auto_send = true
       onInvoiceCreated({
         id: saleId,
+        company_id: req.user.company_id,
         invoice_number,
         total,
         subtotal,
@@ -1858,6 +1838,7 @@ async function startServer() {
       // INTEGRAÇÃO AGT: Envia Nota de Crédito
       onInvoiceCreated({
         id: id, // ID da venda original (ou criar registro de NC se houver tabela própria)
+        company_id: req.user.company_id,
         invoice_number: document_number,
         total: -sale.total, // Valores negativos em NC
         subtotal: -sale.subtotal,
@@ -2182,6 +2163,44 @@ async function startServer() {
 
     res.json(topProducts);
   });
+
+  // Category-based Performance (for Performance por Sector chart)
+  app.get("/api/dashboard/category-performance", authenticate, async (req: any, res) => {
+    const companyId = req.user.company_id;
+    const { data: items } = await supabase
+      .from("sale_items")
+      .select("quantity, total, products(name, categories(name))")
+      .eq("sales.company_id", companyId);
+
+    const catMap: Record<string, { total_revenue: number; total_sold: number }> = {};
+    items?.forEach((i: any) => {
+      const catName = i.products?.categories?.name || 'Sem Categoria';
+      if (!catMap[catName]) catMap[catName] = { total_revenue: 0, total_sold: 0 };
+      catMap[catName].total_revenue += (i.total || 0);
+      catMap[catName].total_sold += (i.quantity || 0);
+    });
+
+    const result = Object.entries(catMap)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.total_revenue - a.total_revenue)
+      .slice(0, 7);
+
+    res.json(result);
+  });
+
+  // All debtors for Gestão de Cobranças
+  app.get("/api/dashboard/debtors", authenticate, async (req: any, res) => {
+    const companyId = req.user.company_id;
+    const { data: debtors } = await supabase
+      .from("customers")
+      .select("id, name, phone, email, balance")
+      .eq("company_id", companyId)
+      .gt("balance", 0)
+      .order("balance", { ascending: false });
+
+    res.json(debtors || []);
+  });
+
 
   // --- MÓDULO FARMÁCIA APIs ---
 
@@ -2621,15 +2640,15 @@ async function startServer() {
     const companyId = req.user.company_id;
     const vendedorId = req.user.id;
 
+    const subtotal = (itens || []).reduce((acc: number, item: any) => acc + (Number(item.quantidade || 0) * Number(item.preco_unitario || 0)), 0);
+    const iva = subtotal * 0.14;
+    const total = subtotal + iva;
+
     if (total <= 0) {
       return res.status(400).json({ error: "Venda de farmácia não pode ter valor zero ou negativo." });
     }
 
-
-    let subtotal = itens.reduce((acc: number, item: any) => acc + (item.quantidade * item.preco_unitario), 0);
-    const iva = subtotal * 0.14;
-    const total = subtotal + iva;
-    const troco = valor_entregue ? valor_entregue - total : 0;
+    const troco = valor_entregue ? Number(valor_entregue) - total : 0;
     const { data: activeSeries } = await supabase
       .from("billing_series")
       .select("*")
@@ -2782,6 +2801,7 @@ async function startServer() {
     // INTEGRAÇÃO AGT: Envia venda de farmácia
     onInvoiceCreated({
       id: venda.id,
+      company_id: req.user.company_id,
       invoice_number: numero_factura,
       total,
       subtotal,
@@ -3229,12 +3249,29 @@ async function startServer() {
 
   // Publications APIs
   app.get("/api/public/publications", async (req, res) => {
+    const now = new Date().toISOString();
     const { data: publications, error } = await supabase
       .from("publications")
       .select("*, companies(name, logo, phone, email, address)")
+      .or(`start_date.is.null,start_date.lte.${now}`)
+      .or(`end_date.is.null,end_date.gte.${now}`)
       .order("created_at", { ascending: false });
 
-    const formatted = publications?.map((p: any) => ({
+    // Note: or chaining in Supabase JS client can be tricky with multiple conditions.
+    // If the above .or().or() doesn't work as expected, we might need a more complex filter or filter in JS.
+    // Let's try to filter in JS for maximum reliability given Supabase's simple .or() limitations.
+
+    const filtered = (publications || []).filter((p: any) => {
+      const startDate = p.start_date ? new Date(p.start_date) : null;
+      const endDate = p.end_date ? new Date(p.end_date) : null;
+      const today = new Date();
+
+      if (startDate && startDate > today) return false;
+      if (endDate && endDate < today) return false;
+      return true;
+    });
+
+    const formatted = filtered?.map((p: any) => ({
       ...p,
       company_name: p.companies?.name,
       company_logo: p.companies?.logo,
@@ -3247,7 +3284,7 @@ async function startServer() {
   });
 
   app.post("/api/publications", authenticate, async (req: any, res) => {
-    const { title, content, image, type } = req.body;
+    const { title, content, image, type, start_date, end_date } = req.body;
     const { data, error } = await supabase
       .from("publications")
       .insert([{
@@ -3255,13 +3292,34 @@ async function startServer() {
         title,
         content,
         image,
-        type: type || 'news'
+        type: type || 'news',
+        start_date: start_date || null,
+        end_date: end_date || null
       }])
       .select("id")
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
     res.json({ id: data.id });
+  });
+
+  app.put("/api/publications/:id", authenticate, async (req: any, res) => {
+    const { title, content, image, type, start_date, end_date } = req.body;
+    const { error } = await supabase
+      .from("publications")
+      .update({
+        title,
+        content,
+        image,
+        type: type || 'news',
+        start_date: start_date || null,
+        end_date: end_date || null
+      })
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
   });
 
   app.delete("/api/publications/:id", authenticate, async (req: any, res) => {
@@ -3335,11 +3393,16 @@ async function startServer() {
   });
 
   // Employees
-  app.get("/api/hr/employees", authenticate, async (req: any, res) => {
-    const { data: employees, error } = await supabase
+  app.get("/api/hr/employees", authenticate, async (req: any, res: any) => {
+    const { status } = req.query;
+    let query = supabase
       .from("hr_employees")
       .select("*, hr_departments(name)")
       .eq("company_id", req.user.company_id);
+
+    if (status) query = query.eq("status", status);
+
+    const { data: employees, error } = await query;
 
     if (error) return res.status(500).json({ error: error.message });
 
@@ -3635,6 +3698,157 @@ async function startServer() {
       departments: departmentCount || 0,
       lastPayroll: lastPayroll || null
     });
+  });
+
+  // HR - Vagas (Vacancies)
+  app.get("/api/hr/vagas", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_vagas")
+      .select("*")
+      .eq("company_id", req.user.company_id)
+      .order("criado_em", { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  });
+
+  app.post("/api/hr/vagas", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_vagas")
+      .insert([{ ...req.body, company_id: req.user.company_id }]);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
+  app.put("/api/hr/vagas/:id", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_vagas")
+      .update(req.body)
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
+  app.delete("/api/hr/vagas/:id", authenticate, async (req: any, res) => {
+    const { error } = await supabase
+      .from("hr_vagas")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  });
+
+  // HR - Candidaturas
+  app.get("/api/hr/candidaturas", authenticate, async (req: any, res) => {
+    const { vagaId } = req.query;
+    let query = supabase.from("hr_candidaturas").select("*").eq("company_id", req.user.company_id);
+    if (vagaId) query = query.eq("vaga_id", vagaId);
+
+    const { data, error } = await query.order("data_envio", { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  });
+
+  app.put("/api/hr/candidaturas/:id/status", authenticate, async (req: any, res) => {
+    const { status } = req.body;
+    const { data, error } = await supabase
+      .from("hr_candidaturas")
+      .update({ status })
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
+  // HR - Metas (KPIs)
+  app.get("/api/hr/metas", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_metas")
+      .select("*")
+      .eq("company_id", req.user.company_id)
+      .order("created_at", { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  });
+
+  app.post("/api/hr/metas", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_metas")
+      .insert([{ ...req.body, company_id: req.user.company_id }]);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
+  app.put("/api/hr/metas/:id", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_metas")
+      .update(req.body)
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
+  app.delete("/api/hr/metas/:id", authenticate, async (req: any, res) => {
+    const { error } = await supabase
+      .from("hr_metas")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  });
+
+  // HR - Bank Accounts
+  app.get("/api/hr/bank-accounts", authenticate, async (req: any, res) => {
+    const { funcionarioId } = req.query;
+    let query = supabase.from("hr_contas_bancarias").select("*").eq("company_id", req.user.company_id);
+    if (funcionarioId) query = query.eq("funcionario_id", funcionarioId);
+
+    const { data, error } = await query.order("principal", { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  });
+
+  app.post("/api/hr/bank-accounts", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_contas_bancarias")
+      .insert([{ ...req.body, company_id: req.user.company_id }]);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
+  app.put("/api/hr/bank-accounts/:id", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("hr_contas_bancarias")
+      .update(req.body)
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
+  app.delete("/api/hr/bank-accounts/:id", authenticate, async (req: any, res) => {
+    const { error } = await supabase
+      .from("hr_contas_bancarias")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
   });
 
   // --- FIM MÓDULO RECURSOS HUMANOS APIs ---
@@ -4186,6 +4400,7 @@ async function startServer() {
       // INTEGRAÇÃO AGT: Envia fatura em background se auto_send = true
       onInvoiceCreated({
         id: doc.id,
+        company_id: req.user.company_id,
         invoice_number: doc.document_number,
         total: doc.total_amount,
         subtotal: doc.tax_base_amount,

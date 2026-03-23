@@ -81,7 +81,8 @@ export default function SaftModule() {
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
-                        Módulo <span className="text-gold-gradient">SAF-T (AGT)</span>
+                        Módulo <span className="text-gold-gradient">SAF-T (AOA) XML</span>
+
                     </h1>
                     <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">
                         Validação Fiscal & Exportação
@@ -126,7 +127,8 @@ export default function SaftModule() {
                             ) : (
                                 <>
                                     <FileDown size={18} />
-                                    Gerar SAF-T (AGT)
+                                    Gerar SAF-T (AOA) XML
+
                                 </>
                             )}
                         </button>

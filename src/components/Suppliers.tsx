@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Truck, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, Save, X } from 'lucide-react';
+import { Truck, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, Save, X, Printer } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
+import { A4ReportTemplate } from './reports/A4ReportTemplate';
 import { api } from '../lib/api';
 
 interface Supplier {
@@ -12,7 +14,7 @@ interface Supplier {
 }
 
 export default function Suppliers() {
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -23,6 +25,12 @@ export default function Suppliers() {
         phone: '',
         email: '',
         address: ''
+    });
+
+    const printRef = React.useRef<HTMLDivElement>(null);
+    const handlePrint = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: `Relatorio-Fornecedores-${new Date().toLocaleDateString('pt-AO')}`
     });
 
     useEffect(() => {
@@ -97,17 +105,57 @@ export default function Suppliers() {
                     </h1>
                     <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">Strategic partner network & supply chain links</p>
                 </div>
-                <button
-                    onClick={() => {
-                        setEditingSupplier(null);
-                        setFormData({ name: '', phone: '', email: '', address: '' });
-                        setShowModal(true);
-                    }}
-                    className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl"
+                <div className="flex gap-4">
+                    <button
+                        onClick={handlePrint}
+                        className="flex items-center gap-3 px-8 py-4 bg-white/5 text-white/60 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all shadow-xl"
+                    >
+                        <Printer size={18} />
+                        Imprimir Relatório
+                    </button>
+                    <button
+                        onClick={() => {
+                            setEditingSupplier(null);
+                            setFormData({ name: '', phone: '', email: '', address: '' });
+                            setShowModal(true);
+                        }}
+                        className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all shadow-2xl"
+                    >
+                        <Plus size={18} />
+                        Initialize Partner
+                    </button>
+                </div>
+            </div>
+
+            {/* Hidden A4 Report */}
+            <div style={{ display: 'none' }}>
+                <A4ReportTemplate
+                    ref={printRef}
+                    title="Relatório de Fornecedores"
+                    companyData={user}
+                    orientation="portrait"
                 >
-                    <Plus size={18} />
-                    Initialize Partner
-                </button>
+                    <table className="a4-table">
+                        <thead>
+                            <tr>
+                                <th>Denominação</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Endereço</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredSuppliers.map(s => (
+                                <tr key={s.id}>
+                                    <td className="font-bold">{s.name}</td>
+                                    <td>{s.phone || '-'}</td>
+                                    <td>{s.email || '-'}</td>
+                                    <td>{s.address || '-'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </A4ReportTemplate>
             </div>
 
             <div className="relative z-10">

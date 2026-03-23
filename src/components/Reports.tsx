@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { FileText, Download, Printer, Filter, Search, Package, TrendingUp, BarChart3, Users, DollarSign, PieChart } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RePieChart, Pie } from 'recharts';
+import { A4ReportTemplate } from './reports/A4ReportTemplate';
 
 // ─── Printable A4 Report Template ────────────────────────────────────────────
 const PrintableReport = React.forwardRef<HTMLDivElement, {
@@ -15,7 +16,6 @@ const PrintableReport = React.forwardRef<HTMLDivElement, {
   startDate: string;
   endDate: string;
 }>(({ user, activeTab, filteredSales, topProducts, profitReport, payrollSummary, startDate, endDate }, ref) => {
-  const today = new Date().toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' });
   const period = startDate && endDate
     ? `${new Date(startDate).toLocaleDateString('pt-AO')} – ${new Date(endDate).toLocaleDateString('pt-AO')}`
     : 'Período completo';
@@ -28,38 +28,13 @@ const PrintableReport = React.forwardRef<HTMLDivElement, {
   };
 
   return (
-    <div ref={ref} style={{ fontFamily: "'Segoe UI', Arial, sans-serif", background: 'white', color: '#111', width: '210mm', minHeight: '297mm', padding: '15mm 18mm', boxSizing: 'border-box' }}>
-      {/* Page Header */}
-      <style>{`
-        @page {
-          size: A4 portrait;
-          margin: 0;
-        }
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-page { page-break-after: always; }
-          .print-no-break { page-break-inside: avoid; }
-        }
-        .page-number::after {
-          content: counter(page) " / " counter(pages);
-        }
-        @page { counter-increment: page; }
-      `}</style>
-
-      {/* ── Company Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #111', paddingBottom: '10mm', marginBottom: '8mm' }}>
-        <div>
-          <div style={{ fontWeight: 900, fontSize: '22px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{user?.company_name || 'Empresa'}</div>
-          <div style={{ fontSize: '11px', color: '#555', marginTop: '3px' }}>NIF: {user?.nif || '—'}</div>
-          <div style={{ fontSize: '11px', color: '#555' }}>Endereço: {user?.address || 'Luanda, Angola'}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 900, fontSize: '16px', color: '#1a6b3c', textTransform: 'uppercase' }}>{reportTitles[activeTab]}</div>
-          <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>Período: {period}</div>
-          <div style={{ fontSize: '11px', color: '#555' }}>Emitido em: {today}</div>
-        </div>
-      </div>
-
+    <A4ReportTemplate
+      ref={ref}
+      title={reportTitles[activeTab]}
+      companyData={user}
+      dateRange={period}
+      orientation={activeTab === 'sales' ? 'landscape' : 'portrait'}
+    >
       {/* ── VENDAS ── */}
       {activeTab === 'sales' && (
         <>
@@ -223,12 +198,7 @@ const PrintableReport = React.forwardRef<HTMLDivElement, {
         </table>
       )}
 
-      {/* ── Footer with page number ── */}
-      <div style={{ position: 'fixed', bottom: '10mm', left: '18mm', right: '18mm', borderTop: '1px solid #e5e7eb', paddingTop: '4mm', display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#9ca3af' }}>
-        <span>{user?.company_name} — Documento gerado automaticamente pelo Venda Plus</span>
-        <span className="page-number" style={{ fontWeight: 700 }}>Pág. </span>
-      </div>
-    </div>
+    </A4ReportTemplate>
   );
 });
 PrintableReport.displayName = 'PrintableReport';
@@ -251,13 +221,6 @@ export default function Reports() {
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    pageStyle: `
-      @page { size: A4 portrait; margin: 0; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        html, body { height: 100%; }
-      }
-    `,
     documentTitle: `Venda Plus — ${activeTab.toUpperCase()} — ${new Date().toLocaleDateString('pt-AO')}`,
   });
 
@@ -347,8 +310,8 @@ export default function Reports() {
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative">
         <div className="relative">
-           <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-1 h-12 bg-gold-primary rounded-full shadow-[0_0_20px_rgba(212,175,55,0.4)]" />
-           <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">
+          <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-1 h-12 bg-gold-primary rounded-full shadow-[0_0_20px_rgba(212,175,55,0.4)]" />
+          <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">
             Intelligence <span className="text-gold-gradient">Matrix</span>
           </h1>
           <p className="text-[10px] font-black text-gold-primary/40 uppercase tracking-[0.4em] mt-2 italic">Data visualization & performance analytics</p>
@@ -382,8 +345,8 @@ export default function Reports() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all whitespace-nowrap border-2 ${activeTab === tab.id 
-              ? 'bg-gold-primary/10 border-gold-primary/30 text-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.1)]' 
+            className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all whitespace-nowrap border-2 ${activeTab === tab.id
+              ? 'bg-gold-primary/10 border-gold-primary/30 text-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.1)]'
               : 'border-transparent text-white/30 hover:text-white/60 hover:bg-white/5'}`}
           >
             <tab.icon size={16} className={activeTab === tab.id ? 'text-gold-primary' : ''} />
@@ -435,7 +398,7 @@ export default function Reports() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              
+
               <div className="flex flex-wrap items-center gap-6 w-full xl:w-auto">
                 <div className="flex items-center gap-6 bg-white/5 p-3 rounded-3xl border border-white/10">
                   <div className="flex items-center gap-3 px-4 py-2 hover:bg-white/5 rounded-xl transition-all group">
@@ -486,11 +449,10 @@ export default function Reports() {
                       <td className="px-10 py-6 text-gold-primary/60 font-black uppercase text-[9px] tracking-widest italic">{sale.payment_method || '—'}</td>
                       <td className="px-10 py-6 text-right font-black text-white italic tracking-tighter text-base">{sale.total.toLocaleString('pt-AO')}</td>
                       <td className="px-10 py-6 text-center">
-                        <span className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] border shadow-sm ${
-                          sale.status === 'paid' 
-                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                        <span className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] border shadow-sm ${sale.status === 'paid'
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                             : 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                        }`}>
+                          }`}>
                           {sale.status === 'paid' ? 'Authenticated' : 'Unsigned'}
                         </span>
                       </td>
@@ -522,9 +484,9 @@ export default function Reports() {
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.03)" />
                   <XAxis type="number" hide />
                   <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }} axisLine={false} tickLine={false} />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{ fill: 'rgba(255,255,255,0.02)' }}
-                    contentStyle={{ borderRadius: '20px', border: '1px solid rgba(212,175,55,0.2)', backgroundColor: '#0B0B0B', padding: '16px' }} 
+                    contentStyle={{ borderRadius: '20px', border: '1px solid rgba(212,175,55,0.2)', backgroundColor: '#0B0B0B', padding: '16px' }}
                     itemStyle={{ fontWeight: 900, color: '#D4AF37', fontSize: '11px', textTransform: 'uppercase' }}
                   />
                   <Bar dataKey="total_quantity" fill="#D4AF37" radius={[0, 12, 12, 0]} barSize={24} />
@@ -532,9 +494,9 @@ export default function Reports() {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           <div className="glass-panel p-10 rounded-[40px] border border-white/5 shadow-2xl relative overflow-hidden group">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-gold-primary/5 rounded-full blur-3xl -mr-32 -mt-32 opacity-30" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gold-primary/5 rounded-full blur-3xl -mr-32 -mt-32 opacity-30" />
             <h3 className="text-xl font-black text-white mb-10 flex items-center gap-4 italic tracking-tighter uppercase">
               <PieChart className="text-gold-primary" /> Revenue Spectrum
             </h3>
@@ -544,7 +506,7 @@ export default function Reports() {
                   <Pie data={topProducts} dataKey="total_revenue" nameKey="name" cx="50%" cy="45%" outerRadius={140} innerRadius={90} paddingAngle={8} stroke="transparent">
                     {topProducts.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity cursor-pointer shadow-lg" />))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#0B0B0B', fontSize: '10px', color: '#fff' }}
                   />
                 </RePieChart>
@@ -602,8 +564,8 @@ export default function Reports() {
         <div className="glass-panel rounded-[40px] border border-white/5 overflow-hidden shadow-2xl animate-in slide-in-from-right-4 duration-500">
           <div className="p-10 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
             <div>
-               <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Valkyrie <span className="text-gold-gradient">Payroll</span></h3>
-               <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mt-1 italic">Human asset allocation history</p>
+              <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Valkyrie <span className="text-gold-gradient">Payroll</span></h3>
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mt-1 italic">Human asset allocation history</p>
             </div>
             <Users className="text-gold-primary/20" size={32} />
           </div>
@@ -626,11 +588,10 @@ export default function Reports() {
                     <td className="px-10 py-6 text-right font-black text-gold-primary text-xl italic tracking-tighter">{p.total_net?.toLocaleString('pt-AO')} <span className="text-[10px] opacity-40">{user?.currency}</span></td>
                     <td className="px-10 py-6 text-right font-bold text-red-500/60 transition-colors uppercase italic text-[11px]">{((p.total_irt || 0) + (p.total_inss_employee || 0) + (p.total_inss_employer || 0)).toLocaleString('pt-AO')} {user?.currency}</td>
                     <td className="px-10 py-6 text-center">
-                      <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
-                        p.status === 'finalized' 
-                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                      <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${p.status === 'finalized'
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                           : 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-lg shadow-amber-900/10'
-                      }`}>
+                        }`}>
                         {p.status === 'finalized' ? 'Committed' : 'Draft'}
                       </span>
                     </td>
@@ -639,9 +600,9 @@ export default function Reports() {
               </tbody>
             </table>
             {payrollSummary.length === 0 && (
-               <div className="py-32 text-center text-white/10 font-black uppercase text-[12px] tracking-[0.4em] italic bg-[#0B0B0B]/40">
-                  No payroll batches deployed.
-                </div>
+              <div className="py-32 text-center text-white/10 font-black uppercase text-[12px] tracking-[0.4em] italic bg-[#0B0B0B]/40">
+                No payroll batches deployed.
+              </div>
             )}
           </div>
         </div>

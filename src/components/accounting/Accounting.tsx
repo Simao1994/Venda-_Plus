@@ -373,7 +373,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }
 
          const resData = await res.json();
-         setLastCreatedDoc(resData.doc);
+         setLastCreatedDoc({ ...resData.doc, cert_phrase: resData.cert_phrase });
 
          alert(`${invoiceForm.tipo} emitida com sucesso: ${resData.doc.numero_fatura}`);
 
@@ -767,8 +767,21 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             const res = await supabase.from(table).update(payload).eq('id', newContact.id).select().single();
             newRecord = res.data; error = res.error;
          } else {
-            const res = await supabase.from(table).insert(payload).select().single();
-            newRecord = res.data; error = res.error;
+            if (table === 'customers') {
+               const t = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+               const apiUrl = AmazingStorage.get(STORAGE_KEYS.API_URL) || '';
+               const res = await fetch(`${apiUrl}/api/customers`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+                  body: JSON.stringify(payload)
+               });
+               if (!res.ok) throw new Error('Falha API ao inserir cliente');
+               const data = await res.json();
+               newRecord = Array.isArray(data) ? data[0] : data;
+            } else {
+               const res = await supabase.from(table).insert(payload).select().single();
+               newRecord = res.data; error = res.error;
+            }
          }
          if (error) throw error;
 
@@ -793,7 +806,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          });
 
          // Invalidate cache and bypass debounce to ensure immediate fresh fetch
-         clearQueryCache('acc-customers-global');
+         clearQueryCache(`acc-customers-${companyIdToUse}`);
          clearQueryCache(`acc-suppliers-${companyIdToUse}`);
          (fetchAccountingData as any).lastSync = 0;
 
@@ -954,7 +967,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             suppliersRes,
             catsRes,
             vendasFarmaciaRes,
-            salesRes
+            salesRes,
+            auditRes,
+            extratosRes
          ] = await Promise.all([
             safeQuery<any[]>(() => supabase.from('acc_lancamentos').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-lnc-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('acc_lancamento_itens').select('*').eq('company_id', effEmpId), { cacheKey: `acc-lnc-items-${effEmpId}`, cacheTTL: 30000 }),
@@ -968,11 +983,23 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             safeQuery<any[]>(() => supabase.from('rh_recibos').select('*').eq('company_id', effEmpId).order('data_emissao', { ascending: false }), { cacheKey: `acc-recibos-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('products').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<any[]>(() => supabase.from('customers').select('*').order('name'), { cacheKey: `acc-customers-global`, cacheTTL: 30000 }),
+            safeQuery<any[]>(async () => {
+               const t = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+               const apiUrl = AmazingStorage.get(STORAGE_KEYS.API_URL) || '';
+               try {
+                  const res = await fetch(`${apiUrl}/api/customers`, { headers: { Authorization: `Bearer ${t}` } });
+                  if (!res.ok) throw new Error('API Customers failed');
+                  return { data: await res.json(), error: null };
+               } catch (e: any) {
+                  return { data: null, error: e };
+               }
+            }, { cacheKey: `acc-customers-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('suppliers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-suppliers-${effEmpId}`, cacheTTL: 30000 }),
             safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000 }),
             safeQuery<any[]>(() => supabase.from('vendas_farmacia').select('*, clientes_farmacia(nome)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('sales').select('*, customers(name)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000 })
+            safeQuery<any[]>(() => supabase.from('sales').select('*, customers(name)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000 }),
+            safeQuery<any[]>(() => supabase.from('acc_audit_logs').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }).limit(50)),
+            safeQuery<any[]>(() => supabase.from('acc_extratos_bancarios').select('*').eq('company_id', effEmpId).order('data', { ascending: false }))
          ]);
 
          const mergedLnc = (lncRes.data || []).map((l: any) => ({
@@ -1002,6 +1029,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          AmazingStorage.save(STORAGE_KEYS.ACC_CONFIG, configMap);
 
          setSystemLogs(sLogsRes.data || []);
+         setAuditLogs(auditRes?.data || []);
+         setExtratos(extratosRes?.data || []);
+
          setExtFaturas(faturasRes.data || []);
          AmazingStorage.save('amazing_ext_faturas', faturasRes.data);
 
@@ -1029,8 +1059,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          // Merge Customers and Suppliers into Contactos
          const mergedContactos = [
-            ...(customersRes?.data || []).filter(Boolean).map((c: any) => ({ ...c, nome: c.name || 'Cliente Sem Nome', tipo: 'Cliente' })),
-            ...(suppliersRes?.data || []).filter(Boolean).map((s: any) => ({ ...s, nome: s.name || 'Fornecedor Sem Nome', tipo: 'Fornecedor' }))
+            ...(customersRes?.data || []).filter(Boolean).map((c: any) => ({ ...c, nome: c.name || 'Cliente Sem Nome', tipo: 'Cliente', telefone: c.phone || c.telefone, morada: c.address || c.morada })),
+            ...(suppliersRes?.data || []).filter(Boolean).map((s: any) => ({ ...s, nome: s.name || 'Fornecedor Sem Nome', tipo: 'Fornecedor', telefone: s.phone || s.telefone, morada: s.address || s.morada }))
          ];
          setContactos(mergedContactos);
          AmazingStorage.save(STORAGE_KEYS.ACC_CONTACTOS, mergedContactos);
@@ -1124,6 +1154,52 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
       fetchAccountingData();
    }, [selectedEmpresaId, user]);
+
+   // Carregar clientes diretamente do Supabase (independente do debounce)
+   useEffect(() => {
+      const loadClientes = async () => {
+         try {
+            // Inject stored JWT so RLS policies are satisfied
+            const token = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+            if (token) {
+               await supabase.auth.setSession({ access_token: token, refresh_token: token });
+            }
+
+            const empId = selectedEmpresaId || user?.company_id;
+            if (!empId) {
+               console.warn('[Clientes] Sem empresa selecionada para carregar contatos');
+               return;
+            }
+
+            const t = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+            const apiUrl = AmazingStorage.get(STORAGE_KEYS.API_URL) || '';
+            const custFetch = fetch(`${apiUrl}/api/customers`, { headers: { Authorization: `Bearer ${t}` } })
+               .then(r => r.json())
+               .then(d => ({ data: d, error: null }))
+               .catch(e => ({ data: null, error: e }));
+
+            const [custRes, suppsRes] = await Promise.all([
+               custFetch,
+               supabase.from('suppliers').select('*').eq('company_id', empId).order('name')
+            ]);
+
+            console.log('[Clientes] customers result:', custRes.data, custRes.error);
+            console.log('[Clientes] suppliers result:', suppsRes.data, suppsRes.error);
+
+            const merged = [
+               ...(custRes.data || []).map((c: any) => ({ ...c, nome: c.name || c.nome || 'Sem Nome', tipo: 'Cliente', telefone: c.phone || c.telefone, morada: c.address || c.morada })),
+               ...(suppsRes.data || []).map((s: any) => ({ ...s, nome: s.name || s.nome || 'Sem Nome', tipo: 'Fornecedor', telefone: s.phone || s.telefone, morada: s.address || s.morada }))
+            ];
+
+            console.log('[Clientes] merged total:', merged.length);
+            setContactos(merged);
+            AmazingStorage.save(STORAGE_KEYS.ACC_CONTACTOS, merged);
+         } catch (e) {
+            console.error('Erro ao carregar clientes directo:', e);
+         }
+      };
+      loadClientes();
+   }, [selectedEmpresaId, user?.company_id]);
 
    // Garantir que o período selecionado pertence Ã  empresa selecionada
    useEffect(() => {
@@ -1395,16 +1471,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    // --- LÓGICA DE IA ---
    const handleAIAnalysis = async () => {
-      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-         setIaResponse("A chave da API (GEMINI_API_KEY) não foi configurada. Contacte o administrador.");
-         return;
-      }
-
       setIsAnalyzing(true);
       setIaResponse(null);
       try {
-         const ai = new GoogleGenAI({ apiKey });
          const prompt = `Analise os dados financeiros da empresa ${currentEmpresa?.nome || 'N/A'} em Angola:
 - Receita: ${safeFormatAOA(financeReports.receitaTotal)}
 - Despesa: ${safeFormatAOA(financeReports.despesaTotal)}
@@ -1413,15 +1482,23 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       
       Forneça 3 sugestões estratégicas para redução de custos e 1 alerta sobre conformidade fiscal(IVA / IRT).`;
 
-         const result = await ai.models.generateContent({
-            model: 'gemini-1.5-pro',
-            contents: prompt
+         const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000';
+         const response = await fetch(`${apiUrl}/api/ai/audit`, {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+               Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
+            },
+            body: JSON.stringify({ prompt })
          });
 
-         setIaResponse(result.text || "Sem resposta da IA.");
+         if (!response.ok) throw new Error('Falha ao comunicar com a IA');
+
+         const data = await response.json();
+         setIaResponse(data.result || "Sem resposta da IA.");
       } catch (error) {
          console.error('AI Error:', error);
-         setIaResponse("A IA está processando auditorias externas. Tente novamente em instantes.");
+         setIaResponse("A IA está processando auditorias da Venda Plus. Tente novamente em instantes.");
       } finally {
          setIsAnalyzing(false);
       }
@@ -3153,7 +3230,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                     <Sparkles size={14} /> Cognitive Auditor
                                  </div>
                               </div>
-                              <h2 className="text-6xl font-black uppercase tracking-widest tracking-tighter leading-none">Auditoria <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-white">Inteligente Amazing.</span></h2>
+                              <h2 className="text-6xl font-black uppercase tracking-widest tracking-tighter leading-none">Auditoria <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-white">Inteligente Venda Plus.</span></h2>
                               <p className="text-white/30 text-xl font-medium leading-relaxed max-w-2xl">Analise anomalias, otimize impostos e tome decisões baseadas em padrões de alto nível processados em tempo real.</p>
                               <button
                                  onClick={handleAIAnalysis}
@@ -3387,6 +3464,72 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  {periodos.filter(p => p.company_id === selectedEmpresaId).length === 0 && (
                                     <div className="p-20 text-center text-white/30 font-bold italic">Nenhum período contabilístico configurado para esta unidade.</div>
                                  )}
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  )
+               }
+
+               {/* --- FISCAL / IMPOSTOS --- */}
+               {
+                  activeTab === 'fiscal' && (
+                     <div className="space-y-8 animate-in slide-in-from-bottom-4">
+                        <div className="bg-white/5 rounded-[3rem] shadow-[0_0_30px_rgba(212,175,55,0.05)] border border-white/10 overflow-hidden">
+                           <div className="p-10 border-b border-white/5 flex justify-between items-center bg-bg-deep/50">
+                              <div>
+                                 <h3 className="text-xl font-black uppercase tracking-widest text-white uppercase tracking-tight">Gestão Fiscal & Impostos</h3>
+                                 <p className="text-xs text-white/30 font-bold uppercase tracking-widest mt-1">Apuramento de IVA, IRT e Contribuições INSS</p>
+                              </div>
+                              <button className="flex items-center gap-2 px-6 py-3 bg-gold-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gold-primary/90 transition-all shadow-lg shadow-gold-primary/20">
+                                 <Plus size={18} /> Nova Declaração
+                              </button>
+                           </div>
+
+                           <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                              {/* Card IVA */}
+                              <div className="bg-bg-deep p-8 rounded-[2rem] border border-white/5 hover:border-gold-primary/30 transition-all group">
+                                 <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-white/40 mb-6 group-hover:bg-gold-primary group-hover:text-white transition-all">
+                                    <PieChartIcon size={24} />
+                                 </div>
+                                 <h4 className="text-lg font-black uppercase tracking-widest text-white mb-2">Apuramento de IVA</h4>
+                                 <p className="text-[10px] text-white/40 font-bold uppercase leading-relaxed mb-6">Registo e controle de IVA suportado e liquidado. Geração do mapa de apuramento mensal e exportação de dados.</p>
+                                 <button className="w-full py-3 bg-white/5 hover:bg-gold-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">Gerir IVA</button>
+                              </div>
+
+                              {/* Card IRT */}
+                              <div className="bg-bg-deep p-8 rounded-[2rem] border border-white/5 hover:border-gold-primary/30 transition-all group">
+                                 <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-white/40 mb-6 group-hover:bg-gold-primary group-hover:text-white transition-all">
+                                    <Calculator size={24} />
+                                 </div>
+                                 <h4 className="text-lg font-black uppercase tracking-widest text-white mb-2">Retenção na Fonte (IRT)</h4>
+                                 <p className="text-[10px] text-white/40 font-bold uppercase leading-relaxed mb-6">Controle de imposto retido na fonte (trabalho dependente e independentes). Emissão de guias.</p>
+                                 <button className="w-full py-3 bg-white/5 hover:bg-gold-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">Gerir IRT</button>
+                              </div>
+
+                              {/* Card INSS */}
+                              <div className="bg-bg-deep p-8 rounded-[2rem] border border-white/5 hover:border-gold-primary/30 transition-all group">
+                                 <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-white/40 mb-6 group-hover:bg-gold-primary group-hover:text-white transition-all">
+                                    <Landmark size={24} />
+                                 </div>
+                                 <h4 className="text-lg font-black uppercase tracking-widest text-white mb-2">Segurança Social (INSS)</h4>
+                                 <p className="text-[10px] text-white/40 font-bold uppercase leading-relaxed mb-6">Processamento das contribuições mensais dos funcionários e da empresa. Integração com a Folha de Salários.</p>
+                                 <button className="w-full py-3 bg-white/5 hover:bg-gold-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">Gerir INSS</button>
+                              </div>
+                           </div>
+
+                           {/* Tabela Resumo */}
+                           <div className="border-t border-white/5 p-8">
+                              <h4 className="text-xs font-black uppercase tracking-widest text-white/40 mb-6">Últimas Declarações Registadas</h4>
+                              <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/30">
+                                 <div className="col-span-2">Período</div>
+                                 <div className="col-span-3">Tipo de Imposto</div>
+                                 <div className="col-span-3">Valor Apurado (AOA)</div>
+                                 <div className="col-span-2">Status</div>
+                                 <div className="col-span-2 text-right">Acções</div>
+                              </div>
+                              <div className="py-10 text-center text-white/20 font-bold italic text-[10px] uppercase tracking-widest">
+                                 Nenhuma declaração pendente ou submetida este período.
                               </div>
                            </div>
                         </div>
@@ -5850,17 +5993,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
                         <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
                         <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '999999999'}</p>
-                        <p style={{ margin: '0', fontSize: '10px' }}>{user?.address || 'Angola'}</p>
-                        <p style={{ margin: '1px 0', fontSize: '10px', fontWeight: 'bold' }}>
-                           {lastCreatedDoc?.tipo?.toUpperCase().includes('PRÓ-FORMA') ? 'PRÓ-FORMA' :
-                              lastCreatedDoc?.tipo?.toUpperCase().includes('FACTURA-RECIBO') ? 'FACTURA-RECIBO' :
-                                 lastCreatedDoc?.tipo?.toUpperCase().includes('FACTURA') ? 'FACTURA' :
-                                    lastCreatedDoc?.tipo?.toUpperCase() || 'FACTURA'}
+                        {user?.address && <p style={{ margin: '0', fontSize: '9px' }}>{user.address}</p>}
+                        {user?.phone && <p style={{ margin: '0', fontSize: '9px' }}>Tel: {user.phone}</p>}
+                        <p style={{ margin: '2mm 0 1mm 0', fontSize: '11px', fontWeight: 'bold' }}>
+                           {lastCreatedDoc?.tipo?.toUpperCase() || 'DOCUMENTO'}
                         </p>
+                        <p style={{ margin: '0', fontSize: '9px', fontWeight: 'bold' }}>Original</p>
                      </div>
 
                      <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Doc:</span><span style={{ fontWeight: 'bold' }}>{lastCreatedDoc?.numero_fatura}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>FACT Nº:</span><span style={{ fontWeight: 'bold' }}>{lastCreatedDoc?.numero_fatura || lastCreatedDoc?.metadata?.invoice_number || '---'}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Data:</span><span>{lastCreatedDoc?.data_emissao}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Cliente:</span><span style={{ textTransform: 'uppercase' }}>{lastCreatedDoc?.cliente_nome}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>NIF Cli:</span><span>{lastCreatedDoc?.metadata?.customer_nif || '999999999'}</span></div>
@@ -5871,6 +6013,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            <tr style={{ borderBottom: '1px solid #000' }}>
                               <th style={{ textAlign: 'left', padding: '1px 0' }}>Item</th>
                               <th style={{ textAlign: 'center', padding: '1px 0' }}>Qtd</th>
+                              <th style={{ textAlign: 'right', padding: '1px 0' }}>Preço Unit.</th>
                               <th style={{ textAlign: 'right', padding: '1px 0' }}>Total</th>
                            </tr>
                         </thead>
@@ -5880,13 +6023,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                  <tr key={i}>
                                     <td style={{ padding: '2mm 0' }}>{it.nome}</td>
                                     <td style={{ textAlign: 'center', padding: '2mm 0' }}>{it.qtd}</td>
+                                    <td style={{ textAlign: 'right', padding: '2mm 0' }}>{safeFormatAOA(it.preco_unitario || it.price || (it.total / it.qtd))}</td>
                                     <td style={{ textAlign: 'right', padding: '2mm 0' }}>{safeFormatAOA(it.total)}</td>
                                  </tr>
                               ))
                            ) : (
                               <tr>
-                                 <td colSpan={3} style={{ padding: '4mm 0', textAlign: 'center', fontStyle: 'italic', fontSize: '9px', color: '#666' }}>
-                                    Italização de itens não disponível para este documento antigo.
+                                 <td colSpan={4} style={{ padding: '4mm 0', textAlign: 'center', fontStyle: 'italic', fontSize: '9px', color: '#666' }}>
+                                    Detalhamento de itens não disponível para este documento antigo.
                                  </td>
                               </tr>
                            )}
@@ -5896,9 +6040,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      <div style={{ borderTop: '1px dashed #000', paddingTop: '2mm' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.subtotal)}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>IVA (14%):</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.iva)}</span></div>
-                        {lastCreatedDoc?.metadata?.discount > 0 && (
-                           <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Desconto:</span><span style={{ color: 'red' }}>-{safeFormatAOA(lastCreatedDoc.metadata.discount)}</span></div>
-                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Desconto (0%):</span><span style={{ color: 'red' }}>-{safeFormatAOA(lastCreatedDoc?.metadata?.discount || 0)}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '13px', borderTop: '1px solid #000', marginTop: '2mm', paddingTop: '2mm' }}>
                            <span>TOTAL:</span><span>{safeFormatAOA(lastCreatedDoc?.valor_total)}</span>
                         </div>
@@ -5912,26 +6054,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
                      {/* AGT Compliance & QR Code */}
                      <div style={{ textAlign: 'center', marginTop: '6mm', padding: '4mm 0', borderTop: '1px dashed #000' }}>
-                        <p style={{ fontSize: '9px', margin: '0 0 4mm 0', fontWeight: 'bold' }}>
-                           {lastCreatedDoc?.hash?.substring(0, 4)}-Processado por programa validado n.º 000/AGT/2024
+                        <p style={{ fontSize: '9px', margin: '0 0 1mm 0', fontWeight: 'bold' }}>
+                           {lastCreatedDoc?.cert_phrase || 'Processado por programa validado n.º 0000/AGT/2026'}
+                        </p>
+                        <p style={{ fontSize: '8px', margin: '0 0 4mm 0', textTransform: 'uppercase' }}>
+                           Regime: {user?.regime_iva || 'Geral'}
                         </p>
 
-                        {/* QR Code Placeholder */}
-                        <div style={{
-                           width: '35mm',
-                           height: '35mm',
-                           border: '1px solid #000',
-                           margin: '0 auto 4mm auto',
-                           display: 'flex',
-                           flexDirection: 'column',
-                           alignItems: 'center',
-                           justifyContent: 'center',
-                           fontSize: '8px',
-                           color: '#666'
-                        }}>
-                           <p style={{ margin: '0' }}>QR CODE</p>
-                           <p style={{ margin: '0' }}>SAF-T ANGOLA</p>
-                        </div>
                         <p style={{ fontSize: '10px', fontWeight: 'bold' }}>Obrigado pela preferência!</p>
                         <p style={{ fontSize: '9px', color: '#666' }}>Software de Gestão Multi-Empresa - Venda Plus</p>
                      </div>

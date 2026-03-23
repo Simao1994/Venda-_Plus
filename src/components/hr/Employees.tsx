@@ -6,19 +6,21 @@ import {
   UserPlus, Search, Edit2, Trash2, X, CheckCircle2, XCircle,
   DollarSign, Briefcase, Phone, Mail, MapPin, Calendar,
   Building2, ShieldCheck, CreditCard, Users, ChevronDown,
-  RefreshCw, User, CreditCard as BankIcon
+  RefreshCw, User, CreditCard as BankIcon, Printer
 } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
+import { A4ReportTemplate } from '../reports/A4ReportTemplate';
 import BankAccountsTab from './BankAccountsTab';
 
 const Field = ({ label, children }: any) => (
   <div className="space-y-1.5">
-    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{label}</label>
+    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">{label}</label>
     {children}
   </div>
 );
 
-const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all placeholder:text-zinc-300";
-const selectCls = "w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all appearance-none";
+const inputCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-white/20";
+const selectCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none";
 
 export default function Employees() {
   const { user } = useAuth();
@@ -30,6 +32,12 @@ export default function Employees() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [activeSection, setActiveSection] = useState<'pessoal' | 'profissional' | 'salarial' | 'bancario'>('pessoal');
+
+  const printRef = React.useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Relatorio-Funcionarios-${new Date().toLocaleDateString('pt-AO')}`
+  });
 
   const defaultForm = {
     name: '', email: '', phone: '', address: '', nif: '', numero_ss: '',
@@ -46,12 +54,13 @@ export default function Employees() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const [empRes, depRes] = await Promise.all([
-        supabase.from('hr_employees').select('*, hr_departments(name)').eq('company_id', user?.company_id).order('name'),
-        supabase.from('hr_departments').select('*').eq('company_id', user?.company_id).order('name'),
+        fetch('/api/hr/employees', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+        fetch('/api/hr/departments', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
       ]);
-      setEmployees(empRes.data || []);
-      setDepartments(depRes.data || []);
+      setEmployees(empRes || []);
+      setDepartments(depRes || []);
     } catch (err) {
       console.error('Erro ao carregar funcionários:', err);
     } finally {
@@ -75,12 +84,27 @@ export default function Employees() {
         other_deductions: Number(formData.other_deductions) || 0,
       };
 
+      const token = localStorage.getItem('token');
       if (editingEmployee) {
-        const { error } = await supabase.from('hr_employees').update(payload).eq('id', editingEmployee.id);
-        if (error) throw error;
+        const res = await fetch(`/api/hr/employees/${editingEmployee.id}`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Falha ao atualizar funcionário');
       } else {
-        const { error } = await supabase.from('hr_employees').insert([payload]);
-        if (error) throw error;
+        const res = await fetch('/api/hr/employees', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Falha ao criar funcionário');
       }
       closeModal();
       fetchData();
@@ -94,8 +118,18 @@ export default function Employees() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Tem a certeza que deseja eliminar este funcionário?')) return;
-    await supabase.from('hr_employees').delete().eq('id', id);
-    fetchData();
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/hr/employees/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Falha ao eliminar funcionário');
+      fetchData();
+    } catch (err: any) {
+      console.error('Erro ao eliminar:', err);
+      alert(`Erro: ${err.message}`);
+    }
   };
 
   const handleEdit = (emp: any) => {
@@ -129,46 +163,97 @@ export default function Employees() {
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-8 max-w-7xl mx-auto relative z-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Funcionários</h2>
-          <p className="text-zinc-500 text-sm font-medium mt-1">Gerencie a sua equipa e informações salariais</p>
+          <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">Funcionários</h2>
+          <p className="text-white/30 font-black text-[10px] uppercase tracking-[0.3em] mt-2 italic">Gerencie a sua equipa e informações salariais</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-3 bg-zinc-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-zinc-900 transition-all shadow-xl shadow-zinc-900/10"
+        <div className="flex gap-4">
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-5 py-3 glass-panel text-white/50 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 hover:border-indigo-500/30 hover:text-indigo-400 transition-all"
+          >
+            <Printer size={16} /> Imprimir Relatório
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-indigo-500/20 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+          >
+            <UserPlus size={16} /> Novo Funcionário
+          </button>
+        </div>
+      </div>
+
+      {/* Hidden A4 Report */}
+      <div style={{ display: 'none' }}>
+        <A4ReportTemplate
+          ref={printRef}
+          title="Relatório de Funcionários"
+          companyData={user}
+          orientation="landscape"
         >
-          <UserPlus size={16} /> Novo Funcionário
-        </button>
+          <table className="a4-table">
+            <thead>
+              <tr>
+                <th>Nome do Funcionário</th>
+                <th>Cargo / Dept.</th>
+                <th>Email</th>
+                <th>Telefone</th>
+                <th className="text-right">Salário Base</th>
+                <th className="text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(emp => (
+                <tr key={emp.id}>
+                  <td>
+                    <div className="font-bold">{emp.name}</div>
+                    <div style={{ fontSize: '9px', color: '#555' }}>{emp.is_service_provider ? 'Prestador de Serviços' : 'Efectivo'}</div>
+                  </td>
+                  <td>
+                    <div className="font-bold">{emp.position}</div>
+                    <div style={{ fontSize: '9px', color: '#555' }}>{emp.hr_departments?.name || 'Sem departamento'}</div>
+                  </td>
+                  <td>{emp.email || '-'}</td>
+                  <td>{emp.phone || '-'}</td>
+                  <td className="text-right font-bold text-[#10b981]">{Number(emp.salary_base).toLocaleString('pt-AO')} Kz</td>
+                  <td className="text-center font-bold" style={{ color: emp.status === 'active' ? '#10b981' : '#ef4444' }}>
+                    {emp.status === 'active' ? 'Activo' : 'Inactivo'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </A4ReportTemplate>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
         <input
           type="text"
           placeholder="Pesquisar por nome ou cargo…"
-          className="w-full pl-11 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl text-sm font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 placeholder:text-zinc-300"
+          className="w-full pl-11 pr-4 py-3 glass-panel border border-white/5 rounded-2xl text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-white/20"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+      <div className="glass-panel rounded-[2rem] border border-white/5 overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-yellow-500" size={28} /></div>
+          <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-indigo-400" size={28} /></div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <Users size={40} className="text-zinc-200 mx-auto mb-3" />
-            <p className="font-bold text-zinc-400">Nenhum funcionário encontrado.</p>
+            <Users size={40} className="text-white/10 mx-auto mb-3" />
+            <p className="font-bold text-white/30">Nenhum funcionário encontrado.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-zinc-50 text-[10px] uppercase tracking-widest font-black text-zinc-400">
+              <thead className="bg-white/5 text-[10px] uppercase tracking-widest font-black text-white/20">
                 <tr>
                   <th className="px-6 py-4">Funcionário</th>
                   <th className="px-6 py-4">Cargo / Dept.</th>
@@ -178,46 +263,46 @@ export default function Employees() {
                   <th className="px-6 py-4 text-right">Acções</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-white/5">
                 {filtered.map(emp => {
                   const initials = (emp.name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
                   return (
-                    <tr key={emp.id} className="hover:bg-zinc-50/60 transition-colors group">
+                    <tr key={emp.id} className="hover:bg-white/5 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-600 text-white flex items-center justify-center font-black text-xs shadow">
+                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500/30 to-indigo-600/20 text-indigo-400 flex items-center justify-center font-black text-xs border border-indigo-500/20">
                             {initials}
                           </div>
                           <div>
-                            <div className="font-black text-zinc-900 text-sm">{emp.name}</div>
-                            <div className="text-xs text-zinc-400">{emp.email || '—'}</div>
+                            <div className="font-black text-white text-sm">{emp.name}</div>
+                            <div className="text-xs text-white/30">{emp.email || '—'}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-zinc-800 text-sm">{emp.position}</div>
-                        <div className="text-xs text-zinc-400">{emp.hr_departments?.name || 'Sem departamento'}</div>
+                        <div className="font-bold text-white/70 text-sm">{emp.position}</div>
+                        <div className="text-xs text-white/20">{emp.hr_departments?.name || 'Sem departamento'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-black text-zinc-900 text-sm">{Number(emp.salary_base).toLocaleString('pt-AO')} Kz</span>
+                        <span className="font-black text-white text-sm">{Number(emp.salary_base).toLocaleString('pt-AO')} Kz</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${emp.is_service_provider ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${emp.is_service_provider ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'}`}>
                           {emp.is_service_provider ? 'Prestador' : 'Efectivo'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`flex items-center gap-1.5 text-xs font-black ${emp.status === 'active' ? 'text-emerald-600' : 'text-zinc-400'}`}>
+                        <span className={`flex items-center gap-1.5 text-xs font-black ${emp.status === 'active' ? 'text-emerald-400' : 'text-white/20'}`}>
                           {emp.status === 'active' ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
                           {emp.status === 'active' ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleEdit(emp)} className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all" title="Editar">
+                          <button onClick={() => handleEdit(emp)} className="p-2 text-white/30 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all" title="Editar">
                             <Edit2 size={15} />
                           </button>
-                          <button onClick={() => handleDelete(emp.id)} className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Eliminar">
+                          <button onClick={() => handleDelete(emp.id)} className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all" title="Eliminar">
                             <Trash2 size={15} />
                           </button>
                         </div>
@@ -233,30 +318,30 @@ export default function Employees() {
 
       {/* ============ MODAL ============ */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="glass-panel rounded-[2rem] shadow-2xl w-full max-w-3xl max-h-[95vh] overflow-y-auto border border-white/10">
             {/* Modal Header */}
-            <div className="p-6 border-b border-zinc-100 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-[2rem]">
+            <div className="p-6 border-b border-white/5 flex justify-between items-center sticky top-0 glass-panel z-10 rounded-t-[2rem]">
               <div>
-                <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">
+                <h3 className="text-lg font-black text-white uppercase tracking-tight">
                   {editingEmployee ? 'Editar Funcionário' : 'Novo Funcionário'}
                 </h3>
-                <p className="text-xs text-zinc-400 font-medium">Preencha todos os campos relevantes</p>
+                <p className="text-xs text-white/30 font-medium">Preencha todos os campos relevantes</p>
               </div>
-              <button onClick={closeModal} className="p-2 hover:bg-zinc-100 rounded-xl transition-all">
-                <X size={20} className="text-zinc-500" />
+              <button onClick={closeModal} className="p-2 hover:bg-white/5 rounded-xl transition-all">
+                <X size={20} className="text-white/30" />
               </button>
             </div>
 
             {/* Section Tabs */}
-            <div className="flex border-b border-zinc-100 px-6">
+            <div className="flex border-b border-white/5 px-6">
               {sections.map(s => (
                 <button
                   key={s.id}
                   onClick={() => setActiveSection(s.id)}
                   className={`flex items-center gap-2 px-4 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all -mb-px ${activeSection === s.id
-                    ? 'border-yellow-500 text-zinc-900'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-600'
+                    ? 'border-indigo-400 text-indigo-400'
+                    : 'border-transparent text-white/20 hover:text-white/40'
                     }`}
                 >
                   <s.icon size={13} /> {s.label}
@@ -310,7 +395,7 @@ export default function Employees() {
                   <Field label="Data de Admissão *">
                     <input required type="date" className={inputCls} value={formData.hire_date} onChange={e => up('hire_date', e.target.value)} />
                   </Field>
-                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-[10px] text-amber-700 font-bold uppercase tracking-wider flex items-center gap-2">
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 text-[10px] text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-2">
                     <BankIcon size={14} /> Use a aba "Dados Bancários" para detalhes completos
                   </div>
                   <Field label="Tipo de Colaborador">
@@ -333,16 +418,16 @@ export default function Employees() {
               {/* Dados Salariais */}
               {activeSection === 'salarial' && (
                 <div className="space-y-5">
-                  <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 rounded-2xl p-5 text-white">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Salário Bruto Estimado</p>
-                    <p className="text-3xl font-black">
+                  <div className="bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 rounded-2xl p-5 border border-indigo-500/20">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Salário Bruto Estimado</p>
+                    <p className="text-3xl font-black text-white italic">
                       {(
                         (Number(formData.salary_base) || 0) +
                         (Number(formData.food_allowance) || 0) +
                         (Number(formData.transport_allowance) || 0)
                       ).toLocaleString('pt-AO')} Kz
                     </p>
-                    <p className="text-[10px] text-zinc-500 mt-1">Salário + Subsídios (antes de descontos)</p>
+                    <p className="text-[10px] text-white/20 mt-1">Salário + Subsídios (antes de descontos)</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <Field label="Salário Base (Kz) *">
@@ -358,7 +443,7 @@ export default function Employees() {
                       <input type="number" min="0" className={inputCls} value={formData.other_deductions} onChange={e => up('other_deductions', e.target.value)} />
                     </Field>
                   </div>
-                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700 font-medium">
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 text-sm text-indigo-400 font-medium">
                     💡 O INSS (3% trabalhador / 8% empresa) e o IRT são calculados automaticamente na Folha de Pagamento.
                   </div>
                 </div>
@@ -373,10 +458,10 @@ export default function Employees() {
                       user={user as any}
                     />
                   ) : (
-                    <div className="bg-zinc-50 border border-zinc-100 rounded-3xl p-10 text-center">
-                      <BankIcon size={48} className="text-zinc-300 mx-auto mb-4" />
-                      <h4 className="text-sm font-black text-zinc-900 uppercase">Registo de Contas</h4>
-                      <p className="text-xs text-zinc-500 mt-2">
+                    <div className="glass-panel border border-white/5 rounded-3xl p-10 text-center">
+                      <BankIcon size={48} className="text-white/10 mx-auto mb-4" />
+                      <h4 className="text-sm font-black text-white uppercase">Registo de Contas</h4>
+                      <p className="text-xs text-white/30 mt-2">
                         Poderá registar os dados bancários detalhados (IBAN, Banco, etc.)
                         após criar o registo base do funcionário.
                       </p>
@@ -386,26 +471,26 @@ export default function Employees() {
               )}
 
               {/* Navigation & Submit */}
-              <div className="flex gap-3 pt-2 border-t border-zinc-100">
+              <div className="flex gap-3 pt-2 border-t border-white/5">
                 {activeSection !== 'pessoal' && (
                   <button type="button" onClick={() => setActiveSection(activeSection === 'salarial' ? 'profissional' : 'pessoal')}
-                    className="px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
+                    className="px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest border border-white/10 text-white/40 hover:bg-white/5 transition-all">
                     ← Anterior
                   </button>
                 )}
                 {activeSection !== 'salarial' ? (
                   <button type="button" onClick={() => setActiveSection(activeSection === 'pessoal' ? 'profissional' : 'salarial')}
-                    className="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-zinc-100 text-zinc-800 hover:bg-zinc-200 transition-all">
+                    className="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-white/5 text-white/50 hover:bg-white/10 transition-all border border-white/5">
                     Próximo →
                   </button>
                 ) : (
                   <>
                     <button type="button" onClick={closeModal}
-                      className="px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
+                      className="px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest border border-white/10 text-white/40 hover:bg-white/5 transition-all">
                       Cancelar
                     </button>
                     <button type="submit" disabled={saving}
-                      className="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-zinc-900 text-white hover:bg-yellow-500 hover:text-zinc-900 transition-all disabled:opacity-60 shadow-xl flex items-center justify-center gap-2">
+                      className="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all disabled:opacity-60 shadow-[0_0_20px_rgba(99,102,241,0.1)] flex items-center justify-center gap-2">
                       {saving ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                       {saving ? 'A guardar…' : 'Guardar Funcionário'}
                     </button>

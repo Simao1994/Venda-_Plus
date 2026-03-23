@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Wallet, ArrowUpCircle, ArrowDownCircle, Plus, Search, Calendar, User, Building2, CheckCircle2, Clock, Printer, BarChart2, TrendingUp, TrendingDown } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { A4ReportTemplate } from './reports/A4ReportTemplate';
 
 interface Expense {
   id: number;
@@ -59,17 +60,7 @@ export default function Financial() {
   const printRef = React.useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    pageStyle: `
-      @page {
-        size: A4;
-        margin: 20mm;
-      }
-      @media print {
-        body {
-          -webkit-print-color-adjust: exact;
-        }
-      }
-    `
+    documentTitle: `Venda Plus — Financeiro — ${new Date().toLocaleDateString('pt-AO')}`
   });
 
   useEffect(() => {
@@ -216,6 +207,126 @@ export default function Financial() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto relative z-10">
+      {/* Hidden Printable A4 Report */}
+      <div style={{ display: 'none' }}>
+        <A4ReportTemplate
+          ref={printRef}
+          title={activeTab === 'receivable' ? 'Fluxo de Recebimentos' : activeTab === 'payable' ? 'Fluxo de Obrigações' : 'Mapa de Fluxo de Caixa'}
+          subtitle={`Período: ${new Date(startDate).toLocaleDateString('pt-AO')} a ${new Date(endDate).toLocaleDateString('pt-AO')}`}
+          companyData={user}
+          orientation="landscape"
+        >
+          {activeTab === 'receivable' ? (
+            <table className="a4-table">
+              <thead>
+                <tr>
+                  <th>Cliente & Fatura</th>
+                  <th>Data</th>
+                  <th className="text-right">Volume Total</th>
+                  <th className="text-right">Valor Recolhido</th>
+                  <th className="text-right">Saldo Residual</th>
+                  <th className="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receivables.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <div className="font-bold">{r.customer_name}</div>
+                      <div style={{ fontSize: '9px', color: '#555' }}>{r.invoice_number}</div>
+                    </td>
+                    <td>{new Date(r.created_at).toLocaleDateString('pt-AO')}</td>
+                    <td className="text-right">{r.total.toLocaleString('pt-AO')}</td>
+                    <td className="text-right text-[#10b981] font-bold">{r.amount_paid.toLocaleString('pt-AO')}</td>
+                    <td className="text-right text-[#ef4444] font-bold">{(r.total - r.amount_paid).toLocaleString('pt-AO')}</td>
+                    <td className="text-center font-bold" style={{ color: r.amount_paid >= r.total ? '#10b981' : '#f59e0b' }}>
+                      {r.amount_paid >= r.total ? 'Liquidado' : 'Pendente'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2} className="text-right">TOTAIS R$:</td>
+                  <td className="text-right font-bold">{receivables.reduce((sum, r) => sum + r.total, 0).toLocaleString('pt-AO')}</td>
+                  <td className="text-right font-bold text-[#10b981]">{totalReceived.toLocaleString('pt-AO')}</td>
+                  <td className="text-right font-bold text-[#ef4444]">{totalReceivable.toLocaleString('pt-AO')}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          ) : activeTab === 'cashflow' ? (
+            <table className="a4-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Descrição / Entidade</th>
+                  <th className="text-right">Entradas</th>
+                  <th className="text-right">Saídas</th>
+                  <th className="text-right">Saldo Acumulado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ...receivables.map(r => ({ date: r.created_at, desc: r.customer_name, ref: r.invoice_number, entrada: r.amount_paid, saida: 0, status: r.amount_paid >= r.total ? 'Liquidado' : 'Pendente' })),
+                  ...expenses.map(e => ({ date: e.due_date, desc: e.description, ref: e.supplier_name, entrada: 0, saida: e.status === 'paid' ? e.amount : 0, status: e.status === 'paid' ? 'Liquidado' : 'Pendente' }))
+                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((m, i, arr) => {
+                    const totalAnterior = arr.slice(i + 1).reduce((acc, curr) => acc + (curr.entrada - curr.saida), 0);
+                    const saldoAcumulado = totalAnterior + (m.entrada - m.saida);
+                    return (
+                      <tr key={i}>
+                        <td>{new Date(m.date).toLocaleDateString('pt-AO')}</td>
+                        <td>
+                          <div className="font-bold">{m.desc}</div>
+                          <div style={{ fontSize: '9px', color: '#555' }}>{m.ref || 'S/ Ref'}</div>
+                        </td>
+                        <td className="text-right font-bold text-[#10b981]">{m.entrada > 0 ? m.entrada.toLocaleString('pt-AO') : '-'}</td>
+                        <td className="text-right font-bold text-[#ef4444]">{m.saida > 0 ? m.saida.toLocaleString('pt-AO') : '-'}</td>
+                        <td className="text-right font-bold text-[#d4af37]">{saldoAcumulado.toLocaleString('pt-AO')}</td>
+                      </tr>
+                    );
+                  })
+                }
+              </tbody>
+            </table>
+          ) : (
+            <table className="a4-table">
+              <thead>
+                <tr>
+                  <th>Descrição / Vetor</th>
+                  <th>Vencimento</th>
+                  <th className="text-right">Volume</th>
+                  <th className="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((e) => (
+                  <tr key={e.id}>
+                    <td>
+                      <div className="font-bold">{e.description}</div>
+                      <div style={{ fontSize: '9px', color: '#555' }}>{e.supplier_name || 'Sem Fornecedor Originário'}</div>
+                    </td>
+                    <td>{new Date(e.due_date).toLocaleDateString('pt-AO')}</td>
+                    <td className="text-right font-bold">{e.amount.toLocaleString('pt-AO')}</td>
+                    <td className="text-center font-bold" style={{ color: e.status === 'paid' ? '#10b981' : '#ef4444' }}>
+                      {e.status === 'paid' ? 'Liquidado' : 'Pendente'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2} className="text-right">TOTAIS R$:</td>
+                  <td className="text-right font-bold">{expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString('pt-AO')}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </A4ReportTemplate>
+      </div>
+
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
@@ -309,11 +420,11 @@ export default function Financial() {
                 tick={{ fontSize: 9, fontWeight: 900, fill: 'rgba(255,255,255,0.2)' }}
               />
               <Tooltip
-                contentStyle={{ 
-                  background: 'rgba(11,11,11,0.9)', 
+                contentStyle={{
+                  background: 'rgba(11,11,11,0.9)',
                   backdropFilter: 'blur(20px)',
-                  borderRadius: '24px', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
+                  borderRadius: '24px',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
                   padding: '20px'
                 }}
@@ -403,7 +514,7 @@ export default function Financial() {
           </div>
           <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${activeTab === 'receivable' ? 'text-emerald-500' : 'text-white/20'}`}>Accounts Receivable</span>
         </button>
-        
+
         <button
           onClick={() => setActiveTab('payable')}
           className={`flex-1 min-w-[160px] flex flex-col items-center gap-3 p-6 rounded-[32px] border transition-all group ${activeTab === 'payable'
@@ -432,7 +543,7 @@ export default function Financial() {
       </div>
 
       {/* Content */}
-      <div ref={printRef} className="glass-panel rounded-[40px] border border-white/5 shadow-3xl overflow-hidden print:shadow-none print:bg-white print:border-none relative z-10 transition-all">
+      <div className="glass-panel rounded-[40px] border border-white/5 shadow-3xl overflow-hidden print:shadow-none print:bg-white print:border-none relative z-10 transition-all">
         <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02] print:bg-white print:border-b-2 print:border-bg-deep">
           <h2 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-4 italic italic">
             <div className={`w-2 h-2 rounded-full ${activeTab === 'receivable' ? 'bg-emerald-500 shadow-[0_0_10px_#10B981]' : activeTab === 'payable' ? 'bg-red-500 shadow-[0_0_10px_#EF4444]' : 'bg-gold-primary shadow-[0_0_10px_#D4AF37]'}`} />
@@ -725,8 +836,8 @@ export default function Financial() {
           </div>
           <div style={{ borderTop: '1px dashed black', borderBottom: '1px dashed black', padding: '4px 0', marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Nº DOC:</span>
-              <span style={{ fontWeight: 'bold' }}>{lastPayment?.document_number}</span>
+              <span>RE Nº:</span>
+              <span style={{ fontWeight: 'bold' }}>{lastPayment?.document_number || lastPayment?.id || '---'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>DATA/HORA:</span>
@@ -753,7 +864,7 @@ export default function Financial() {
             <p style={{ fontSize: '10px', marginTop: '5px' }}>Referente à liquidação da fatura associada à transação.</p>
           </div>
           <div style={{ borderTop: '1px dashed black', paddingTop: '5px', textAlign: 'center', fontSize: '10px' }}>
-            <p style={{ margin: '0', fontWeight: 'bold' }}>{lastPayment?.hash?.substring(0, 4)}-Processado por Programas Validados</p>
+            <p style={{ margin: '0', fontWeight: 'bold' }}>Emitido por programa validado n.º 0000/AGT/2026</p>
             <p style={{ margin: '2px 0 0 0', opacity: 0.7 }}>Obrigado pela preferência!</p>
           </div>
         </div>

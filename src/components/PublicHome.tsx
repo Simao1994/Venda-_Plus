@@ -767,6 +767,9 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
               </form>
             </div>
           </div>
+        </div>
+      </section>
+
       {/* Biographies Section - Moved for better space flow */}
       {companies.some(c => c.bio_nome) && (
         <section className="py-16 bg-bg-deep relative overflow-hidden z-20">

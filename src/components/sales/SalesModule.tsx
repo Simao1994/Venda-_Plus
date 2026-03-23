@@ -64,7 +64,7 @@ export default function SalesModule() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] bg-gold-primary/[0.03] rounded-full blur-[120px] pointer-events-none" />
 
         <div className="relative z-10 h-full">
-          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'dashboard' && <Dashboard onNavigate={setActiveTab} />}
           {activeTab === 'pos' && <POS />}
           {activeTab === 'products' && <Products />}
           {activeTab === 'purchase-orders' && <PurchaseOrders />}
