@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS companies (
     currency TEXT DEFAULT 'Kz',
     status TEXT CHECK(status IN ('pending', 'active', 'suspended', 'expired')) DEFAULT 'active',
     custom_domain TEXT,
+    bio_nome TEXT,
+    bio_foto TEXT,
+    bio_formacao TEXT,
+    bio_profissao TEXT,
+    bio_competencias TEXT[],
+    bio_contactos TEXT,
+    bio_emails TEXT,
+    bio_resumo TEXT,
+    bio_publicado BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
