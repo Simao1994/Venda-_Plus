@@ -355,7 +355,7 @@ export default function App() {
     { id: 'master', label: "Administração SaaS", icon: LayoutDashboard, roles: ['master'], feature: 'master_all' },
     { id: 'sales', label: "Vendas", icon: Briefcase, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'sales' },
     { id: 'pharmacy', label: "Farmácia", icon: Cross, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'pharmacy' },
-    { id: 'hr', label: "RH", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
+    { id: 'hr', label: "Gestão de Recursos Humanos", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
     { id: 'accounting', label: "Contabilidade", icon: Calculator, roles: ['admin', 'manager', 'master'], feature: 'sales' },
     { id: 'saft', label: "SAF-T (AOA) XML", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'sales' },
 
