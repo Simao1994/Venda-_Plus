@@ -45,22 +45,20 @@ export default function SalaryReceipt({ employee, payroll }: SalaryReceiptProps)
   return (
     <div style={{
       width: '100%',
-      maxWidth: '210mm',
-      minHeight: '297mm',
-      padding: '15mm',
+      minHeight: '100vh',
+      padding: '20mm',
       boxSizing: 'border-box',
       fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
       fontSize: '11px',
       color: '#111',
       background: '#fff',
-      position: 'relative',
-      margin: '0 auto'
+      position: 'relative'
     }}>
       <style>{`
-        @page { size: A4; margin: 5mm; }
+        @page { size: A4; margin: 0; }
         @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .receipt-container { padding: 15mm !important; }
+          html, body { width: 100%; height: 100%; margin: 0 !important; padding: 0 !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>
 
