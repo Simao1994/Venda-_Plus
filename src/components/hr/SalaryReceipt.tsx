@@ -44,9 +44,10 @@ export default function SalaryReceipt({ employee, payroll }: SalaryReceiptProps)
 
   return (
     <div style={{
-      width: '210mm',
+      width: '100%',
+      maxWidth: '210mm',
       minHeight: '297mm',
-      padding: '20mm 15mm',
+      padding: '15mm',
       boxSizing: 'border-box',
       fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
       fontSize: '11px',
@@ -56,10 +57,10 @@ export default function SalaryReceipt({ employee, payroll }: SalaryReceiptProps)
       margin: '0 auto'
     }}>
       <style>{`
-        @page { size: A4; margin: 0; }
+        @page { size: A4; margin: 5mm; }
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .receipt-container { padding: 20mm !important; }
+          .receipt-container { padding: 15mm !important; }
         }
       `}</style>
 
