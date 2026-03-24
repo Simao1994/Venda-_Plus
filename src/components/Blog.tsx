@@ -475,7 +475,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
                   { value: 'Logística', label: 'Logística & Transportes' },
                   { value: 'Agronegócio', label: 'Agronegócio' },
                   { value: 'Imobiliário', label: 'Imobiliário' },
-                  { value: 'Institucional', label: 'Institucional / RH' },
+                  { value: 'Institucional', label: 'Institucional / Recursos Humanos' },
                   { value: 'Social', label: 'Responsabilidade Social' }
                 ]} />
               </div>

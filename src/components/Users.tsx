@@ -14,7 +14,7 @@ const MODULE_DEFS = [
   { key: 'sales', label: 'Vendas & PDV', icon: '🛒', desc: 'POS, vendas, caixas' },
   { key: 'products', label: 'Produtos & Stock', icon: '📦', desc: 'Gestão de inventário' },
   { key: 'customers', label: 'Clientes', icon: '👥', desc: 'Base de clientes, fidelidade' },
-  { key: 'hr', label: 'Recursos Humanos', icon: '👤', desc: 'Funcionários, salários, RH' },
+  { key: 'hr', label: 'Gestão de Recursos Humanos', icon: '👤', desc: 'Funcionários, salários, gestão de pessoal' },
   { key: 'accounting', label: 'Contabilidade', icon: '📊', desc: 'Plano de contas, lançamentos' },
   { key: 'pharmacy', label: 'Farmácia', icon: '💊', desc: 'Medicamentos, lotes' },
   { key: 'blog', label: 'Blog Corporativo', icon: '📰', desc: 'Publicações e notícias' },

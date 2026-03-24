@@ -5150,7 +5150,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                            }))
                         },
                         {
-                           nome: 'RH / Salários', icon: <Users size={22} className="text-purple-500" />, bg: 'bg-purple-50 border-purple-100',
+                           nome: 'Recursos Humanos / Salários', icon: <Users size={22} className="text-purple-500" />, bg: 'bg-purple-50 border-purple-100',
                            badge: `${extRhRecibos.length} recibos`,
                            stats: [
                               { label: 'Total Líquido', value: safeFormatAOA(totalSalarios), color: 'text-purple-600' },

@@ -34,8 +34,8 @@ export default function Payroll() {
   const handlePrintReceipt = useReactToPrint({
     contentRef: receiptRef,
     pageStyle: `
-      @page { size: A4; margin: 20mm; }
-      @media print { body { -webkit-print-color-adjust: exact; } }
+      @page { size: A4; margin: 0; }
+      @media print { body { -webkit-print-color-adjust: exact; margin: 0; padding: 0; } }
     `
   });
 

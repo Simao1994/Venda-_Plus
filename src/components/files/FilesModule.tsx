@@ -10,7 +10,7 @@ import {
     Clock, Shield, Layout, HardDrive
 } from 'lucide-react';
 
-const CATEGORIES = ['Contratos', 'Faturas', 'RH', 'Farmácia', 'Outros'];
+const CATEGORIES = ['Contratos', 'Faturas', 'Recursos Humanos', 'Farmácia', 'Outros'];
 
 export default function FilesModule() {
     const { user } = useAuth();

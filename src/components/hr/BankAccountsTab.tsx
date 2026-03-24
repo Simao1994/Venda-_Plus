@@ -201,7 +201,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
          <div className="flex justify-between items-center glass-panel p-6 rounded-2xl border border-white/5">
             <div>
                <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                  <Building size={16} className="text-indigo-400" /> Contas Bancárias (RH)
+                  <Building size={16} className="text-indigo-400" /> Contas Bancárias (Recursos Humanos)
                </h3>
                <p className="text-xs text-white/30 mt-1 font-medium">Dados exclusivos para gestão e processamento financeiro interno.</p>
             </div>

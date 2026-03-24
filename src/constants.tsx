@@ -45,7 +45,7 @@ export const MENU_ITEMS = [
   { id: 'manutencao', label: 'Manutenção', icon: <Wrench size={20} />, path: '/manutencao' },
   { id: 'inventario', label: 'Inventário & Stock', icon: <Package size={20} />, path: '/inventario' },
   { id: 'live_streaming', label: 'Transmissões Ao Vivo', icon: <Video size={20} />, path: '/dashboard/transmissoes' },
-  { id: 'rh', label: 'Recursos Humanos', icon: <Users size={20} />, path: '/rh' },
+  { id: 'hr', label: 'Gestão de Recursos Humanos', icon: <Users size={20} />, path: '/hr' },
   { id: 'financeiro', label: 'Finanças', icon: <Wallet size={20} />, path: '/financeiro' },
   { id: 'contabilidade', label: 'Amazing ContábilExpert', icon: <Scale size={20} />, path: '/contabilidade' },
   { id: 'auditoria', label: 'Auditoria & Logs', icon: <ShieldCheck size={20} />, path: '/auditoria' },
@@ -91,8 +91,8 @@ export const ROLE_ACCESS: Record<UserRole, string[]> = {
   // Manager Vendas - Novo perfil logico
   manager_sales: ['home', 'dashboard', 'vendas', 'solicitacoes', 'blog', 'live_streaming'],
 
-  // Director de Recursos Humanos - Apenas RH + Dashboard + Solicitações + CANDIDATURAS
-  director_hr: ['home', 'dashboard', 'rh', 'candidaturas', 'solicitacoes', 'blog', 'live_streaming'],
+  // Director de Recursos Humanos - Apenas Gestão de Recursos Humanos + Dashboard + Solicitações + CANDIDATURAS
+  director_hr: ['home', 'dashboard', 'hr', 'candidaturas', 'solicitacoes', 'blog', 'live_streaming'],
 
   // Director de Finanças - Apenas Finanças + Dashboard + Solicitações + Vendas
   director_finance: ['home', 'dashboard', 'financeiro', 'solicitacoes', 'blog', 'empresas', 'live_streaming', 'vendas'],

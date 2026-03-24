@@ -282,7 +282,7 @@ export interface MetaDesempenho {
   tenant_id: string;
 }
 
-export type Departamento = 'Administração' | 'Vendas' | 'RH' | 'Financeiro' | 'Operações' | 'Limpeza' | 'Segurança';
+export type Departamento = 'Administração' | 'Vendas' | 'Recursos Humanos' | 'Financeiro' | 'Operações' | 'Limpeza' | 'Segurança';
 export type ContratoTipo = 'Efectivo' | 'Prestação de Serviços' | 'Estágio' | 'Temporário';
 export type FuncionarioStatus = 'ativo' | 'ferias' | 'suspenso' | 'terminado';
 

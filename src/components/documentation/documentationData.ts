@@ -33,7 +33,7 @@ export const DOCUMENTATION_DATA: DocumentationItem[] = [
       </ul>
       
       <h2>Estrutura Geral</h2>
-      <p>O sistema divide-se em módulos especializados (Vendas, Farmácia, RH, Contabilidade) que comunicam entre si em tempo real.</p>
+      <p>O sistema divide-se em módulos especializados (Vendas, Farmácia, Recursos Humanos, Contabilidade) que comunicam entre si em tempo real.</p>
     `,
         trainingSteps: [
             'Faça o login com as suas credenciais corporativas.',
@@ -170,9 +170,9 @@ export const DOCUMENTATION_DATA: DocumentationItem[] = [
         keywords: ['contabilidade', 'pvg', 'balancete', 'resultados', 'caixa', 'lançamentos']
     },
     {
-        id: 'rh',
-        title: 'Recursos Humanos (RH)',
-        category: 'RH',
+        id: 'hr',
+        title: 'Gestão de Recursos Humanos',
+        category: 'Recursos Humanos',
         content: `
       <h2>Cadastro de Funcionários</h2>
       <p>Registe dados pessoais, habilitações literárias e tipos de contrato.</p>
@@ -192,11 +192,11 @@ export const DOCUMENTATION_DATA: DocumentationItem[] = [
       <p>Emita todos os recibos de ordenado com um único clique no final do mês.</p>
     `,
         trainingSteps: [
-            'Cadastre os funcionários em RH -> Funcionários.',
+            'Cadastre os funcionários em Gestão de Recursos Humanos -> Funcionários.',
             'Configure os salários e subsídios no perfil.',
             'Vá a "Processamento Salarial" no final do mês e clique em "Gerar Folha".'
         ],
-        keywords: ['rh', 'funcionários', 'salários', 'inss', 'irt', 'recibos']
+        keywords: ['rh', 'recursos humanos', 'funcionários', 'salários', 'inss', 'irt', 'recibos']
     },
     {
         id: 'farmacia',
@@ -233,7 +233,7 @@ export const DOCUMENTATION_DATA: DocumentationItem[] = [
       <h2>Relatórios de Farmácia</h2>
       <p>Listagem de produtos expirados, movimentação de lotes e inventário.</p>
       
-      <h2>Relatórios de RH</h2>
+      <h2>Relatórios de Recursos Humanos</h2>
       <p>Folhas de férias e resumos de pagamentos mensais.</p>
     `,
         trainingSteps: [
