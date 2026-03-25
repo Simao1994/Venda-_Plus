@@ -18,7 +18,7 @@ export default function SalaryReceipt({ employee, payroll }: SalaryReceiptProps)
     const fetchProfile = async () => {
       try {
         const { data } = await supabase
-          .from('company_profiles')
+          .from('companies')
           .select('logo, name, nif, address, phone, email')
           .eq('id', user?.company_id)
           .maybeSingle();

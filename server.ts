@@ -3441,11 +3441,11 @@ async function startServer() {
         nif,
         status: status || 'active'
       }])
-      .select("id")
+      .select("*")
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
-    res.json({ id: data.id });
+    res.json(data);
   });
 
   app.put("/api/hr/employees/:id", authenticate, async (req: any, res) => {
@@ -3703,7 +3703,7 @@ async function startServer() {
   // HR - Vagas (Vacancies)
   app.get("/api/hr/vagas", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_vagas")
+      .from("rh_vagas")
       .select("*")
       .eq("company_id", req.user.company_id)
       .order("criado_em", { ascending: false });
@@ -3714,7 +3714,7 @@ async function startServer() {
 
   app.post("/api/hr/vagas", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_vagas")
+      .from("rh_vagas")
       .insert([{ ...req.body, company_id: req.user.company_id }]);
 
     if (error) return res.status(500).json({ error: error.message });
@@ -3723,7 +3723,7 @@ async function startServer() {
 
   app.put("/api/hr/vagas/:id", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_vagas")
+      .from("rh_vagas")
       .update(req.body)
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -3734,7 +3734,7 @@ async function startServer() {
 
   app.delete("/api/hr/vagas/:id", authenticate, async (req: any, res) => {
     const { error } = await supabase
-      .from("hr_vagas")
+      .from("rh_vagas")
       .delete()
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -3746,7 +3746,7 @@ async function startServer() {
   // HR - Candidaturas
   app.get("/api/hr/candidaturas", authenticate, async (req: any, res) => {
     const { vagaId } = req.query;
-    let query = supabase.from("hr_candidaturas").select("*").eq("company_id", req.user.company_id);
+    let query = supabase.from("rh_candidaturas").select("*").eq("company_id", req.user.company_id);
     if (vagaId) query = query.eq("vaga_id", vagaId);
 
     const { data, error } = await query.order("data_envio", { ascending: false });
@@ -3754,10 +3754,21 @@ async function startServer() {
     res.json(data || []);
   });
 
+  app.put("/api/hr/candidaturas/:id", authenticate, async (req: any, res) => {
+    const { data, error } = await supabase
+      .from("rh_candidaturas")
+      .update(req.body)
+      .eq("id", req.params.id)
+      .eq("company_id", req.user.company_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  });
+
   app.put("/api/hr/candidaturas/:id/status", authenticate, async (req: any, res) => {
     const { status } = req.body;
     const { data, error } = await supabase
-      .from("hr_candidaturas")
+      .from("rh_candidaturas")
       .update({ status })
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -3769,7 +3780,7 @@ async function startServer() {
   // HR - Metas (KPIs)
   app.get("/api/hr/metas", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_metas")
+      .from("rh_metas")
       .select("*")
       .eq("company_id", req.user.company_id)
       .order("created_at", { ascending: false });
@@ -3780,7 +3791,7 @@ async function startServer() {
 
   app.post("/api/hr/metas", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_metas")
+      .from("rh_metas")
       .insert([{ ...req.body, company_id: req.user.company_id }]);
 
     if (error) return res.status(500).json({ error: error.message });
@@ -3789,7 +3800,7 @@ async function startServer() {
 
   app.put("/api/hr/metas/:id", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_metas")
+      .from("rh_metas")
       .update(req.body)
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -3800,7 +3811,7 @@ async function startServer() {
 
   app.delete("/api/hr/metas/:id", authenticate, async (req: any, res) => {
     const { error } = await supabase
-      .from("hr_metas")
+      .from("rh_metas")
       .delete()
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -3812,7 +3823,7 @@ async function startServer() {
   // HR - Bank Accounts
   app.get("/api/hr/bank-accounts", authenticate, async (req: any, res) => {
     const { funcionarioId } = req.query;
-    let query = supabase.from("hr_contas_bancarias").select("*").eq("company_id", req.user.company_id);
+    let query = supabase.from("rh_contas_bancarias").select("*").eq("company_id", req.user.company_id);
     if (funcionarioId) query = query.eq("funcionario_id", funcionarioId);
 
     const { data, error } = await query.order("principal", { ascending: false });
@@ -3822,7 +3833,7 @@ async function startServer() {
 
   app.post("/api/hr/bank-accounts", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_contas_bancarias")
+      .from("rh_contas_bancarias")
       .insert([{ ...req.body, company_id: req.user.company_id }]);
 
     if (error) return res.status(500).json({ error: error.message });
@@ -3831,7 +3842,7 @@ async function startServer() {
 
   app.put("/api/hr/bank-accounts/:id", authenticate, async (req: any, res) => {
     const { data, error } = await supabase
-      .from("hr_contas_bancarias")
+      .from("rh_contas_bancarias")
       .update(req.body)
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -3842,7 +3853,7 @@ async function startServer() {
 
   app.delete("/api/hr/bank-accounts/:id", authenticate, async (req: any, res) => {
     const { error } = await supabase
-      .from("hr_contas_bancarias")
+      .from("rh_contas_bancarias")
       .delete()
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);

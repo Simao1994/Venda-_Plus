@@ -30,11 +30,11 @@ export default function PerformanceTab() {
     try {
       const token = localStorage.getItem('token');
       const [funcRes, metaRes] = await Promise.all([
-        fetch('/api/hr/employees?status=active', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+        fetch('/api/hr/employees', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
         fetch('/api/hr/metas', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
       ]);
-      setFuncionarios(funcRes || []);
-      setMetas(metaRes || []);
+      setFuncionarios(Array.isArray(funcRes) ? funcRes : []);
+      setMetas(Array.isArray(metaRes) ? metaRes : []);
     } catch (error) {
       console.error('Erro ao buscar dados de performance:', error);
     } finally {
@@ -46,10 +46,10 @@ export default function PerformanceTab() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const nova = {
-      employee_id: fd.get('func_id'),
-      titulo: fd.get('titulo'),
+      employee_id: Number(fd.get('func_id')),
+      titulo: fd.get('titulo') as string,
       progresso: 0,
-      prazo: fd.get('prazo'),
+      prazo: fd.get('prazo') || null,
       status: 'Em curso',
       company_id: user?.company_id
     };
@@ -64,12 +64,17 @@ export default function PerformanceTab() {
         },
         body: JSON.stringify(nova)
       });
-      if (!res.ok) throw new Error('Falha ao criar meta');
+      
+      const responseData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(responseData.error || 'Falha ao criar meta');
+      }
+      
       fetchData();
       setShowMetaModal(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao criar meta:', err);
-      alert('Erro ao criar meta');
+      alert('ERRO DO SERVIDOR: ' + (err.message || 'Erro ao criar meta'));
     }
   };
 
@@ -111,7 +116,7 @@ export default function PerformanceTab() {
   };
 
   const analyticsData = {
-    barData: metas.slice(0, 5).map((m, idx) => ({
+    barData: (Array.isArray(metas) ? metas : []).slice(0, 5).map((m, idx) => ({
       name: (m.titulo || 'Meta').substring(0, 15),
       valor: m.progresso || 0,
       fill: idx % 2 === 0 ? '#818cf8' : '#6366f1'
@@ -237,9 +242,13 @@ export default function PerformanceTab() {
             <form onSubmit={handleAddMeta} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Colaborador</label>
-                <select name="func_id" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">Selecionar...</option>
-                  {funcionarios.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                <select name="func_id" required className="w-full bg-zinc-900 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none">
+                  <option value="" className="bg-zinc-900 text-white">Selecionar...</option>
+                  {(Array.isArray(funcionarios) ? funcionarios : []).map(f => (
+                    <option key={f.id} value={f.id} className="bg-zinc-900 text-white font-bold">
+                      {f.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-2">

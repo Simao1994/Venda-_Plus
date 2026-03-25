@@ -6,7 +6,7 @@ import {
   UserPlus, Search, Edit2, Trash2, X, CheckCircle2, XCircle,
   DollarSign, Briefcase, Phone, Mail, MapPin, Calendar,
   Building2, ShieldCheck, CreditCard, Users, ChevronDown,
-  RefreshCw, User, CreditCard as BankIcon, Printer
+  RefreshCw, User, CreditCard as BankIcon, Printer, IdCard
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { A4ReportTemplate } from '../reports/A4ReportTemplate';
@@ -22,7 +22,7 @@ const Field = ({ label, children }: any) => (
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-white/20";
 const selectCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none";
 
-export default function Employees() {
+export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) => void }) {
   const { user } = useAuth();
   const [employees, setEmployees] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -105,6 +105,8 @@ export default function Employees() {
           body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('Falha ao criar funcionário');
+        const newEmployee = await res.json();
+        if (onAutoPrint) onAutoPrint(newEmployee);
       }
       closeModal();
       fetchData();
@@ -298,11 +300,14 @@ export default function Employees() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleEdit(emp)} className="p-2 text-white/30 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all" title="Editar">
+                        <div className="flex justify-end gap-2 transition-opacity">
+                          <button onClick={() => onAutoPrint && onAutoPrint(emp)} className="p-2 text-white/50 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all" title="Emitir Passe">
+                            <IdCard size={15} />
+                          </button>
+                          <button onClick={() => handleEdit(emp)} className="p-2 text-white/50 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all" title="Editar">
                             <Edit2 size={15} />
                           </button>
-                          <button onClick={() => handleDelete(emp.id)} className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all" title="Eliminar">
+                          <button onClick={() => handleDelete(emp.id)} className="p-2 text-white/50 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all" title="Eliminar">
                             <Trash2 size={15} />
                           </button>
                         </div>

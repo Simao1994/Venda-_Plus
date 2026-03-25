@@ -26,7 +26,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
    const [showForm, setShowForm] = useState(false);
    const [editingConta, setEditingConta] = useState<ContaBancariaHR | null>(null);
 
-   const canEdit = user?.role ? ['admin', 'hr', 'director_hr', 'saas_admin'].includes(user.role) : true;
+   const canEdit = user?.role ? ['admin', 'hr', 'director_hr', 'saas_admin', 'master', 'manager'].includes(user.role) : true;
 
    const [formData, setFormData] = useState({
       nome_banco: '',
@@ -123,6 +123,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
          const token = localStorage.getItem('token');
          const payload = {
             ...formData,
+            nome_banco: formData.nome_banco,
             funcionario_id: funcionarioId ? parseInt(funcionarioId) : null,
             company_id: companyId,
             iban: formatIBAN(formData.iban),

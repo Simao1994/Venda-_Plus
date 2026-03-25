@@ -43,17 +43,23 @@ import PassesTab from './PassesTab';
 export default function HRModule() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [autoPrintEmployee, setAutoPrintEmployee] = useState(null);
+
+  const handleAutoPrint = (emp: any) => {
+    setAutoPrintEmployee(emp);
+    setActiveTab('passes');
+  };
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'master'] },
-    { id: 'employees', label: 'Funcionários', icon: Users, roles: ['admin', 'manager', 'master'] },
-    { id: 'departments', label: 'Departamentos', icon: Building2, roles: ['admin', 'manager', 'master'] },
-    { id: 'attendance', label: 'Presenças', icon: CalendarCheck, roles: ['admin', 'manager', 'master'] },
-    { id: 'payroll', label: 'Folha Salarial', icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'] },
-    { id: 'performance', label: 'Performance', icon: Target, roles: ['admin', 'manager', 'master'] },
-    { id: 'passes', label: 'Passes PVC', icon: IdCard, roles: ['admin', 'manager', 'master'] },
-    { id: 'bank', label: 'Contas Bancárias', icon: CreditCard, roles: ['admin', 'manager', 'master'] },
-    { id: 'vagas', label: 'Vagas Admin', icon: ClipboardList, roles: ['admin', 'manager', 'master'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'employees', label: 'Funcionários', icon: Users, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'departments', label: 'Departamentos', icon: Building2, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'attendance', label: 'Presenças', icon: CalendarCheck, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'payroll', label: 'Folha Salarial', icon: FileSpreadsheet, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'performance', label: 'Performance', icon: Target, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'passes', label: 'Passes PVC', icon: IdCard, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'bank', label: 'Contas Bancárias', icon: CreditCard, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'vagas', label: 'Vagas Admin', icon: ClipboardList, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
   ];
 
   if (!user) return (
@@ -88,12 +94,17 @@ export default function HRModule() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.03),transparent_60%)]" />
         <ErrorBoundary key={activeTab} tabName={activeTab}>
           {activeTab === 'dashboard' && <HRDashboard />}
-          {activeTab === 'employees' && <Employees />}
+          {activeTab === 'employees' && <Employees onAutoPrint={handleAutoPrint} />}
           {activeTab === 'departments' && <Departments />}
           {activeTab === 'attendance' && <Attendance />}
           {activeTab === 'payroll' && <Payroll />}
           {activeTab === 'performance' && <PerformanceTab />}
-          {activeTab === 'passes' && <PassesTab />}
+          {activeTab === 'passes' && (
+            <PassesTab 
+              autoPrintEmployee={autoPrintEmployee} 
+              onClearAutoPrint={() => setAutoPrintEmployee(null)} 
+            />
+          )}
           {activeTab === 'bank' && <BankAccountsTab user={user as any} funcionarioId={null} />}
           {activeTab === 'vagas' && <VagasAdminTab />}
         </ErrorBoundary>
