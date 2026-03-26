@@ -81,7 +81,7 @@ export default function Departments() {
         </div>
         <button 
           onClick={() => setShowModal(true)}
-          className="bg-indigo-500/20 text-indigo-400 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+          className="bg-gold-primary/20 text-gold-primary px-6 py-3 rounded-2xl font-bold flex items-center gap-2 border border-gold-primary/30 hover:bg-gold-primary/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
         >
           <Plus size={20} />
           Novo Departamento
@@ -90,15 +90,15 @@ export default function Departments() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {departments.map((dept) => (
-          <div key={dept.id} className="glass-panel p-6 rounded-[2rem] border border-white/5 hover:border-indigo-500/20 transition-all group">
+          <div key={dept.id} className="glass-panel p-6 rounded-[2rem] border border-white/5 hover:border-gold-primary/20 transition-all group">
             <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-colors">
+              <div className="w-12 h-12 bg-gold-primary/10 text-gold-primary rounded-2xl flex items-center justify-center border border-gold-primary/20 group-hover:bg-gold-primary/20 transition-colors">
                 <Building2 size={24} />
               </div>
               <div className="flex gap-1">
                 <button 
                   onClick={() => handleEdit(dept)}
-                  className="p-2 text-white/20 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                  className="p-2 text-white/20 hover:text-gold-primary hover:bg-gold-primary/10 rounded-lg transition-colors"
                   title="Editar"
                 >
                   <Edit2 size={16} />
@@ -118,7 +118,7 @@ export default function Departments() {
               <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                 Ativo
               </span>
-              <button className="text-xs font-bold text-white/20 hover:text-indigo-400 transition-colors">Ver Funcionários</button>
+              <button className="text-xs font-bold text-white/20 hover:text-gold-primary transition-colors">Ver Funcionários</button>
             </div>
           </div>
         ))}
@@ -148,7 +148,7 @@ export default function Departments() {
                 <input 
                   type="text" 
                   required
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none placeholder:text-white/20"
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-gold-primary focus:outline-none placeholder:text-white/20"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
                 />
@@ -156,7 +156,7 @@ export default function Departments() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Descrição</label>
                 <textarea 
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none placeholder:text-white/20"
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-gold-primary focus:outline-none placeholder:text-white/20"
                   rows={3}
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
@@ -172,7 +172,7 @@ export default function Departments() {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-3 rounded-xl font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+                  className="flex-1 px-6 py-3 rounded-xl font-bold bg-gold-primary/20 text-gold-primary border border-gold-primary/30 hover:bg-gold-primary/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
                 >
                   Salvar
                 </button>
@@ -184,3 +184,5 @@ export default function Departments() {
     </div>
   );
 }
+
+

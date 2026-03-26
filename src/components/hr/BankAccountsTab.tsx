@@ -191,10 +191,10 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
       }
    };
 
-   const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-white/20";
+   const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary focus:border-transparent transition-all placeholder:text-white/20";
 
    if (loading) {
-      return <div className="p-10 flex justify-center"><RefreshCw className="animate-spin text-indigo-400" /></div>;
+      return <div className="p-10 flex justify-center"><RefreshCw className="animate-spin text-gold-primary" /></div>;
    }
 
    return (
@@ -202,12 +202,12 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
          <div className="flex justify-between items-center glass-panel p-6 rounded-2xl border border-white/5">
             <div>
                <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                  <Building size={16} className="text-indigo-400" /> Contas Bancárias (Recursos Humanos)
+                  <Building size={16} className="text-gold-primary" /> Contas Bancárias (Recursos Humanos)
                </h3>
                <p className="text-xs text-white/30 mt-1 font-medium">Dados exclusivos para gestão e processamento financeiro interno.</p>
             </div>
             {canEdit && !showForm && (
-               <button onClick={() => setShowForm(true)} className="px-5 py-2.5 bg-indigo-500/20 text-indigo-400 font-black text-[10px] uppercase rounded-xl border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(99,102,241,0.1)]">
+               <button onClick={() => setShowForm(true)} className="px-5 py-2.5 bg-gold-primary/20 text-gold-primary font-black text-[10px] uppercase rounded-xl border border-gold-primary/30 hover:bg-gold-primary/30 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(99,102,241,0.1)]">
                   <PlusCircle size={16} /> Adicionar Conta
                </button>
             )}
@@ -216,7 +216,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
          {showForm ? (
             <div className="glass-panel p-8 rounded-2xl border border-white/10 shadow-xl overflow-hidden animate-in slide-in-from-top-4">
                <h4 className="text-sm font-black text-white uppercase mb-6 flex items-center gap-2 border-b border-white/5 pb-4">
-                  {editingConta ? <Edit size={16} className="text-indigo-400" /> : <PlusCircle size={16} className="text-indigo-400" />}
+                  {editingConta ? <Edit size={16} className="text-gold-primary" /> : <PlusCircle size={16} className="text-gold-primary" />}
                   {editingConta ? 'Editar Conta Bancária' : 'Registar Nova Conta'}
                </h4>
                <form onSubmit={handleSubmit} className="space-y-6">
@@ -277,7 +277,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
 
                      <div className="flex gap-6 items-center bg-white/5 px-6 py-4 rounded-xl border border-white/5">
                         <label className="flex items-center gap-2 cursor-pointer">
-                           <input type="checkbox" checked={formData.principal} onChange={e => setFormData({ ...formData, principal: e.target.checked })} className="w-4 h-4 text-indigo-500 rounded border-white/20 focus:ring-indigo-500 accent-indigo-500 bg-white/5" />
+                           <input type="checkbox" checked={formData.principal} onChange={e => setFormData({ ...formData, principal: e.target.checked })} className="w-4 h-4 text-gold-primary rounded border-white/20 focus:ring-gold-primary accent-gold-primary bg-white/5" />
                            <span className="text-xs font-black uppercase text-white/70">Conta Principal</span>
                         </label>
                         <div className="space-y-1">
@@ -292,7 +292,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
 
                   <div className="flex justify-end gap-4 pt-6 border-t border-white/5">
                      <button type="button" onClick={resetForm} className="px-6 py-3 font-black text-xs uppercase text-white/30 hover:text-white/60 transition-all">Cancelar</button>
-                     <button type="submit" disabled={isSubmitting} className="px-8 py-3 bg-indigo-500/20 text-indigo-400 font-black text-xs uppercase rounded-xl border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)] flex items-center gap-2 disabled:opacity-50">
+                     <button type="submit" disabled={isSubmitting} className="px-8 py-3 bg-gold-primary/20 text-gold-primary font-black text-xs uppercase rounded-xl border border-gold-primary/30 hover:bg-gold-primary/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)] flex items-center gap-2 disabled:opacity-50">
                         {isSubmitting ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Guardar Conta
                      </button>
                   </div>
@@ -303,8 +303,8 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
                {contas.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      {contas.map(conta => (
-                        <div key={conta.id} className={`p-6 rounded-2xl border relative group transition-all ${conta.status === 'inativo' ? 'glass-panel border-white/5 grayscale opacity-70' : (conta.principal ? 'bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border-indigo-500/20 shadow-[0_0_30px_rgba(99,102,241,0.1)]' : 'glass-panel border-white/5 hover:border-indigo-500/20')}`}>
-                           {conta.principal && <div className="absolute -top-3 -right-3 bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg flex items-center gap-1"><CheckCircle2 size={12} /> Principal</div>}
+                        <div key={conta.id} className={`p-6 rounded-2xl border relative group transition-all ${conta.status === 'inativo' ? 'glass-panel border-white/5 grayscale opacity-70' : (conta.principal ? 'bg-gradient-to-br from-gold-primary/20 to-gold-secondary/10 border-gold-primary/20 shadow-[0_0_30px_rgba(99,102,241,0.1)]' : 'glass-panel border-white/5 hover:border-gold-primary/20')}`}>
+                           {conta.principal && <div className="absolute -top-3 -right-3 bg-gold-primary text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg flex items-center gap-1"><CheckCircle2 size={12} /> Principal</div>}
 
                            <div className="flex justify-between items-start mb-6">
                               <div>
@@ -312,12 +312,12 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
                                  <h4 className="text-xl font-black text-white">{conta.nome_banco}</h4>
                               </div>
                               <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                                 <Building size={24} className="text-indigo-400" />
+                                 <Building size={24} className="text-gold-primary" />
                               </div>
                            </div>
 
                            <div className="space-y-4 mb-6">
-                              <div className="p-4 rounded-2xl font-mono text-sm tracking-widest text-center bg-white/5 border border-white/10 text-indigo-400">
+                              <div className="p-4 rounded-2xl font-mono text-sm tracking-widest text-center bg-white/5 border border-white/10 text-gold-primary">
                                  {conta.iban || 'S/ IBAN'}
                               </div>
 
@@ -338,7 +338,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
                            {canEdit && (
                               <div className="flex justify-end gap-2 pt-4 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
                                  {!conta.principal && conta.status === 'ativo' && (
-                                    <button onClick={() => setAsPrincipal(conta.id)} className="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-[9px] font-black uppercase rounded-lg transition-all border border-indigo-500/20" title="Definir Principal">
+                                    <button onClick={() => setAsPrincipal(conta.id)} className="px-3 py-1.5 bg-gold-primary/10 text-gold-primary hover:bg-gold-primary/20 text-[9px] font-black uppercase rounded-lg transition-all border border-gold-primary/20" title="Definir Principal">
                                        <CheckCircle2 size={14} />
                                     </button>
                                  )}
@@ -359,7 +359,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
                      <h4 className="text-lg font-black text-white mb-2">Nenhuma conta registada</h4>
                      <p className="text-sm text-white/30 mb-6 max-w-sm">Este colaborador ainda não possui contas bancárias associadas no sistema. Os pagamentos seguirão o método tradicional.</p>
                      {canEdit && (
-                        <button onClick={() => setShowForm(true)} className="px-6 py-3 bg-indigo-500/20 text-indigo-400 font-black text-xs uppercase rounded-xl border border-indigo-500/30 hover:bg-indigo-500/30 transition-all">
+                        <button onClick={() => setShowForm(true)} className="px-6 py-3 bg-gold-primary/20 text-gold-primary font-black text-xs uppercase rounded-xl border border-gold-primary/30 hover:bg-gold-primary/30 transition-all">
                            Adicionar Primeira Conta
                         </button>
                      )}
@@ -372,3 +372,5 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
 };
 
 export default BankAccountsTab;
+
+

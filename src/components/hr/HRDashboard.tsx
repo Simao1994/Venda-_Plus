@@ -35,9 +35,9 @@ export default function HRDashboard() {
   ];
 
   const colorMap: Record<string, { bg: string; text: string; border: string; glow: string }> = {
-    indigo: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20', glow: 'shadow-[0_0_30px_rgba(99,102,241,0.1)]' },
+    indigo: { bg: 'bg-gold-primary/10', text: 'text-gold-primary', border: 'border-gold-primary/20', glow: 'shadow-[0_0_30px_rgba(99,102,241,0.1)]' },
     emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', glow: 'shadow-[0_0_30px_rgba(16,185,129,0.1)]' },
-    amber: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', glow: 'shadow-[0_0_30px_rgba(245,158,11,0.1)]' },
+    amber: { bg: 'bg-gold-primary/10', text: 'text-gold-primary', border: 'border-gold-primary/20', glow: 'shadow-[0_0_30px_rgba(245,158,11,0.1)]' },
     red: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', glow: 'shadow-[0_0_30px_rgba(239,68,68,0.1)]' },
   };
 
@@ -53,7 +53,7 @@ export default function HRDashboard() {
 
       {loading ? (
         <div className="flex items-center justify-center py-32">
-          <div className="w-12 h-12 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-gold-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <>
@@ -83,7 +83,7 @@ export default function HRDashboard() {
             {/* Bar Chart */}
             <div className="glass-panel p-8 rounded-[40px] border border-white/5">
               <h3 className="font-black text-white text-sm uppercase tracking-[0.2em] italic mb-2 flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#6366f1]" />
+                <div className="w-2 h-2 rounded-full bg-gold-primary shadow-[0_0_8px_#6366f1]" />
                 Distribuição de Custos
               </h3>
               <p className="text-[9px] text-white/20 uppercase tracking-widest mb-6">Última Folha Salarial</p>
@@ -119,7 +119,7 @@ export default function HRDashboard() {
             {/* Payroll Summary */}
             <div className="glass-panel p-8 rounded-[40px] border border-white/5">
               <h3 className="font-black text-white text-sm uppercase tracking-[0.2em] italic mb-2 flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#6366f1]" />
+                <div className="w-2 h-2 rounded-full bg-gold-primary shadow-[0_0_8px_#6366f1]" />
                 Resumo da Folha
               </h3>
               <p className="text-[9px] text-white/20 uppercase tracking-widest mb-6">
@@ -130,10 +130,10 @@ export default function HRDashboard() {
                   {[
                     { label: 'Salário Bruto Total', value: lp.total_gross, color: 'text-white/60', sign: '' },
                     { label: 'IRT Total', value: lp.total_irt, color: 'text-red-400', sign: '-' },
-                    { label: 'INSS Trabalhador (3%)', value: lp.total_inss_employee, color: 'text-amber-400', sign: '-' },
+                    { label: 'INSS Trabalhador (3%)', value: lp.total_inss_employee, color: 'text-gold-primary', sign: '-' },
                     { label: 'INSS Empresa (8%)', value: lp.total_inss_employer, color: 'text-emerald-400', sign: '' },
                   ].map((r, i) => (
-                    <div key={i} className="glass-panel flex justify-between items-center p-5 rounded-2xl border border-white/5 hover:border-indigo-500/10 transition-all group">
+                    <div key={i} className="glass-panel flex justify-between items-center p-5 rounded-2xl border border-white/5 hover:border-gold-primary/10 transition-all group">
                       <span className="text-[10px] font-black text-white/30 uppercase tracking-widest group-hover:text-white/40 transition-colors">{r.label}</span>
                       <span className={`font-black tabular-nums ${r.color}`}>
                         {r.sign}{r.value?.toLocaleString('pt-AO')} <span className="text-[9px] opacity-50">{user?.currency}</span>
@@ -144,7 +144,7 @@ export default function HRDashboard() {
                   {/* Total Líquido */}
                   <div className="pt-4 border-t border-white/5 flex justify-between items-center">
                     <span className="font-black text-white uppercase tracking-widest text-sm">Salário Líquido Total</span>
-                    <span className="font-black text-indigo-400 text-2xl tabular-nums italic">
+                    <span className="font-black text-gold-primary text-2xl tabular-nums italic">
                       {lp.total_net?.toLocaleString('pt-AO')} <span className="text-sm opacity-50">{user?.currency}</span>
                     </span>
                   </div>
@@ -162,3 +162,5 @@ export default function HRDashboard() {
     </div>
   );
 }
+
+

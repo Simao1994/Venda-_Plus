@@ -19,8 +19,8 @@ const Field = ({ label, children }: any) => (
   </div>
 );
 
-const inputCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-white/20";
-const selectCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none";
+const inputCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary focus:border-transparent transition-all placeholder:text-white/20";
+const selectCls = "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary focus:border-transparent transition-all appearance-none";
 
 export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) => void }) {
   const { user } = useAuth();
@@ -175,13 +175,13 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
         <div className="flex gap-4">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-5 py-3 glass-panel text-white/50 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 hover:border-indigo-500/30 hover:text-indigo-400 transition-all"
+            className="flex items-center gap-2 px-5 py-3 glass-panel text-white/50 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 hover:border-gold-primary/30 hover:text-gold-primary transition-all"
           >
             <Printer size={16} /> Imprimir Relatório
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-5 py-3 bg-indigo-500/20 text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+            className="flex items-center gap-2 px-5 py-3 bg-gold-primary/20 text-gold-primary rounded-2xl text-[10px] font-black uppercase tracking-widest border border-gold-primary/30 hover:bg-gold-primary/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
           >
             <UserPlus size={16} /> Novo Funcionário
           </button>
@@ -237,7 +237,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
         <input
           type="text"
           placeholder="Pesquisar por nome ou cargo…"
-          className="w-full pl-11 pr-4 py-3 glass-panel border border-white/5 rounded-2xl text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-white/20"
+          className="w-full pl-11 pr-4 py-3 glass-panel border border-white/5 rounded-2xl text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary placeholder:text-white/20"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -246,7 +246,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
       {/* Table */}
       <div className="glass-panel rounded-[2rem] border border-white/5 overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-indigo-400" size={28} /></div>
+          <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-gold-primary" size={28} /></div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <Users size={40} className="text-white/10 mx-auto mb-3" />
@@ -272,7 +272,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
                     <tr key={emp.id} className="hover:bg-white/5 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500/30 to-indigo-600/20 text-indigo-400 flex items-center justify-center font-black text-xs border border-indigo-500/20">
+                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gold-primary/30 to-gold-secondary/20 text-gold-primary flex items-center justify-center font-black text-xs border border-gold-primary/20">
                             {initials}
                           </div>
                           <div>
@@ -289,7 +289,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
                         <span className="font-black text-white text-sm">{Number(emp.salary_base).toLocaleString('pt-AO')} Kz</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${emp.is_service_provider ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'}`}>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${emp.is_service_provider ? 'bg-gold-primary/10 text-gold-primary border border-gold-primary/20' : 'bg-gold-primary/10 text-gold-primary border border-gold-primary/20'}`}>
                           {emp.is_service_provider ? 'Prestador' : 'Efectivo'}
                         </span>
                       </td>
@@ -301,10 +301,10 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2 transition-opacity">
-                          <button onClick={() => onAutoPrint && onAutoPrint(emp)} className="p-2 text-white/50 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all" title="Emitir Passe">
+                          <button onClick={() => onAutoPrint && onAutoPrint(emp)} className="p-2 text-white/50 hover:text-gold-primary hover:bg-gold-primary/10 rounded-xl transition-all" title="Emitir Passe">
                             <IdCard size={15} />
                           </button>
-                          <button onClick={() => handleEdit(emp)} className="p-2 text-white/50 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all" title="Editar">
+                          <button onClick={() => handleEdit(emp)} className="p-2 text-white/50 hover:text-gold-primary hover:bg-gold-primary/10 rounded-xl transition-all" title="Editar">
                             <Edit2 size={15} />
                           </button>
                           <button onClick={() => handleDelete(emp.id)} className="p-2 text-white/50 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all" title="Eliminar">
@@ -345,7 +345,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
                   key={s.id}
                   onClick={() => setActiveSection(s.id)}
                   className={`flex items-center gap-2 px-4 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all -mb-px ${activeSection === s.id
-                    ? 'border-indigo-400 text-indigo-400'
+                    ? 'border-gold-primary text-gold-primary'
                     : 'border-transparent text-white/20 hover:text-white/40'
                     }`}
                 >
@@ -400,7 +400,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
                   <Field label="Data de Admissão *">
                     <input required type="date" className={inputCls} value={formData.hire_date} onChange={e => up('hire_date', e.target.value)} />
                   </Field>
-                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 text-[10px] text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                  <div className="bg-gold-primary/10 border border-gold-primary/20 rounded-2xl p-4 text-[10px] text-gold-primary font-bold uppercase tracking-wider flex items-center gap-2">
                     <BankIcon size={14} /> Use a aba "Dados Bancários" para detalhes completos
                   </div>
                   <Field label="Tipo de Colaborador">
@@ -423,7 +423,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
               {/* Dados Salariais */}
               {activeSection === 'salarial' && (
                 <div className="space-y-5">
-                  <div className="bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 rounded-2xl p-5 border border-indigo-500/20">
+                  <div className="bg-gradient-to-br from-gold-primary/20 to-gold-secondary/10 rounded-2xl p-5 border border-gold-primary/20">
                     <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Salário Bruto Estimado</p>
                     <p className="text-3xl font-black text-white italic">
                       {(
@@ -448,7 +448,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
                       <input type="number" min="0" className={inputCls} value={formData.other_deductions} onChange={e => up('other_deductions', e.target.value)} />
                     </Field>
                   </div>
-                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 text-sm text-indigo-400 font-medium">
+                  <div className="bg-gold-primary/10 border border-gold-primary/20 rounded-2xl p-4 text-sm text-gold-primary font-medium">
                     💡 O INSS (3% trabalhador / 8% empresa) e o IRT são calculados automaticamente na Folha de Pagamento.
                   </div>
                 </div>
@@ -495,7 +495,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
                       Cancelar
                     </button>
                     <button type="submit" disabled={saving}
-                      className="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all disabled:opacity-60 shadow-[0_0_20px_rgba(99,102,241,0.1)] flex items-center justify-center gap-2">
+                      className="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-gold-primary/20 text-gold-primary border border-gold-primary/30 hover:bg-gold-primary/30 transition-all disabled:opacity-60 shadow-[0_0_20px_rgba(99,102,241,0.1)] flex items-center justify-center gap-2">
                       {saving ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                       {saving ? 'A guardar…' : 'Guardar Funcionário'}
                     </button>
@@ -509,3 +509,5 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
     </div>
   );
 }
+
+

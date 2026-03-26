@@ -213,3 +213,5 @@ export default function SalaryReceipt({ employee, payroll }: SalaryReceiptProps)
     </div>
   );
 }
+
+

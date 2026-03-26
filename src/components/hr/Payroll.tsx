@@ -150,7 +150,7 @@ export default function Payroll() {
               Folha Salarial - {months[selectedPayroll.month - 1]} {selectedPayroll.year}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${selectedPayroll.status === 'finalized' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${selectedPayroll.status === 'finalized' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gold-primary/10 text-gold-primary border border-gold-primary/20'
                 }`}>
                 {selectedPayroll.status === 'finalized' ? 'Finalizada' : 'Rascunho'}
               </span>
@@ -160,7 +160,7 @@ export default function Payroll() {
           <div className="ml-auto flex gap-2">
             <button
               onClick={handlePrintFolha}
-              className="glass-panel text-indigo-400 px-4 py-2 rounded-xl font-bold text-sm border border-indigo-500/20 hover:bg-indigo-500/10 transition-colors flex items-center gap-2 mr-2"
+              className="glass-panel text-gold-primary px-4 py-2 rounded-xl font-bold text-sm border border-gold-primary/20 hover:bg-gold-primary/10 transition-colors flex items-center gap-2 mr-2"
               title="Imprimir Relatório Geral"
             >
               <Printer size={18} />
@@ -187,8 +187,8 @@ export default function Payroll() {
           {[
             { label: 'Total Bruto', value: selectedPayroll.total_gross, color: 'white' },
             { label: 'Total IRT', value: selectedPayroll.total_irt, color: 'text-red-400' },
-            { label: 'Total INSS (3%)', value: selectedPayroll.total_inss_employee, color: 'text-amber-400' },
-            { label: 'Total Líquido', value: selectedPayroll.total_net, color: 'text-indigo-400' },
+            { label: 'Total INSS (3%)', value: selectedPayroll.total_inss_employee, color: 'text-gold-primary' },
+            { label: 'Total Líquido', value: selectedPayroll.total_net, color: 'text-gold-primary' },
           ].map((c, i) => (
             <div key={i} className="glass-panel p-5 rounded-2xl border border-white/5">
               <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">{c.label}</p>
@@ -225,7 +225,7 @@ export default function Payroll() {
                     <td className="px-6 py-4 text-right text-sm font-medium text-emerald-400">
                       +{(item.food_allowance + item.transport_allowance).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium text-amber-400">
+                    <td className="px-6 py-4 text-right text-sm font-medium text-gold-primary">
                       -{item.inss_employee.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-medium text-rose-400">
@@ -234,7 +234,7 @@ export default function Payroll() {
                     <td className="px-6 py-4 text-right text-sm font-medium text-rose-400">
                       -{item.other_deductions.toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm font-black text-indigo-400">
+                    <td className="px-6 py-4 text-right text-sm font-black text-gold-primary">
                       {item.net_salary.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -243,7 +243,7 @@ export default function Payroll() {
                           setReceiptEmployee(item);
                           setTimeout(() => handlePrintReceipt(), 100);
                         }}
-                        className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                        className="p-2 text-gold-primary hover:bg-gold-primary/10 rounded-lg transition-colors"
                         title="Recibo de Salário"
                       >
                         <Printer size={18} />
@@ -335,7 +335,7 @@ export default function Payroll() {
         </div>
         <button
           onClick={() => setShowGenerateModal(true)}
-          className="bg-indigo-500/20 text-indigo-400 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+          className="bg-gold-primary/20 text-gold-primary px-6 py-3 rounded-2xl font-bold flex items-center gap-2 border border-gold-primary/30 hover:bg-gold-primary/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
         >
           <Plus size={20} />
           Gerar Nova Folha
@@ -347,13 +347,13 @@ export default function Payroll() {
           <div
             key={p.id}
             onClick={() => fetchPayrollDetails(p.id)}
-            className="glass-panel p-6 rounded-[2rem] border border-white/5 hover:border-indigo-500/20 transition-all cursor-pointer group"
+            className="glass-panel p-6 rounded-[2rem] border border-white/5 hover:border-gold-primary/20 transition-all cursor-pointer group"
           >
             <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-colors">
+              <div className="w-12 h-12 bg-gold-primary/10 text-gold-primary rounded-2xl flex items-center justify-center border border-gold-primary/20 group-hover:bg-gold-primary/20 transition-colors">
                 <FileSpreadsheet size={24} />
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.status === 'finalized' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.status === 'finalized' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gold-primary/10 text-gold-primary border border-gold-primary/20'
                 }`}>
                 {p.status === 'finalized' ? 'Finalizada' : 'Rascunho'}
               </span>
@@ -364,14 +364,14 @@ export default function Payroll() {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-white/30">Líquido Total:</span>
-                <span className="font-bold text-indigo-400">{p.total_net.toLocaleString()} {user?.currency}</span>
+                <span className="font-bold text-gold-primary">{p.total_net.toLocaleString()} {user?.currency}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/30">Impostos Totais:</span>
                 <span className="font-bold text-rose-400">{(p.total_irt + p.total_inss_employee).toLocaleString()} {user?.currency}</span>
               </div>
             </div>
-            <div className="pt-4 border-t border-white/5 flex justify-between items-center text-indigo-400 font-bold text-sm">
+            <div className="pt-4 border-t border-white/5 flex justify-between items-center text-gold-primary font-bold text-sm">
               Ver Detalhes
               <ChevronRight size={18} />
             </div>
@@ -390,7 +390,7 @@ export default function Payroll() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Mês</label>
                   <select
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-gold-primary focus:outline-none"
                     value={generateData.month}
                     onChange={e => setGenerateData({ ...generateData, month: parseInt(e.target.value) })}
                   >
@@ -403,15 +403,15 @@ export default function Payroll() {
                   <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Ano</label>
                   <input
                     type="number"
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm focus:ring-2 focus:ring-gold-primary focus:outline-none"
                     value={generateData.year}
                     onChange={e => setGenerateData({ ...generateData, year: parseInt(e.target.value) })}
                   />
                 </div>
               </div>
-              <div className="p-4 bg-amber-500/10 rounded-2xl flex gap-3 border border-amber-500/20">
-                <AlertCircle className="text-amber-400 shrink-0" size={20} />
-                <p className="text-xs text-amber-400">
+              <div className="p-4 bg-gold-primary/10 rounded-2xl flex gap-3 border border-gold-primary/20">
+                <AlertCircle className="text-gold-primary shrink-0" size={20} />
+                <p className="text-xs text-gold-primary">
                   A folha será gerada automaticamente com base nos salários base e subsídios cadastrados para todos os funcionários ativos.
                 </p>
               </div>
@@ -425,7 +425,7 @@ export default function Payroll() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 rounded-xl font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+                  className="flex-1 px-6 py-3 rounded-xl font-bold bg-gold-primary/20 text-gold-primary border border-gold-primary/30 hover:bg-gold-primary/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]"
                 >
                   Gerar Folha
                 </button>
@@ -458,3 +458,5 @@ function AlertCircle({ size, className }: any) {
     </svg>
   );
 }
+
+

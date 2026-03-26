@@ -129,7 +129,7 @@ const VagasAdminTab: React.FC = () => {
         }
     };
 
-    const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-white/20";
+    const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm font-bold text-white focus:ring-2 focus:ring-gold-primary outline-none placeholder:text-white/20";
 
     return (
         <div className="p-8 space-y-8 max-w-7xl mx-auto relative z-10">
@@ -143,7 +143,7 @@ const VagasAdminTab: React.FC = () => {
                         setEditingVaga({ status: 'ativa', quantidade: 1, tipo_contrato: 'Tempo Inteiro', nivel_experiencia: 'Júnior', salario: '', data_encerramento: '' });
                         setShowVagaModal(true);
                     }}
-                    className="flex items-center gap-2 bg-indigo-500/20 text-indigo-400 px-6 py-3 rounded-xl font-bold transition-all border border-indigo-500/30 hover:bg-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+                    className="flex items-center gap-2 bg-gold-primary/20 text-gold-primary px-6 py-3 rounded-xl font-bold transition-all border border-gold-primary/30 hover:bg-gold-primary/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]"
                 >
                     <Plus size={20} />
                     Publicar Nova Vaga
@@ -188,10 +188,10 @@ const VagasAdminTab: React.FC = () => {
                                         </td>
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => handleOpenCandidaturas(vaga)} className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors" title="Ver Candidaturas">
+                                                <button onClick={() => handleOpenCandidaturas(vaga)} className="p-2 text-gold-primary hover:bg-gold-primary/10 rounded-lg transition-colors" title="Ver Candidaturas">
                                                     <Users size={18} />
                                                 </button>
-                                                <button onClick={() => { setEditingVaga(vaga); setShowVagaModal(true); }} className="p-2 text-white/20 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors">
+                                                <button onClick={() => { setEditingVaga(vaga); setShowVagaModal(true); }} className="p-2 text-white/20 hover:text-gold-primary hover:bg-gold-primary/10 rounded-lg transition-colors">
                                                     <Edit2 size={18} />
                                                 </button>
                                                 <button onClick={() => handleDeleteVaga(vaga.id, vaga.titulo)} className="p-2 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors">
@@ -283,7 +283,7 @@ const VagasAdminTab: React.FC = () => {
                             </div>
                             <div className="pt-6 flex justify-end gap-4 border-t border-white/5">
                                 <button type="button" onClick={() => setShowVagaModal(false)} className="px-6 py-3 font-bold text-white/40 hover:bg-white/5 rounded-xl transition-colors border border-white/10">Cancelar</button>
-                                <button type="submit" className="px-8 py-3 bg-indigo-500/20 text-indigo-400 font-bold rounded-xl transition-all border border-indigo-500/30 hover:bg-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]">Guardar Vaga</button>
+                                <button type="submit" className="px-8 py-3 bg-gold-primary/20 text-gold-primary font-bold rounded-xl transition-all border border-gold-primary/30 hover:bg-gold-primary/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]">Guardar Vaga</button>
                             </div>
                         </form>
                     </div>
@@ -294,7 +294,7 @@ const VagasAdminTab: React.FC = () => {
             {showCandidaturasModal && selectedVaga && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
                     <div className="glass-panel rounded-[2rem] w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-white/10">
-                        <div className="bg-gradient-to-r from-indigo-500/20 to-indigo-600/10 px-8 py-6 flex justify-between items-center shrink-0 border-b border-white/5">
+                        <div className="bg-gradient-to-r from-gold-primary/20 to-gold-secondary/10 px-8 py-6 flex justify-between items-center shrink-0 border-b border-white/5">
                             <div>
                                 <h3 className="text-2xl font-bold text-white">Candidatos: {selectedVaga.titulo}</h3>
                                 <p className="text-white/30">{candidaturas.length} Currículos Recebidos</p>
@@ -317,8 +317,8 @@ const VagasAdminTab: React.FC = () => {
                                                 <div className="flex items-center gap-3 mb-1">
                                                     <h4 className="text-lg font-bold text-white">{c.nome}</h4>
                                                     <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase border
-                                                    ${c.status === 'pendente' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                                            c.status === 'em_analise' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                                    ${c.status === 'pendente' ? 'bg-gold-primary/10 text-gold-primary border-gold-primary/20' :
+                                                            c.status === 'em_analise' ? 'bg-gold-primary/10 text-gold-primary border-gold-primary/20' :
                                                                 c.status === 'aprovado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
                                                         {c.status.replace('_', ' ')}
                                                     </span>
@@ -335,7 +335,7 @@ const VagasAdminTab: React.FC = () => {
 
                                             <div className="flex flex-col items-end gap-3">
                                                 {c.cv_path && (
-                                                    <a href={c.cv_path} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 px-4 py-2 rounded-lg transition-colors border border-indigo-500/20">
+                                                    <a href={c.cv_path} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-bold text-gold-primary hover:text-gold-primary/80 bg-gold-primary/10 px-4 py-2 rounded-lg transition-colors border border-gold-primary/20">
                                                         <Download size={16} /> Ver Currículo (PDF)
                                                     </a>
                                                 )}
@@ -366,3 +366,5 @@ const VagasAdminTab: React.FC = () => {
 };
 
 export default VagasAdminTab;
+
+

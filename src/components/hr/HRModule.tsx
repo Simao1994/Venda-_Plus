@@ -64,7 +64,7 @@ export default function HRModule() {
 
   if (!user) return (
     <div className="p-8 text-center">
-      <div className="w-10 h-10 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
+      <div className="w-10 h-10 border-4 border-gold-primary border-t-transparent rounded-full animate-spin mx-auto" />
     </div>
   );
 
@@ -79,7 +79,7 @@ export default function HRModule() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all ${activeTab === tab.id
-              ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]'
+              ? 'bg-gold-primary/20 text-gold-primary border border-gold-primary/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]'
               : 'text-white/30 hover:text-white/50 hover:bg-white/5 border border-transparent'
               }`}
           >
@@ -112,3 +112,5 @@ export default function HRModule() {
     </div>
   );
 }
+
+

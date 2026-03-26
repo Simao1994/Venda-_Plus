@@ -125,7 +125,7 @@ export default function PerformanceTab() {
 
   if (loading) return (
     <div className="flex justify-center items-center py-20">
-      <RefreshCw className="animate-spin text-indigo-400" size={28} />
+      <RefreshCw className="animate-spin text-gold-primary" size={28} />
     </div>
   );
 
@@ -134,7 +134,7 @@ export default function PerformanceTab() {
       {/* Chart Metas */}
       <div className="glass-panel p-8 rounded-[2.5rem] border border-white/5 h-[300px]">
         <h3 className="text-sm font-black uppercase tracking-widest text-white/30 mb-4 flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#6366f1]" />
+          <div className="w-2 h-2 rounded-full bg-gold-primary shadow-[0_0_8px_#6366f1]" />
           Aproveitamento de KPIs
         </h3>
         <ResponsiveContainer width="100%" height="85%">
@@ -158,7 +158,7 @@ export default function PerformanceTab() {
       </div>
 
       <div className="flex justify-between items-center glass-panel p-10 rounded-[2.5rem] border border-white/5 relative overflow-hidden">
-        <Target className="absolute -right-8 -bottom-8 opacity-5 text-indigo-400" size={200} />
+        <Target className="absolute -right-8 -bottom-8 opacity-5 text-gold-primary" size={200} />
         <div>
           <h2 className="text-3xl font-black uppercase tracking-tighter text-white italic">Desempenho</h2>
           <p className="text-white/30 font-medium">Acompanhamento de KPIs e Metas</p>
@@ -166,7 +166,7 @@ export default function PerformanceTab() {
         <div className="flex gap-4 relative z-10">
           <button 
             onClick={() => setShowMetaModal(true)} 
-            className="px-8 py-4 bg-indigo-500/20 text-indigo-400 rounded-2xl font-black uppercase text-[10px] border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex items-center gap-3"
+            className="px-8 py-4 bg-gold-primary/20 text-gold-primary rounded-2xl font-black uppercase text-[10px] border border-gold-primary/30 hover:bg-gold-primary/30 transition-all flex items-center gap-3"
           >
             <PlusCircle size={20} /> Atribuir Meta
           </button>
@@ -177,10 +177,10 @@ export default function PerformanceTab() {
         {metas.map(m => {
           const func = funcionarios.find(f => f.id === m.employee_id);
           return (
-            <div key={m.id} className="glass-panel p-8 rounded-[2.5rem] border border-white/5 space-y-6 hover:border-indigo-500/20 transition-all group">
+            <div key={m.id} className="glass-panel p-8 rounded-[2.5rem] border border-white/5 space-y-6 hover:border-gold-primary/20 transition-all group">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center font-black text-indigo-400 uppercase text-xs border border-indigo-500/20">
+                  <div className="w-10 h-10 rounded-xl bg-gold-primary/10 flex items-center justify-center font-black text-gold-primary uppercase text-xs border border-gold-primary/20">
                     {func?.name?.[0] || '?'}
                   </div>
                   <div>
@@ -195,7 +195,7 @@ export default function PerformanceTab() {
                   >
                     <Trash2 size={14} />
                   </button>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${m.status === 'Concluída' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${m.status === 'Concluída' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gold-primary/10 text-gold-primary border border-gold-primary/20'}`}>
                     {m.status}
                   </span>
                 </div>
@@ -215,7 +215,7 @@ export default function PerformanceTab() {
                     max="100" 
                     value={m.progresso} 
                     onChange={(e) => updateMetaProgresso(m.id, Number(e.target.value))} 
-                    className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500" 
+                    className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-gold-primary" 
                   />
                 </div>
               </div>
@@ -242,7 +242,7 @@ export default function PerformanceTab() {
             <form onSubmit={handleAddMeta} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Colaborador</label>
-                <select name="func_id" required className="w-full bg-zinc-900 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none">
+                <select name="func_id" required className="w-full bg-zinc-900 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary appearance-none">
                   <option value="" className="bg-zinc-900 text-white">Selecionar...</option>
                   {(Array.isArray(funcionarios) ? funcionarios : []).map(f => (
                     <option key={f.id} value={f.id} className="bg-zinc-900 text-white font-bold">
@@ -253,13 +253,13 @@ export default function PerformanceTab() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Título da Meta</label>
-                <input name="titulo" required placeholder="Ex: Aumentar vendas em 20%" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-white/20" />
+                <input name="titulo" required placeholder="Ex: Aumentar vendas em 20%" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary placeholder:text-white/20" />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest">Prazo</label>
-                <input name="prazo" type="date" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <input name="prazo" type="date" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary" />
               </div>
-              <button type="submit" className="w-full py-5 bg-indigo-500/20 text-indigo-400 rounded-2xl font-black uppercase text-xs border border-indigo-500/30 hover:bg-indigo-500/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]">
+              <button type="submit" className="w-full py-5 bg-gold-primary/20 text-gold-primary rounded-2xl font-black uppercase text-xs border border-gold-primary/30 hover:bg-gold-primary/30 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)]">
                 Criar Meta
               </button>
             </form>
@@ -269,3 +269,5 @@ export default function PerformanceTab() {
     </div>
   );
 }
+
+

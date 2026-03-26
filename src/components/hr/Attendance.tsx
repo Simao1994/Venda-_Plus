@@ -10,8 +10,8 @@ import {
 const STATUS_CONFIG = {
   present: { label: 'Presente', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', icon: CheckCircle2, dot: 'bg-emerald-400' },
   absent: { label: 'Faltou', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20', icon: XCircle, dot: 'bg-rose-400' },
-  late: { label: 'Atrasado', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Clock, dot: 'bg-amber-400' },
-  sick_leave: { label: 'Licença', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', icon: AlertCircle, dot: 'bg-blue-400' },
+  late: { label: 'Atrasado', color: 'bg-gold-primary/10 text-gold-primary border-gold-primary/20', icon: Clock, dot: 'bg-gold-primary' },
+  sick_leave: { label: 'Licença', color: 'bg-gold-primary/10 text-gold-primary border-gold-primary/20', icon: AlertCircle, dot: 'bg-gold-primary' },
 };
 
 export default function Attendance() {
@@ -110,7 +110,7 @@ export default function Attendance() {
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-500/20 text-indigo-400 rounded-xl text-xs font-black uppercase tracking-widest border border-indigo-500/30 hover:bg-indigo-500/30 transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-gold-primary/20 text-gold-primary rounded-xl text-xs font-black uppercase tracking-widest border border-gold-primary/30 hover:bg-gold-primary/30 transition-all"
         >
           <RefreshCw size={14} /> Actualizar
         </button>
@@ -121,7 +121,7 @@ export default function Attendance() {
         {[
           { label: 'Presentes', value: presentCount, color: 'from-emerald-500/30 to-emerald-600/10', border: 'border-emerald-500/20', icon: CheckCircle2, textColor: 'text-emerald-400' },
           { label: 'Faltas', value: absentCount, color: 'from-rose-500/30 to-rose-600/10', border: 'border-rose-500/20', icon: XCircle, textColor: 'text-rose-400' },
-          { label: 'Atrasados', value: lateCount, color: 'from-amber-500/30 to-amber-600/10', border: 'border-amber-500/20', icon: Clock, textColor: 'text-amber-400' },
+          { label: 'Atrasados', value: lateCount, color: 'from-gold-primary/30 to-gold-secondary/10', border: 'border-gold-primary/20', icon: Clock, textColor: 'text-gold-primary' },
           { label: 'Por registar', value: unregistered, color: 'from-white/10 to-white/5', border: 'border-white/10', icon: AlertCircle, textColor: 'text-white/50' },
         ].map(stat => (
           <div key={stat.label} className={`glass-panel bg-gradient-to-br ${stat.color} rounded-2xl p-5 border ${stat.border}`}>
@@ -138,13 +138,13 @@ export default function Attendance() {
           <ChevronLeft size={20} />
         </button>
         <div className="flex items-center gap-3">
-          <Calendar size={20} className="text-indigo-400" />
+          <Calendar size={20} className="text-gold-primary" />
           <div className="text-center">
             <p className="text-sm font-black text-white capitalize">{formattedDate}</p>
           </div>
           <input
             type="date"
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-sm font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-sm font-bold text-white focus:ring-2 focus:ring-gold-primary focus:outline-none"
             value={date}
             onChange={e => setDate(e.target.value)}
           />
@@ -158,7 +158,7 @@ export default function Attendance() {
       <div className="glass-panel rounded-[2rem] border border-white/5 overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <RefreshCw className="animate-spin text-indigo-400" size={28} />
+            <RefreshCw className="animate-spin text-gold-primary" size={28} />
           </div>
         ) : employees.length === 0 ? (
           <div className="text-center py-16">
@@ -189,7 +189,7 @@ export default function Attendance() {
                     <tr key={emp.id} className={`hover:bg-white/5 transition-colors ${isSaving ? 'opacity-60' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500/30 to-indigo-600/20 flex items-center justify-center text-indigo-400 font-black text-xs border border-indigo-500/20">
+                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gold-primary/30 to-gold-secondary/20 flex items-center justify-center text-gold-primary font-black text-xs border border-gold-primary/20">
                             {initials}
                           </div>
                           <div>
@@ -211,7 +211,7 @@ export default function Attendance() {
                       <td className="px-6 py-4">
                         <input
                           type="time"
-                          className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-sm font-bold text-white w-24 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                          className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-sm font-bold text-white w-24 focus:ring-2 focus:ring-gold-primary focus:outline-none"
                           value={checkTimes[emp.id]?.in || '08:00'}
                           onChange={e => setCheckTimes(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], in: e.target.value } }))}
                         />
@@ -219,7 +219,7 @@ export default function Attendance() {
                       <td className="px-6 py-4">
                         <input
                           type="time"
-                          className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-sm font-bold text-white w-24 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                          className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-sm font-bold text-white w-24 focus:ring-2 focus:ring-gold-primary focus:outline-none"
                           value={checkTimes[emp.id]?.out || '17:00'}
                           onChange={e => setCheckTimes(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], out: e.target.value } }))}
                         />
@@ -228,9 +228,9 @@ export default function Attendance() {
                         <div className="flex justify-end gap-1.5">
                           {[
                             { status: 'present', label: 'Presente', Icon: CheckCircle2, cls: 'text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/20' },
-                            { status: 'late', label: 'Atrasado', Icon: Clock, cls: 'text-amber-400 hover:bg-amber-500/10 border-amber-500/20' },
+                            { status: 'late', label: 'Atrasado', Icon: Clock, cls: 'text-gold-primary hover:bg-gold-primary/10 border-gold-primary/20' },
                             { status: 'absent', label: 'Faltou', Icon: XCircle, cls: 'text-rose-400 hover:bg-rose-500/10 border-rose-500/20' },
-                            { status: 'sick_leave', label: 'Licença', Icon: AlertCircle, cls: 'text-blue-400 hover:bg-blue-500/10 border-blue-500/20' },
+                            { status: 'sick_leave', label: 'Licença', Icon: AlertCircle, cls: 'text-gold-primary hover:bg-gold-primary/10 border-gold-primary/20' },
                           ].map(({ status, label, Icon, cls }) => (
                             <button
                               key={status}
@@ -255,3 +255,5 @@ export default function Attendance() {
     </div>
   );
 }
+
+

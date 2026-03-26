@@ -44,53 +44,53 @@ const CardFront: React.FC<{ emp: Employee; company: CompanyProfile | null; empNu
         style={{
             width: '85.6mm', height: '54mm',
             position: 'relative', overflow: 'hidden',
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            background: 'linear-gradient(135deg, #1c1917 0%, #27272a 100%)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
             borderRadius: '4mm',
             fontFamily: "'Inter', sans-serif",
-            color: '#1e293b',
+            color: '#f8fafc',
             flexShrink: 0
         }}
     >
-        {/* Background Blobs Canva-style */}
-        <div style={{ position: 'absolute', top: '-15mm', right: '-15mm', width: '50mm', height: '50mm', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', opacity: 0.1 }} />
-        <div style={{ position: 'absolute', bottom: '-20mm', left: '-5mm', width: '60mm', height: '60mm', borderRadius: '50%', background: 'linear-gradient(135deg, #ec4899, #f43f5e)', opacity: 0.05 }} />
+        {/* Background Blobs Canva-style - GOLDEN */}
+        <div style={{ position: 'absolute', top: '-15mm', right: '-15mm', width: '50mm', height: '50mm', borderRadius: '50%', background: 'linear-gradient(135deg, #D4AF37, #B8860B)', opacity: 0.15 }} />
+        <div style={{ position: 'absolute', bottom: '-20mm', left: '-5mm', width: '60mm', height: '60mm', borderRadius: '50%', background: 'linear-gradient(135deg, #B8860B, #D4AF37)', opacity: 0.1 }} />
         
         <div style={{ display: 'flex', height: '100%', alignItems: 'center', padding: '0 6mm' }}>
-            {/* Left accent border */}
-            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '2mm', background: 'linear-gradient(180deg, #4f46e5, #ec4899)' }} />
+            {/* Left accent border - GOLDEN */}
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '2mm', background: 'linear-gradient(180deg, #D4AF37, #B8860B)' }} />
             
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '5mm', alignItems: 'center', width: '100%' }}>
                 {/* Photo Holder */}
-                <div style={{ width: '22mm', height: '22mm', borderRadius: '50%', overflow: 'hidden', border: '0.8mm solid white', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', flexShrink: 0, background: '#f1f5f9' }}>
+                <div style={{ width: '22mm', height: '22mm', borderRadius: '50%', overflow: 'hidden', border: '0.8mm solid #D4AF37', boxShadow: '0 4px 15px rgba(212, 175, 55, 0.2)', flexShrink: 0, background: '#27272a' }}>
                     {emp.photo_url 
                         ? <img src={emp.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> 
-                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt', color: '#94a3b8', fontWeight: 800 }}>FOTO</div>
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt', color: '#D4AF37', fontWeight: 800 }}>FOTO</div>
                     }
                 </div>
                 
                 {/* Info Text */}
                 <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '5.5pt', fontWeight: 900, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1mm' }}>{company?.name || 'EMPRESA'}</p>
-                    <h2 style={{ fontSize: '12pt', fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1.1, letterSpacing: '-0.02em' }}>{emp.name}</h2>
-                    <p style={{ fontSize: '7pt', fontWeight: 600, color: '#64748b', margin: '1mm 0 3mm 0' }}>{emp.position}</p>
+                    <p style={{ fontSize: '5.5pt', fontWeight: 900, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1mm' }}>{company?.name || 'EMPRESA'}</p>
+                    <h2 style={{ fontSize: '12pt', fontWeight: 900, color: '#ffffff', margin: 0, lineHeight: 1.1, letterSpacing: '-0.02em' }}>{emp.name}</h2>
+                    <p style={{ fontSize: '7pt', fontWeight: 600, color: '#a1a1aa', margin: '1mm 0 3mm 0' }}>{emp.position}</p>
                     
-                    <div style={{ display: 'inline-flex', padding: '1mm 2.5mm', background: '#f1f5f9', borderRadius: '1.5mm', border: '0.5px solid #e2e8f0' }}>
-                        <span style={{ fontSize: '5.5pt', fontFamily: 'monospace', fontWeight: 800, color: '#475569', letterSpacing: '0.05em' }}>ID: {empNumber}</span>
+                    <div style={{ display: 'inline-flex', padding: '1mm 2.5mm', background: '#3f3f46', borderRadius: '1.5mm', border: '0.5px solid #D4AF37' }}>
+                        <span style={{ fontSize: '5.5pt', fontFamily: 'monospace', fontWeight: 800, color: '#D4AF37', letterSpacing: '0.05em' }}>ID: {empNumber}</span>
                     </div>
                 </div>
             </div>
         </div>
         
-        {/* Dept Badge */}
-        <div style={{ position: 'absolute', top: '4mm', right: '4mm', background: '#4f46e5', color: 'white', padding: '1.2mm 3mm', borderRadius: '10mm', fontSize: '5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 2px 5px rgba(79,70,229,0.3)' }}>
+        {/* Dept Badge - GOLDEN */}
+        <div style={{ position: 'absolute', top: '4mm', right: '4mm', background: '#D4AF37', color: '#000', padding: '1.2mm 3mm', borderRadius: '10mm', fontSize: '5pt', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 2px 5px rgba(212,175,55,0.3)' }}>
             {emp.hr_departments?.name || 'COLABORADOR'}
         </div>
         
         {/* Contact/Website footer */}
         <div style={{ position: 'absolute', bottom: '3mm', right: '4mm', textAlign: 'right' }}>
-            {company?.email && <p style={{ fontSize: '4.5pt', color: '#94a3b8', fontWeight: 700, margin: 0 }}>{company.email}</p>}
-            {company?.phone && <p style={{ fontSize: '4.5pt', color: '#94a3b8', fontWeight: 700, margin: 0 }}>{company.phone}</p>}
+            {company?.email && <p style={{ fontSize: '4.5pt', color: '#a1a1aa', fontWeight: 700, margin: 0 }}>{company.email}</p>}
+            {company?.phone && <p style={{ fontSize: '4.5pt', color: '#a1a1aa', fontWeight: 700, margin: 0 }}>{company.phone}</p>}
         </div>
     </div>
 );
@@ -112,7 +112,7 @@ const CardBack: React.FC<{ emp: Employee; company: CompanyProfile | null; empNum
             style={{
                 width: '85.6mm', height: '54mm',
                 position: 'relative', overflow: 'hidden',
-                background: '#0f172a',
+                background: '#18181b', // Darker black/brown
                 borderRadius: '4mm',
                 fontFamily: "'Inter', sans-serif",
                 color: '#ffffff',
@@ -121,23 +121,23 @@ const CardBack: React.FC<{ emp: Employee; company: CompanyProfile | null; empNum
             }}
         >
             {/* Magnetic stripe simulator */}
-            <div style={{ width: '100%', height: '9mm', background: '#000000', marginTop: '5mm', opacity: 0.8 }} />
+            <div style={{ width: '100%', height: '9mm', background: '#000000', marginTop: '5mm', opacity: 0.9 }} />
             
             <div style={{ display: 'flex', padding: '4mm 6mm', flex: 1, alignItems: 'center', gap: '6mm' }}>
-                <div style={{ background: 'white', padding: '2mm', borderRadius: '2mm', flexShrink: 0 }}>
-                    <QRCodeSVG value={qrData} size={60} bgColor="#ffffff" fgColor="#000000" level="M" />
+                <div style={{ background: 'white', padding: '1.5mm', borderRadius: '2mm', flexShrink: 0, border: '1px solid #D4AF37' }}>
+                    <QRCodeSVG value={qrData} size={62} bgColor="#ffffff" fgColor="#000000" level="M" />
                 </div>
                 
                 <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '5.5pt', color: '#94a3b8', fontWeight: 600, marginBottom: '2.5mm', lineHeight: 1.4 }}>Este cartão é pessoal e intransmissível. O uso indevido é punível. Em caso de perda, contacte os recursos humanos imediatamente.</p>
-                    <div style={{ width: '100%', height: '7mm', background: 'repeating-linear-gradient(90deg, #ffffff, #ffffff 1px, transparent 1px, transparent 3.5px)', opacity: 0.15 }} />
-                    <p style={{ fontSize: '6.5pt', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#e2e8f0', marginTop: '1mm', textAlign: 'center' }}>{empNumber}</p>
+                    <p style={{ fontSize: '5.5pt', color: '#a1a1aa', fontWeight: 600, marginBottom: '2.5mm', lineHeight: 1.4 }}>Este cartão é pessoal e intransmissível. O uso indevido é punível. Em caso de perda, contacte os recursos humanos imediatamente.</p>
+                    <div style={{ width: '100%', height: '7mm', background: 'repeating-linear-gradient(90deg, #D4AF37, #D4AF37 1px, transparent 1px, transparent 3.5px)', opacity: 0.2 }} />
+                    <p style={{ fontSize: '6.5pt', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#D4AF37', marginTop: '1mm', textAlign: 'center' }}>{empNumber}</p>
                 </div>
             </div>
             
-            <div style={{ background: '#1e293b', padding: '2mm 6mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p style={{ fontSize: '4.5pt', color: '#94a3b8', margin: 0, fontWeight: 600 }}>Válido até: {new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toLocaleDateString('pt-AO')}</p>
-                <p style={{ fontSize: '4.5pt', color: '#818cf8', fontWeight: 900, margin: 0, letterSpacing: '0.05em' }}>SISTEMA DE GESTÃO V.2026</p>
+            <div style={{ background: '#27272a', padding: '2mm 6mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontSize: '4.5pt', color: '#a1a1aa', margin: 0, fontWeight: 600 }}>Válido até: {new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toLocaleDateString('pt-AO')}</p>
+                <p style={{ fontSize: '4.5pt', color: '#D4AF37', fontWeight: 900, margin: 0, letterSpacing: '0.05em' }}>SISTEMA DE GESTÃO V.2026</p>
             </div>
         </div>
     );
@@ -220,7 +220,7 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
 
     if (loading) return (
         <div className="flex justify-center items-center py-20">
-            <RefreshCw className="animate-spin text-indigo-400" size={28} />
+            <RefreshCw className="animate-spin text-gold-primary" size={28} />
         </div>
     );
 
@@ -228,20 +228,20 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
         <div className="p-6 space-y-6">
             {/* Header */}
             <div className="glass-panel p-8 rounded-[2.5rem] border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-                <div className="absolute -right-10 -bottom-10 opacity-5"><IdCard size={200} className="text-indigo-400" /></div>
+                <div className="absolute -right-10 -bottom-10 opacity-5"><IdCard size={200} className="text-gold-primary" /></div>
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase rounded-full border border-indigo-500/30 tracking-widest">Sistema Ativo</div>
+                        <div className="px-3 py-1 bg-gold-primary/20 text-gold-primary text-[9px] font-black uppercase rounded-full border border-gold-primary/30 tracking-widest">Sistema Ativo</div>
                         <div className="text-white/20 text-[9px] font-black uppercase tracking-widest">ISO/IEC 7810 ID-1 • 85.6×54mm</div>
                     </div>
-                    <h3 className="text-3xl font-black uppercase tracking-tight text-white">Emissão de <span className="text-indigo-400">Passes PVC</span></h3>
+                    <h3 className="text-3xl font-black uppercase tracking-tight text-white">Emissão de <span className="text-gold-primary">Passes PVC</span></h3>
                     <p className="text-white/30 text-sm mt-1">Cartões de identificação corporativa com QR Code integrado</p>
                 </div>
                 <div className="relative z-10 w-full md:w-72">
                     <input
                         type="text"
                         placeholder="Pesquisar funcionário..."
-                        className="w-full glass-panel border border-white/10 rounded-2xl py-3 px-10 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-transparent"
+                        className="w-full glass-panel border border-white/10 rounded-2xl py-3 px-10 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold-primary bg-transparent"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
@@ -254,24 +254,24 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
                 {filtered.map(emp => {
                     const initials = emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                     return (
-                        <div key={emp.id} className="glass-panel p-5 rounded-[2rem] border border-white/5 flex flex-col items-center text-center hover:border-indigo-500/30 transition-all group">
+                        <div key={emp.id} className="glass-panel p-5 rounded-[2rem] border border-white/5 flex flex-col items-center text-center hover:border-gold-primary/30 transition-all group">
                             <div className="relative mb-3">
-                                <div className="w-20 h-20 rounded-[1.5rem] bg-white/5 flex items-center justify-center overflow-hidden border-2 border-white/10 group-hover:border-indigo-500/30 transition-all">
+                                <div className="w-20 h-20 rounded-[1.5rem] bg-white/5 flex items-center justify-center overflow-hidden border-2 border-white/10 group-hover:border-gold-primary/30 transition-all">
                                     {emp.photo_url
                                         ? <img src={emp.photo_url} className="w-full h-full object-cover" />
                                         : <span className="text-xl font-black text-white/30">{initials}</span>
                                     }
                                 </div>
-                                <div className="absolute -bottom-1 -right-1 bg-indigo-500 text-white p-1 rounded-lg shadow-lg">
+                                <div className="absolute -bottom-1 -right-1 bg-gold-primary text-white p-1 rounded-lg shadow-lg">
                                     <ShieldCheck size={12} />
                                 </div>
                             </div>
                             <h4 className="font-black text-white text-sm uppercase leading-tight mb-1">{emp.name}</h4>
                             <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">{emp.position}</p>
-                            <p className="text-[9px] text-indigo-400/60 mb-4">{getEmpNumber(emp)}</p>
+                            <p className="text-[9px] text-gold-primary/60 mb-4">{getEmpNumber(emp)}</p>
                             <button
                                 onClick={() => { setPrintingPass(emp); setShowBack(false); }}
-                                className="w-full py-3 bg-indigo-500/20 text-indigo-400 rounded-xl font-black uppercase text-[10px] border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2"
+                                className="w-full py-3 bg-gold-primary/20 text-gold-primary rounded-xl font-black uppercase text-[10px] border border-gold-primary/30 hover:bg-gold-primary/30 transition-all flex items-center justify-center gap-2"
                             >
                                 <CreditCard size={14} /> Emitir Passe
                             </button>
@@ -313,7 +313,7 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
                         <div className="px-8 py-6 border-b border-white/5 flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-black text-white uppercase flex items-center gap-2">
-                                    <IdCard className="text-indigo-400" size={22} /> Emissão PVC — {printingPass.name}
+                                    <IdCard className="text-gold-primary" size={22} /> Emissão PVC — {printingPass.name}
                                 </h2>
                                 <p className="text-white/30 text-xs mt-1">ISO/IEC 7810 • Tamanho ID-1 (85.6mm × 54mm)</p>
                             </div>
@@ -326,10 +326,10 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
                         <div className="p-8 flex flex-col items-center gap-8">
                             {/* Toggle Frente / Verso */}
                             <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
-                                <button onClick={() => setShowBack(false)} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!showBack ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-white/30 hover:text-white/50'}`}>
+                                <button onClick={() => setShowBack(false)} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!showBack ? 'bg-gold-primary/20 text-gold-primary border border-gold-primary/30' : 'text-white/30 hover:text-white/50'}`}>
                                     Frente
                                 </button>
-                                <button onClick={() => setShowBack(true)} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${showBack ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-white/30 hover:text-white/50'}`}>
+                                <button onClick={() => setShowBack(true)} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${showBack ? 'bg-gold-primary/20 text-gold-primary border border-gold-primary/30' : 'text-white/30 hover:text-white/50'}`}>
                                     Verso (QR Code)
                                 </button>
                             </div>
@@ -348,7 +348,7 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
                             <div className="flex gap-3 w-full max-w-lg">
                                 <button
                                     onClick={() => showBack ? handlePrintBack() : handlePrintFront()}
-                                    className="flex-1 py-4 bg-indigo-500/20 text-indigo-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2 border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.15)]"
+                                    className="flex-1 py-4 bg-gold-primary/20 text-gold-primary rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gold-primary/30 transition-all flex items-center justify-center gap-2 border border-gold-primary/30 shadow-[0_0_20px_rgba(99,102,241,0.15)]"
                                 >
                                     <Printer size={18} /> Imprimir {showBack ? 'Verso' : 'Frente'}
                                 </button>
@@ -413,3 +413,5 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
         </div>
     );
 }
+
+
