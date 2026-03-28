@@ -182,6 +182,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          if (!res.ok) throw new Error('Falha ao registar pagamento');
          alert('Pagamento registado com sucesso!');
          setShowPaymentModal(false);
+         clearQueryCache();
+         (fetchAccountingData as any).lastSync = 0;
          fetchAccountingData();
       } catch (err: any) {
          alert(err.message);
@@ -391,6 +393,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             is_exempt: false,
             exemption_reason: ''
          });
+         clearQueryCache();
+         (fetchAccountingData as any).lastSync = 0;
          fetchAccountingData();
       } catch (error: any) {
          console.error("Invoice Error:", error);
@@ -465,6 +469,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          }
 
          alert("Documento anulado com sucesso.");
+         clearQueryCache();
+         (fetchAccountingData as any).lastSync = 0;
          fetchAccountingData();
       } catch (error: any) {
          console.error("Anular Error:", error);
@@ -507,6 +513,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          if (error) throw error;
          alert(`Exercício ${targetYear} (Mês 1) aberto com sucesso.`);
+         clearQueryCache();
+         (fetchAccountingData as any).lastSync = 0;
          await fetchAccountingData();
       } catch (error: any) {
          console.error("Open Year Error:", error);
@@ -553,6 +561,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
          if (error) throw error;
          alert(`Mês ${nextMes}/${nextAno} aberto.`);
+         clearQueryCache();
+         (fetchAccountingData as any).lastSync = 0;
          await fetchAccountingData();
       } catch (error: any) {
          console.error("Open Month Error:", error);
@@ -884,12 +894,12 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       setLedgerEntries(data || []);
    };
 
-   const fetchAccountingData = async () => {
+   const fetchAccountingData = async (force = false) => {
       if (!user?.id) return;
 
-      // Debounce/Throttling: Avoid sync if we just synced less than 15s ago
+      // Debounce/Throttling: Avoid sync if we just synced less than 5s ago (unless forced)
       const lastSync = (fetchAccountingData as any).lastSync || 0;
-      if (Date.now() - lastSync < 15000) return;
+      if (!force && Date.now() - lastSync < 5000) return;
       (fetchAccountingData as any).lastSync = Date.now();
 
       setLoadingStatus('Sincronizando...');
@@ -971,18 +981,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             auditRes,
             extratosRes
          ] = await Promise.all([
-            safeQuery<any[]>(() => supabase.from('acc_lancamentos').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-lnc-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('acc_lancamento_itens').select('*').eq('company_id', effEmpId), { cacheKey: `acc-lnc-items-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<FolhaPagamento[]>(() => supabase.from('acc_folhas').select('*').eq('company_id', effEmpId).order('mes_referencia', { ascending: false }), { cacheKey: `acc-folhas-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<ObrigacaoFiscal[]>(() => supabase.from('acc_obrigacoes').select('*').eq('company_id', effEmpId).order('data_limite'), { cacheKey: `acc-obl-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<any[]>(() => supabase.from('acc_centros_custo').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-centros-${effEmpId}`, cacheTTL: 300000 }),
-            safeQuery<any[]>(() => supabase.from('acc_config').select('*').eq('company_id', effEmpId), { cacheKey: `acc-config-${effEmpId}`, cacheTTL: 300000 }),
+            safeQuery<any[]>(() => supabase.from('acc_lancamentos').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-lnc-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('acc_lancamento_itens').select('*').eq('company_id', effEmpId), { cacheKey: `acc-lnc-items-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<FolhaPagamento[]>(() => supabase.from('acc_folhas').select('*').eq('company_id', effEmpId).order('mes_referencia', { ascending: false }), { cacheKey: `acc-folhas-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<ObrigacaoFiscal[]>(() => supabase.from('acc_obrigacoes').select('*').eq('company_id', effEmpId).order('data_limite'), { cacheKey: `acc-obl-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('acc_centros_custo').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-centros-${effEmpId}`, cacheTTL: 300000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('acc_config').select('*').eq('company_id', effEmpId), { cacheKey: `acc-config-${effEmpId}`, cacheTTL: 300000, forceRefresh: force }),
             safeQuery<any[]>(() => supabase.from('acc_system_logs').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }).limit(50)),
-            safeQuery<any[]>(() => supabase.from('contabil_faturas').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-faturas-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('fin_transacoes').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-tesouraria-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('rh_recibos').select('*').eq('company_id', effEmpId).order('data_emissao', { ascending: false }), { cacheKey: `acc-recibos-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('products').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000 }),
+            safeQuery<any[]>(() => supabase.from('contabil_faturas').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-faturas-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('fin_transacoes').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-tesouraria-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('rh_recibos').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-payrolls-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('products').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
             safeQuery<any[]>(async () => {
                const t = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
                const apiUrl = AmazingStorage.get(STORAGE_KEYS.API_URL) || '';
@@ -993,11 +1003,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                } catch (e: any) {
                   return { data: null, error: e };
                }
-            }, { cacheKey: `acc-customers-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('suppliers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-suppliers-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000 }),
-            safeQuery<any[]>(() => supabase.from('vendas_farmacia').select('*, clientes_farmacia(nome)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000 }),
-            safeQuery<any[]>(() => supabase.from('sales').select('*, customers(name)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000 }),
+            }, { cacheKey: `acc-customers-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('suppliers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-suppliers-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('vendas_farmacia').select('*, clientes_farmacia(nome)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => supabase.from('sales').select('*, customers(name)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
             safeQuery<any[]>(() => supabase.from('acc_audit_logs').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }).limit(50)),
             safeQuery<any[]>(() => supabase.from('acc_extratos_bancarios').select('*').eq('company_id', effEmpId).order('data', { ascending: false }))
          ]);
@@ -1032,8 +1042,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          setAuditLogs(auditRes?.data || []);
          setExtratos(extratosRes?.data || []);
 
-         setExtFaturas(faturasRes.data || []);
-         AmazingStorage.save('amazing_ext_faturas', faturasRes.data);
+          setExtFaturas(faturasRes.data || []);
+          AmazingStorage.save('amazing_ext_faturas', faturasRes.data);
+          
+          // Debug: Log faturas with type_prefix = PRO
+          const proFaturas = (faturasRes.data || []).filter((f: any) => f.type_prefix === 'PRO' || f.numero_fatura?.toUpperCase().startsWith('PRO'));
+          console.log('[DEBUG] Faturas com type_prefix PRO carregadas:', proFaturas.length);
+          if (proFaturas.length > 0) {
+             console.log('[DEBUG] Amostra de proformas:', proFaturas.slice(0, 3));
+          }
 
          setExtTesouraria(tesourariaRes.data || []);
          AmazingStorage.save('amazing_ext_tesouraria', tesourariaRes.data);
@@ -1074,10 +1091,20 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             AmazingStorage.save('amazing_ext_vendas_farmacia', vendasFarmaciaRes.data);
          }
 
-         if (salesRes?.data) {
-            setExtSales(salesRes.data);
-            AmazingStorage.save('amazing_ext_sales', salesRes.data);
-         }
+          if (salesRes?.data) {
+             setExtSales(salesRes.data);
+             AmazingStorage.save('amazing_ext_sales', salesRes.data);
+             
+             // Debug: Log ALL sales data to understand structure
+             console.log('[DEBUG] === TODAS AS SALES ===');
+             salesRes.data.forEach((s: any, i: number) => {
+                console.log(`[DEBUG] Sale ${i}: invoice_number=${s.invoice_number}, is_pro_forma=${s.is_pro_forma}`);
+             });
+             
+             // Debug: Log sales with is_pro_forma = true
+             const proSales = (salesRes.data || []).filter((s: any) => s.is_pro_forma || s.invoice_number?.toUpperCase().startsWith('PRO'));
+             console.log('[DEBUG] Sales com is_pro_forma ou PRO carregadas:', proSales.length);
+          }
 
          setLastSyncAt(new Date());
       } catch (error) {
@@ -1229,7 +1256,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       const notas = [
          ...(extFaturas || []).filter(Boolean).map(f => {
             let resolvedTipo = (typeof f.tipo === 'string' ? f.tipo : '');
-            if (f.type_prefix === 'PRO' || resolvedTipo.toLowerCase().includes('proforma') || resolvedTipo.toLowerCase().includes('pró-forma')) {
+            if (f.type_prefix === 'PRO' || (f.numero_fatura && f.numero_fatura.toUpperCase().startsWith('PRO')) || resolvedTipo.toLowerCase().includes('proforma') || resolvedTipo.toLowerCase().includes('pró-forma')) {
                resolvedTipo = 'Pró-forma';
             } else if (f.type_prefix === 'FR' || resolvedTipo.toLowerCase().includes('factura-recibo')) {
                resolvedTipo = 'Factura-Recibo';
@@ -1268,11 +1295,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             entidade: v.clientes_farmacia?.nome || 'Cliente Farmácia',
             numero: v.numero_factura,
             data: v.created_at?.split('T')[0],
-            tipo: 'Venda Farmácia'
+            tipo: (v.is_pro_forma ? 'Pró-forma' : 'Venda Farmácia'),
+            status: v.status === 'paid' ? 'PAGO' : (v.status === 'pending' ? 'PENDENTE' : v.status)
          })),
          ...(extSales || []).filter(Boolean).map(s => {
-            const prefix = s.invoice_number?.split('-')[0];
-            const resolvedTipo = (s.is_pro_forma || prefix === 'PRO') ? 'Pró-forma' :
+            const invoiceNum = s.invoice_number || '';
+            const prefix = invoiceNum.split('-')[0];
+            const isProForma = s.is_pro_forma || prefix === 'PRO' || invoiceNum.toUpperCase().startsWith('PRO');
+            const resolvedTipo = isProForma ? 'Pró-forma' :
                (prefix === 'FR' ? 'Factura-Recibo' :
                   prefix === 'FAC' ? 'Factura' : 'Venda');
             return {
@@ -1282,7 +1312,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                entidade: s.customers?.name || 'Cliente POS',
                numero: s.invoice_number,
                data: s.created_at?.split('T')[0],
-               tipo: (resolvedTipo === 'Pró-forma' ? 'Pró-forma' : 'Venda POS ' + resolvedTipo)
+               tipo: (resolvedTipo === 'Pró-forma' ? 'Pró-forma' : 'Venda POS ' + resolvedTipo),
+               status: s.status === 'paid' ? 'PAGO' : (s.status === 'pending' ? 'PENDENTE' : s.status)
             };
          })
       ];
@@ -1295,7 +1326,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       const ivaTotal = notas.reduce((acc, n) => acc + (n.iva || 0), 0);
       const farmaciaTotal = _farm.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
       const posTotal = _sales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
-      const pendente = _fat.filter(f => f.status === 'Pendente').reduce((acc, f) => acc + (Number(f.valor_total) || 0), 0);
+      const pendente = _fat.filter(f => f.status?.toUpperCase() === 'PENDENTE').reduce((acc, f) => acc + (Number(f.valor_total) || 0), 0);
 
       const caixa = _tes.reduce((acc, t) => {
          const v = Number(t.valor) || 0;
@@ -1310,24 +1341,33 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       const invValor = _inv.reduce((acc, i) => acc + (Number(i.quantidade_atual) * Number(i.preco_unitario) || 0), 0);
       const criticos = _inv.filter(i => (Number(i.quantidade_atual) || 0) <= (Number(i.stock_minimo) || 0)).length;
 
-      return {
-         extFinanceiroNotas: notas,
-         totalFacturado: facturado,
-         totalFarmacia: farmaciaTotal,
-         totalIva: ivaTotal,
-         totalPendente: pendente,
-         totalCaixa: caixa,
-         totalEntradas: entradas,
-         totalSaidas: saidas,
-         totalSalarios: salarios,
-         totalBruto: bruto,
-         totalPOS: posTotal,
-         totalInventarioValor: invValor,
-         itensCriticos: criticos
-      };
-   }, [extFaturas, extTesouraria, extRhRecibos, extInventario, extSales, extVendasFarmacia]);
+       // Debug: Log count of proformas
+       const proformaCount = notas.filter(n => 
+          n.tipo?.includes('Pró-forma') || 
+          n.tipo?.includes('Pro-forma') ||
+          (n.numero || '').toUpperCase().startsWith('PRO')
+       ).length;
+       console.log('[DEBUG] Proformas carregadas:', proformaCount, '| Total notas:', notas.length);
+       console.log('[DEBUG] extSales count:', (_sales || []).length, '| extFaturas count:', (_fat || []).length);
+       
+       return {
+          extFinanceiroNotas: notas,
+          totalFacturado: facturado,
+          totalFarmacia: farmaciaTotal,
+          totalIva: ivaTotal,
+          totalPendente: pendente,
+          totalCaixa: caixa,
+          totalEntradas: entradas,
+          totalSaidas: saidas,
+          totalSalarios: salarios,
+          totalBruto: bruto,
+          totalPOS: posTotal,
+          totalInventarioValor: invValor,
+          itensCriticos: criticos
+       };
+    }, [extFaturas, extTesouraria, extRhRecibos, extInventario, extSales, extVendasFarmacia]);
 
-   // --- LÓGICA DE GRÃFICOS E RELATÓRIOS (ULTRA DEFENSIVA) ---
+    // --- LÓGICA DE GRÁFICOS E RELATÓRIOS (ULTRA DEFENSIVA) ---
    const chartData = useMemo(() => {
       try {
          const filterEmpAndPeriod = (arr: LancamentoContabil[]) => (arr || []).filter(l =>
@@ -2373,7 +2413,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             </div>
             <div className="flex gap-4">
                <button
-                  onClick={() => fetchAccountingData()}
+                  onClick={() => fetchAccountingData(true)}
                   className="px-8 py-4 bg-gold-primary text-white rounded-2xl font-black uppercase tracking-widest uppercase text-xs tracking-widest hover:bg-zinc-800 transition-all shadow-xl flex items-center gap-2"
                >
                   <RefreshCw size={16} /> Forçar Sincronização
@@ -3570,7 +3610,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           console.error('Import error:', error);
                                           alert('Erro ao importar extrato. Verifique o formato CSV (Data,Descrição,Valor).');
                                        } else {
-                                          fetchAccountingData();
+                                          clearQueryCache();
+          (fetchAccountingData as any).lastSync = 0;
+          fetchAccountingData();
                                        }
                                     }} />
                                  </label>
@@ -4613,24 +4655,49 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                }
 
 
-               {/* --- TABELAS DE DOCUMENTOS (FACTURAS, PROFORMAS, GUIAS, ENCOMENDAS) --- */}
-               {
-                  ['facturas', 'proformas', 'guias', 'encomendas', 'recibos', 'notas'].includes(activeTab) && (() => {
-                     const typeMap: any = {
-                        'facturas': 'Factura',
-                        'proformas': 'Pró-forma',
-                        'recibos': 'Recibo',
-                        'notas': 'Nota',
-                        'guias': 'Guia',
-                        'encomendas': 'Encomenda'
-                     };
-                     const filtered = extFinanceiroNotas.filter(n =>
-                        n.tipo?.includes(typeMap[activeTab]) ||
-                        (activeTab === 'facturas' && n.tipo === 'Venda') ||
-                        (activeTab === 'facturas' && n.tipo === 'Factura-Recibo')
-                     );
+                {/* --- TABELAS DE DOCUMENTOS (FACTURAS, PROFORMAS, GUIAS, ENCOMENDAS) --- */}
+                {
+                   ['facturas', 'proformas', 'guias', 'encomendas', 'recibos', 'notas'].includes(activeTab) && (() => {
+                      const typeMap: any = {
+                         'facturas': 'Factura',
+                         'proformas': 'Pró-forma',
+                         'recibos': 'Recibo',
+                         'notas': 'Nota',
+                         'guias': 'Guia',
+                         'encomendas': 'Encomenda'
+                      };
+                      
+                      // Debug: Log all unique types in extFinanceiroNotas
+                      if (activeTab === 'proformas') {
+                         const allTypes = [...new Set(extFinanceiroNotas.map(n => n.tipo))];
+                         const allNumeros = extFinanceiroNotas.filter(n => n.numero?.toUpperCase().startsWith('PRO')).map(n => n.numero);
+                         console.log('[DEBUG PROFORMAS] Tab: proformas');
+                         console.log('[DEBUG PROFORMAS] Todos os tipos:', allTypes);
+                         console.log('[DEBUG PROFORMAS] Numeros com PRO:', allNumeros);
+                         console.log('[DEBUG PROFORMAS] Total extFinanceiroNotas:', extFinanceiroNotas.length);
+                         // Log each note's details
+                         extFinanceiroNotas.forEach((n, i) => {
+                            console.log(`[DEBUG NOTA ${i}]: numero=${n.numero}, tipo=${n.tipo}, isProForma=${n.tipo?.includes('Pró-forma')}`);
+                         });
+                      }
+                      
+                      const filtered = extFinanceiroNotas.filter(n => {
+                         const searchTerm = typeMap[activeTab];
+                         const numDoc = (n.numero || n.numero_fatura || '').toUpperCase();
+                         const isProFormaDoc = numDoc.startsWith('PRO-') || numDoc.startsWith('PRO/');
+                         if (activeTab === 'proformas') {
+                            return n.tipo?.includes('Pró-forma') || n.tipo?.includes('Pro-forma') || isProFormaDoc;
+                         }
+                         return n.tipo?.includes(searchTerm) ||
+                            (activeTab === 'facturas' && n.tipo === 'Venda') ||
+                            (activeTab === 'facturas' && n.tipo === 'Factura-Recibo');
+                      });
+                      
+                      if (activeTab === 'proformas') {
+                         console.log('[DEBUG PROFORMAS] filtered count:', filtered.length);
+                      }
 
-                     return (
+                      return (
                         <div className="bg-white/5 rounded-[3rem] border border-white/5 shadow-[0_0_30px_rgba(212,175,55,0.05)] p-10 space-y-8 animate-in slide-in-from-bottom-4">
                            <div className="flex items-center justify-between">
                               <h2 className="text-xl font-black uppercase tracking-widest text-white uppercase tracking-tight">Gestão de {sidebarItems.find(i => i.id === activeTab)?.label}</h2>
@@ -4692,8 +4759,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                           <td className="py-5 px-4 text-xs font-bold text-red-500">{safeFormatAOA(n.valor_em_divida ?? (n.valor_total || n.valor))}</td>
                                           <td className="py-5 px-4 text-[10px] font-bold text-white/30 uppercase">{n.data_emissao || n.data}</td>
                                           <td className="py-5 px-4">
-                                             <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${n.status === 'PAGO' || n.status === 'Pago' ? 'bg-green-500/10 text-green-500' : (n.status === 'Anulado' ? 'bg-red-500/10 text-red-500' : (n.status === 'PARCIAL' ? 'bg-blue-500/10 text-blue-500' : 'bg-yellow-500/10 text-yellow-500'))}`}>
-                                                {n.status || 'PENDENTE'}
+                                             <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${n.status === 'PAGO' || n.status === 'Pago' || n.status === 'paid' ? 'bg-green-500/10 text-green-500' : (n.status === 'Anulado' ? 'bg-red-500/10 text-red-500' : (n.status === 'PARCIAL' ? 'bg-blue-500/10 text-blue-500' : 'bg-yellow-500/10 text-yellow-500'))}`}>
+                                                {n.status === 'pending' ? 'PENDENTE' : (n.status === 'paid' ? 'PAGO' : (n.status || 'PENDENTE'))}
                                              </span>
                                           </td>
                                           <td className="py-5 px-4 text-right">
@@ -5989,47 +6056,47 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                }
                {/* Print Template (Hidden) */}
                <div style={{ position: 'absolute', top: '-10000px', left: '-10000px', width: '80mm' }}>
-                  <div ref={invoicePrintRef} className="invoice" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', padding: '2mm', background: '#fff', color: '#000' }}>
-                     <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
+                  <div ref={invoicePrintRef} className="invoice" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', padding: '1mm', background: '#fff', color: '#000' }}>
+                     <div style={{ textAlign: 'center', marginBottom: '1mm' }}>
                         <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
                         <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '999999999'}</p>
                         {user?.address && <p style={{ margin: '0', fontSize: '9px' }}>{user.address}</p>}
                         {user?.phone && <p style={{ margin: '0', fontSize: '9px' }}>Tel: {user.phone}</p>}
-                        <p style={{ margin: '2mm 0 1mm 0', fontSize: '11px', fontWeight: 'bold' }}>
+                        <p style={{ margin: '1mm 0 0.5mm 0', fontSize: '11px', fontWeight: 'bold' }}>
                            {lastCreatedDoc?.tipo?.toUpperCase() || 'DOCUMENTO'}
                         </p>
                         <p style={{ margin: '0', fontSize: '9px', fontWeight: 'bold' }}>Original</p>
                      </div>
 
-                     <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '3mm' }}>
+                     <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '1mm 0', marginBottom: '1mm' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>FACT Nº:</span><span style={{ fontWeight: 'bold' }}>{lastCreatedDoc?.numero_fatura || lastCreatedDoc?.metadata?.invoice_number || '---'}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Data:</span><span>{lastCreatedDoc?.data_emissao}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Cliente:</span><span style={{ textTransform: 'uppercase' }}>{lastCreatedDoc?.cliente_nome}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>NIF Cli:</span><span>{lastCreatedDoc?.metadata?.customer_nif || '999999999'}</span></div>
                      </div>
 
-                     <table style={{ width: '100%', marginBottom: '3mm', borderCollapse: 'collapse' }}>
+                     <table style={{ width: '100%', marginBottom: '1mm', borderCollapse: 'collapse' }}>
                         <thead>
                            <tr style={{ borderBottom: '1px solid #000' }}>
-                              <th style={{ textAlign: 'left', padding: '1px 0' }}>Item</th>
-                              <th style={{ textAlign: 'center', padding: '1px 0' }}>Qtd</th>
-                              <th style={{ textAlign: 'right', padding: '1px 0' }}>Preço Unit.</th>
-                              <th style={{ textAlign: 'right', padding: '1px 0' }}>Total</th>
+                              <th style={{ textAlign: 'left', padding: '0.5mm 0' }}>Item</th>
+                              <th style={{ textAlign: 'center', padding: '0.5mm 0' }}>Qtd</th>
+                              <th style={{ textAlign: 'right', padding: '0.5mm 0' }}>Preço Unit.</th>
+                              <th style={{ textAlign: 'right', padding: '0.5mm 0' }}>Total</th>
                            </tr>
                         </thead>
                         <tbody>
                            {(lastCreatedDoc?.metadata?.items || []).length > 0 ? (
                               (lastCreatedDoc.metadata.items).map((it: any, i: number) => (
                                  <tr key={i}>
-                                    <td style={{ padding: '2mm 0' }}>{it.nome}</td>
-                                    <td style={{ textAlign: 'center', padding: '2mm 0' }}>{it.qtd}</td>
-                                    <td style={{ textAlign: 'right', padding: '2mm 0' }}>{safeFormatAOA(it.preco_unitario || it.price || (it.total / it.qtd))}</td>
-                                    <td style={{ textAlign: 'right', padding: '2mm 0' }}>{safeFormatAOA(it.total)}</td>
+                                    <td style={{ padding: '0.8mm 0' }}>{it.nome}</td>
+                                    <td style={{ textAlign: 'center', padding: '0.8mm 0' }}>{it.qtd}</td>
+                                    <td style={{ textAlign: 'right', padding: '0.8mm 0' }}>{safeFormatAOA(it.preco_unitario || it.price || (it.total / it.qtd))}</td>
+                                    <td style={{ textAlign: 'right', padding: '0.8mm 0' }}>{safeFormatAOA(it.total)}</td>
                                  </tr>
                               ))
                            ) : (
                               <tr>
-                                 <td colSpan={4} style={{ padding: '4mm 0', textAlign: 'center', fontStyle: 'italic', fontSize: '9px', color: '#666' }}>
+                                 <td colSpan={4} style={{ padding: '2mm 0', textAlign: 'center', fontStyle: 'italic', fontSize: '9px', color: '#666' }}>
                                     Detalhamento de itens não disponível para este documento antigo.
                                  </td>
                               </tr>
@@ -6037,15 +6104,15 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                         </tbody>
                      </table>
 
-                     <div style={{ borderTop: '1px dashed #000', paddingTop: '2mm' }}>
+                     <div style={{ borderTop: '1px dashed #000', paddingTop: '0.5mm' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.subtotal)}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>IVA (14%):</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.iva)}</span></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Desconto (0%):</span><span style={{ color: 'red' }}>-{safeFormatAOA(lastCreatedDoc?.metadata?.discount || 0)}</span></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '13px', borderTop: '1px solid #000', marginTop: '2mm', paddingTop: '2mm' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '13px', borderTop: '1px solid #000', marginTop: '1mm', paddingTop: '1mm' }}>
                            <span>TOTAL:</span><span>{safeFormatAOA(lastCreatedDoc?.valor_total)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2mm', fontSize: '10px' }}>
-                           <span>Pago:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.amount_paid || lastCreatedDoc?.valor_total)}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1mm', fontSize: '10px' }}>
+                           <span>Pago:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.amount_paid ?? (lastCreatedDoc?.type_prefix === 'PRO' ? 0 : lastCreatedDoc?.valor_total))}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '11px' }}>
                            <span>Troco:</span><span>{safeFormatAOA(lastCreatedDoc?.metadata?.change || 0)}</span>
@@ -6053,7 +6120,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      </div>
 
                      {/* AGT Compliance & QR Code */}
-                     <div style={{ textAlign: 'center', marginTop: '6mm', padding: '4mm 0', borderTop: '1px dashed #000' }}>
+                     <div style={{ textAlign: 'center', marginTop: '3mm', padding: '2mm 0', borderTop: '1px dashed #000' }}>
                         <p style={{ fontSize: '9px', margin: '0 0 1mm 0', fontWeight: 'bold' }}>
                            {lastCreatedDoc?.cert_phrase || 'Processado por programa validado n.º 0000/AGT/2026'}
                         </p>

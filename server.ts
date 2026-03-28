@@ -207,6 +207,32 @@ async function startServer() {
     next();
   };
 
+  // --- Investments Monthly Record ---
+  app.post('/api/investments/records', authenticate, async (req: any, res) => {
+    try {
+      const { investimento_id, data: entryData, aumento, juros, iac, saque, multa, observacoes } = req.body;
+      const { data, error } = await supabase
+        .from('investimentos_lancamentos')
+        .insert([{
+          company_id: req.user.company_id,
+          investimento_id,
+          data: entryData,
+          aumento: Number(aumento) || 0,
+          juros: Number(juros) || 0,
+          iac: Number(iac) || 0,
+          saque: Number(saque) || 0,
+          multa: Number(multa) || 0,
+          observacoes
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- FILE MANAGEMENT ---
   app.get("/api/files", authenticate, async (req: any, res) => {
     const { data: files, error } = await supabase
@@ -2636,7 +2662,7 @@ async function startServer() {
   });
 
   app.post("/api/farmacia/vendas", authenticate, async (req: any, res) => {
-    const { itens, cliente_id, forma_pagamento, valor_entregue } = req.body;
+    const { itens, cliente_id, forma_pagamento, valor_entregue, is_pro_forma } = req.body;
     const companyId = req.user.company_id;
     const vendedorId = req.user.id;
 
@@ -2716,6 +2742,8 @@ async function startServer() {
         // AGT Compliance fields
         hash: currentHash,
         prev_hash: prevHash,
+        is_pro_forma: !!is_pro_forma,
+        status: is_pro_forma ? 'pending' : (forma_pagamento === 'a_prazo' ? 'pending' : 'paid'),
         agt_phrase: cert_phrase,
         is_certified: true
       }])
@@ -3529,7 +3557,7 @@ async function startServer() {
   // Payrolls
   app.get("/api/hr/payrolls", authenticate, async (req: any, res) => {
     const { data: payrolls, error } = await supabase
-      .from("hr_payrolls")
+      .from("rh_recibos")
       .select("*")
       .eq("company_id", req.user.company_id)
       .order("year", { ascending: false })
@@ -3539,7 +3567,7 @@ async function startServer() {
 
   app.get("/api/hr/payrolls/:id", authenticate, async (req: any, res) => {
     const { data: payroll, error: pError } = await supabase
-      .from("hr_payrolls")
+      .from("rh_recibos")
       .select("*")
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id)
@@ -3568,7 +3596,7 @@ async function startServer() {
 
     // Check if payroll already exists
     const { data: existing } = await supabase
-      .from("hr_payrolls")
+      .from("rh_recibos")
       .select("id")
       .eq("company_id", companyId)
       .eq("month", month)
@@ -3588,7 +3616,7 @@ async function startServer() {
     let totalGross = 0, totalNet = 0, totalInssEmployee = 0, totalInssEmployer = 0, totalIrt = 0, totalOtherDeductions = 0;
 
     const { data: payroll, error } = await supabase
-      .from("hr_payrolls")
+      .from("rh_recibos")
       .insert([{ company_id: companyId, month, year, status: 'draft' }])
       .select("id")
       .single();
@@ -3640,7 +3668,7 @@ async function startServer() {
     }
 
     await supabase
-      .from("hr_payrolls")
+      .from("rh_recibos")
       .update({
         total_gross: totalGross,
         total_net: totalNet,
@@ -3656,7 +3684,7 @@ async function startServer() {
 
   app.put("/api/hr/payrolls/:id/finalize", authenticate, async (req: any, res) => {
     const { error } = await supabase
-      .from("hr_payrolls")
+      .from("rh_recibos")
       .update({ status: 'finalized' })
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -3669,7 +3697,7 @@ async function startServer() {
     // Delete items first
     await supabase.from("hr_payroll_items").delete().eq("payroll_id", req.params.id);
     const { error } = await supabase
-      .from("hr_payrolls")
+      .from("rh_recibos")
       .delete()
       .eq("id", req.params.id)
       .eq("company_id", req.user.company_id);
@@ -4029,6 +4057,100 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // --- Investment Applications (Bolsa de Valores) ---
+  app.get('/api/applications', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investimentos')
+        .select(`
+          *,
+          investidores (nome)
+        `)
+        .eq('company_id', req.user.company_id);
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/applications', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investimentos')
+        .insert([{ ...req.body, company_id: req.user.company_id }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/applications/:id/records', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investimentos_lancamentos')
+        .select('*')
+        .eq('investimento_id', req.params.id)
+        .order('data', { ascending: true });
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/applications/records', authenticate, async (req: any, res) => {
+    try {
+      const { investimento_id, tipo, valor, data, descricao } = req.body;
+
+      // 1. Insert the new record
+      const { data: newRecord, error: recordError } = await supabase
+        .from('investimentos_lancamentos')
+        .insert([{
+          investimento_id,
+          tipo,
+          valor,
+          data,
+          descricao,
+          company_id: req.user.company_id
+        }])
+        .select()
+        .single();
+
+      if (recordError) throw recordError;
+
+      // 2. Update the total_amount in the parent 'investimentos' table
+      const { data: investment, error: invError } = await supabase
+        .from('investimentos')
+        .select('total_amount')
+        .eq('id', investimento_id)
+        .single();
+
+      if (invError) throw invError;
+
+      let newTotalAmount = investment.total_amount;
+      if (tipo === 'entrada') {
+        newTotalAmount += valor;
+      } else if (tipo === 'saida') {
+        newTotalAmount -= valor;
+      }
+
+      const { error: updateError } = await supabase
+        .from('investimentos')
+        .update({ total_amount: newTotalAmount })
+        .eq('id', investimento_id);
+
+      if (updateError) throw updateError;
+
+      res.json(newRecord);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Activity Logs API
   app.get("/api/activity-logs", authenticate, isAdmin, async (req: any, res) => {
     try {
@@ -4182,6 +4304,9 @@ async function startServer() {
 
 
   const PORT = process.env.PORT || 3000;
+
+
+
   // Certified Document Generation (Universal)
   // Certified Document Generation (Universal)
   app.post('/api/documents', authenticate, async (req: any, res: any) => {
@@ -4235,9 +4360,10 @@ async function startServer() {
         });
       }
 
-      const paddedNumber = String(nextNum).padStart(3, '0');
-      const docNumber = `${doc_type}-${series_name}/${paddedNumber}`;
-      console.log('📄 [DOCS] Número gerado:', docNumber);
+       const paddedNumber = String(nextNum).padStart(3, '0');
+       const docNumber = `${doc_type}-${series_name}/${paddedNumber}`;
+       console.log('📄 [DOCS] Número gerado:', docNumber);
+       console.log('📄 [DOCS] doc_type:', doc_type, '| type recebido:', type);
 
       // 2. Calculate Totals (Safely)
       const subtotal = items.reduce((acc: number, i: any) => {
@@ -4272,11 +4398,20 @@ async function startServer() {
       const hashString = prepareHashString(docNumber, hashDate, finalTotal, companyNif);
       const hash = generateHash(hashString, prevHash);
 
-      const paid = (doc_type === 'FR') ? finalTotal : (Number(req.body.amount_paid) || 0);
+      const paid = (doc_type === 'FR' || doc_type === 'RE') ? finalTotal : (Number(req.body.amount_paid) || 0);
       const debt = Math.max(0, finalTotal - paid);
+      
       let docStatus = 'PENDENTE';
-      if (paid >= finalTotal) docStatus = 'PAGO';
-      else if (paid > 0) docStatus = 'PARCIAL';
+      if (doc_type === 'PRO') {
+        docStatus = 'PENDENTE';
+      } else if (doc_type === 'RE' || doc_type === 'FR') {
+        docStatus = 'PAGO';
+      } else {
+        // FAC, NC, ND
+         if (paid >= finalTotal) docStatus = 'PAGO';
+         else if (paid > 0) docStatus = 'PARCIAL';
+         else docStatus = 'EM DÍVIDA';
+      }
 
       // Cálculo de vencimento padrão (30 dias)
       const dueDate = new Date();
@@ -4285,17 +4420,12 @@ async function startServer() {
 
       const insertData: any = {
         numero_fatura: docNumber,
-        cliente_id: req.body.cliente_id, // Ensure cliente_id is stored
         cliente_nome: customer_name,
         data_emissao: new Date().toISOString().split('T')[0],
-        data_vencimento: dueDateStr,
         valor_total: finalTotal,
-        valor_pago: paid,
-        valor_em_divida: debt,
         status: docStatus,
         company_id: effCompanyId,
-        type_prefix: doc_type, // Map doc_type to type_prefix
-        tipo: type, // Add tipo for frontend compatibility
+        type_prefix: doc_type,
         hash,
         prev_hash: prevHash,
         agt_phrase: cert_phrase,
@@ -4314,7 +4444,17 @@ async function startServer() {
 
       console.log('📄 [DOCS] Dados para inserção:', JSON.stringify(insertData, null, 2));
       console.log('📄 [DOCS] Inserindo no Supabase...');
+      
+      // Debug: Check table structure first
+      console.log('📄 [DOCS] A verificar tabela contabil_faturas...');
+      const { data: tableCheck, error: tableError } = await supabase
+        .from('contabil_faturas')
+        .select('id')
+        .limit(1);
+      console.log('📄 [DOCS] Verificação da tabela:', { tableCheck, tableError });
+      
       const { data: doc, error: dError } = await supabase.from('contabil_faturas').insert(insertData).select().single();
+      console.log('📄 [DOCS] Resultado da inserção:', { doc, dError });
 
       if (doc && paid > 0) {
         // Registar histórico inicial
@@ -4329,16 +4469,44 @@ async function startServer() {
 
       if (dError) {
         console.log('❌ [DOCS] Erro detalhado na inserção:', JSON.stringify(dError, null, 2));
-        // Fallback for metadata if column is missing (temporarily to avoid crash)
-        if (dError.message?.includes('metadata') || dError.code === '42703') {
-          console.log('⚠️ [DOCS] Coluna metadata em falta. Tentando sem metadata...');
-          const { metadata, ...fallbackData } = insertData;
-          const { data: docF, error: dErrorF } = await supabase.from('contabil_faturas').insert(fallbackData).select().single();
-          if (dErrorF) throw dErrorF;
-          // Devolvemos o documento com os metadados (mesmo não gravados) para que a impressão imediata funcione
-          return res.json({ success: true, doc: { ...docF, metadata: insertData.metadata }, cert_phrase });
+        
+        // Try minimal fallback with only basic columns
+        const basicData = {
+          numero_fatura: docNumber,
+          cliente_nome: customer_name,
+          data_emissao: new Date().toISOString().split('T')[0],
+          valor_total: finalTotal,
+          status: docStatus,
+          company_id: effCompanyId,
+          tipo: type
+        };
+        
+        console.log('⚠️ [DOCS] Tentando inserção com dados básicos...');
+        const { data: docF, error: dErrorF } = await supabase.from('contabil_faturas').insert(basicData).select().single();
+        
+        if (dErrorF) {
+          console.error('❌ [DOCS] Erro na inserção mínima:', dErrorF);
+          throw dErrorF;
         }
-        throw dError;
+        
+        console.log('✅ [DOCS] Documento inserido com dados básicos:', docF.numero_fatura);
+        
+        // Try to add optional fields one by one
+        const optionalUpdates: any = {};
+        if (insertData.type_prefix) optionalUpdates.type_prefix = insertData.type_prefix;
+        if (insertData.hash) optionalUpdates.hash = insertData.hash;
+        if (insertData.agt_phrase) optionalUpdates.agt_phrase = insertData.agt_phrase;
+        if (insertData.is_exempt !== undefined) optionalUpdates.is_exempt = insertData.is_exempt;
+        if (insertData.metadata) optionalUpdates.metadata = insertData.metadata;
+        
+        if (Object.keys(optionalUpdates).length > 0) {
+          console.log('⚠️ [DOCS] A tentar adicionar campos opcionais...');
+          await supabase.from('contabil_faturas').update(optionalUpdates).eq('id', docF.id);
+        }
+        
+        // Return success with the document
+        const updatedDoc = { ...docF, ...optionalUpdates };
+        return res.json({ success: true, doc: updatedDoc, cert_phrase });
       }
 
       console.log('✅ [DOCS] Documento emitido com sucesso:', doc.numero_fatura);
@@ -4510,6 +4678,82 @@ async function startServer() {
 
       logActivity(req, 'PAYMENT', 'contabil_faturas', `Pagamento de ${amount} registado para ${doc.numero_fatura}. Novo Saldo: ${newDebt}`, { doc_id: id, amount });
 
+      // --- AGT COMPLIANCE: GENERATE RECEIPT (RE) ---
+      try {
+        const yearRE = new Date().getFullYear();
+        const seriesRE = String(yearRE);
+        
+        // 1. Get/Update Sequence for RE
+        let { data: bSeriesRE } = await supabase
+          .from('billing_series')
+          .select('*')
+          .eq('doc_type', 'RE')
+          .eq('series_name', seriesRE)
+          .eq('company_id', effCompanyId)
+          .single();
+
+        let nextNumRE = 1;
+        if (bSeriesRE) {
+          nextNumRE = (bSeriesRE.last_number || 0) + 1;
+          await supabase.from('billing_series').update({ last_number: nextNumRE, updated_at: new Date().toISOString() }).eq('id', bSeriesRE.id);
+        } else {
+          await supabase.from('billing_series').insert({
+            doc_type: 'RE',
+            series_name: seriesRE,
+            last_number: 1,
+            company_id: effCompanyId,
+            is_active: true
+          });
+        }
+
+        const paddedRE = String(nextNumRE).padStart(3, '0');
+        const reNumber = `RE-${seriesRE}/${paddedRE}`;
+
+        // 2. Security Hash for RE
+        const [
+          { data: lastDocRE },
+          { data: companyDataRE },
+          { data: configRE },
+          { data: keysRE }
+        ] = await Promise.all([
+          supabase.from('contabil_faturas').select('hash').eq('company_id', effCompanyId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("companies").select("nif").eq("id", effCompanyId).single(),
+          supabase.from('agt_configs').select('cert_number').eq('company_id', effCompanyId).maybeSingle(),
+          supabase.from('agt_keys').select('private_key').eq('company_id', effCompanyId).eq('is_active', true).maybeSingle()
+        ]);
+
+        const companyNifRE = companyDataRE?.nif || '999999999';
+        const prevHashRE = lastDocRE?.hash || '';
+        const certNoRE = configRE?.cert_number || '0000/AGT/2026';
+        const hashDateRE = new Date().toISOString();
+        const hashStringRE = prepareHashString(reNumber, hashDateRE, amount, companyNifRE);
+        const hashRE = generateHash(hashStringRE, prevHashRE);
+
+        // 3. Insert Receipt Document
+        await supabase.from('contabil_faturas').insert({
+          numero_fatura: reNumber,
+          cliente_nome: doc.cliente_nome,
+          data_emissao: new Date().toISOString().split('T')[0],
+          valor_total: amount,
+          status: 'PAGO',
+          company_id: effCompanyId,
+          type_prefix: 'RE',
+          hash: hashRE,
+          prev_hash: prevHashRE,
+          agt_phrase: `Processado por programa validado n.º ${certNoRE}/AGT`,
+          metadata: {
+            parent_id: id,
+            parent_number: doc.numero_fatura,
+            payment_method: payment_method || 'Caixa',
+            items: [{ description: `Liquidação do documento ${doc.numero_fatura}`, quantity: 1, unit_price: amount, total: amount }]
+          }
+        });
+
+        console.log(`📄 [RE] Gerado com sucesso: ${reNumber} para doc ${doc.numero_fatura}`);
+      } catch (reErr) {
+        console.error('⚠️ [RE] Erro ao gerar recibo certificado:', reErr);
+      }
+
       res.json({ success: true, new_status: newStatus, new_debt: newDebt });
     } catch (err: any) {
       console.error('❌ [PAY] Erro ao registar pagamento:', err);
@@ -4594,10 +4838,111 @@ async function startServer() {
     }
   });
 
+  // --- Gestão de Aplicações Financeiras (Bolsa de Valores) ---
+  app.get('/api/investments/investors', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investidores')
+        .select('*')
+        .eq('company_id', req.user.company_id);
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/investments/investors', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investidores')
+        .insert([{ ...req.body, company_id: req.user.company_id }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/applications', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investimentos')
+        .select(`
+          *,
+          investidores (nome)
+        `)
+        .eq('company_id', req.user.company_id);
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/applications', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investimentos')
+        .insert([{ ...req.body, company_id: req.user.company_id }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/applications/:id/records', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investimentos_lancamentos')
+        .select('*')
+        .eq('investimento_id', req.params.id)
+        .order('data', { ascending: true });
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/applications/records', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investimentos_lancamentos')
+        .insert([{ ...req.body, company_id: req.user.company_id }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/investments/results', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('resultados_finais_investimentos')
+        .select(`
+          *,
+          investimentos (*),
+          investidores (nome)
+        `)
+        .eq('company_id', req.user.company_id);
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── MÓDULO SAF-T (AOA) XML ────────────────────────────────────────────────
   // Módulo independente de geração do ficheiro SAF-T (AOA) XML
-
-  // Rotas: GET /api/saft/export, /api/saft/preview, /api/saft/history
   registerSaftRoutes(app, authenticate);
 
   // Vite middleware (MUST BE AFTER ALL API ROUTES)
