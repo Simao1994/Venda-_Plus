@@ -26,7 +26,8 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
    const [showForm, setShowForm] = useState(false);
    const [editingConta, setEditingConta] = useState<ContaBancariaHR | null>(null);
 
-   const canEdit = user?.role ? ['admin', 'hr', 'director_hr', 'saas_admin', 'master', 'manager'].includes(user.role) : true;
+   const canEdit = user?.role ? ['admin', 'master', 'manager'].includes(user.role) : true;
+   const isMaster = user?.role === 'master';
 
    const [formData, setFormData] = useState({
       nome_banco: '',
@@ -179,6 +180,9 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
          if (funcionarioId) {
             clearQuery = clearQuery.eq('funcionario_id', funcionarioId);
          } else if (companyId) {
+            clearQuery = clearQuery.eq('company_id', companyId);
+         }
+         if (!isMaster) {
             clearQuery = clearQuery.eq('company_id', companyId);
          }
          await clearQuery;

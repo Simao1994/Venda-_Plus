@@ -51,15 +51,15 @@ export default function HRModule() {
   };
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'employees', label: 'Funcionários', icon: Users, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'departments', label: 'Departamentos', icon: Building2, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'attendance', label: 'Presenças', icon: CalendarCheck, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'payroll', label: 'Folha Salarial', icon: FileSpreadsheet, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'performance', label: 'Performance', icon: Target, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'passes', label: 'Passes PVC', icon: IdCard, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'bank', label: 'Contas Bancárias', icon: CreditCard, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
-    { id: 'vagas', label: 'Vagas Admin', icon: ClipboardList, roles: ['admin', 'manager', 'master', 'hr', 'director_hr', 'saas_admin'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'master'] },
+    { id: 'employees', label: 'Funcionários', icon: Users, roles: ['admin', 'manager', 'master'] },
+    { id: 'departments', label: 'Departamentos', icon: Building2, roles: ['admin', 'manager', 'master'] },
+    { id: 'attendance', label: 'Presenças', icon: CalendarCheck, roles: ['admin', 'manager', 'master'] },
+    { id: 'payroll', label: 'Folha Salarial', icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'] },
+    { id: 'performance', label: 'Performance', icon: Target, roles: ['admin', 'manager', 'master'] },
+    { id: 'passes', label: 'Passes PVC', icon: IdCard, roles: ['admin', 'manager', 'master'] },
+    { id: 'bank', label: 'Contas Bancárias', icon: CreditCard, roles: ['admin', 'manager', 'master'] },
+    { id: 'vagas', label: 'Vagas Admin', icon: ClipboardList, roles: ['admin', 'manager', 'master'] },
   ];
 
   if (!user) return (

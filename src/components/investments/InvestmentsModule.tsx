@@ -29,7 +29,8 @@ import {
   Wallet,
   Printer,
   AlertTriangle,
-  Receipt
+  Receipt,
+  UserCheck
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useReactToPrint } from 'react-to-print';
@@ -92,7 +93,7 @@ interface PreviewRow {
 }
 
 export default function InvestmentsModule() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'investors' | 'applications' | 'records' | 'indicadores' | 'financeiro' | 'saques' | 'extrato' | 'relatorio_investidor'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'investors' | 'applications' | 'records' | 'indicadores' | 'financeiro' | 'saques' | 'extrato' | 'relatorio_investidor' | 'consulta_investidor'>('dashboard');
   const [loading, setLoading] = useState(true);
   const [investors, setInvestors] = useState<Investor[]>([]);
   const [projects, setProjects] = useState<Investment[]>([]);
@@ -402,7 +403,8 @@ export default function InvestmentsModule() {
           { id: 'records', label: 'Relatórios Mensais', icon: History },
           { id: 'investors', label: 'Titulares Activos', icon: Users },
           { id: 'extrato', label: 'Extrato PDF', icon: FileText },
-          { id: 'relatorio_investidor', label: 'Relatório por Investidor', icon: PieChart }
+          { id: 'relatorio_investidor', label: 'Relatório por Investidor', icon: PieChart },
+          { id: 'consulta_investidor', label: 'Área do Investidor', icon: UserCheck }
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-3 pb-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === tab.id ? 'text-gold-primary' : 'text-white/30 hover:text-white/60'}`}>
             <tab.icon size={18} /> {tab.label}
@@ -1011,6 +1013,167 @@ export default function InvestmentsModule() {
                 </tfoot>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'consulta_investidor' && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="glass-panel p-8 rounded-3xl border-white/10">
+            <h3 className="text-xl font-black text-gold-primary uppercase tracking-wider mb-6 flex items-center gap-4">
+              <UserCheck size={24} /> Área do Investidor - Consulta de Extrato
+            </h3>
+            
+            <div className="flex flex-col md:flex-row gap-4 items-end mb-8">
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setSearchBy('nome')}
+                  className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${searchBy === 'nome' ? 'bg-gold-primary text-bg-deep' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                >
+                  Por Nome
+                </button>
+                <button 
+                  onClick={() => setSearchBy('id')}
+                  className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${searchBy === 'id' ? 'bg-gold-primary text-bg-deep' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                >
+                  Por Número
+                </button>
+              </div>
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                <input 
+                  type="text" 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder={searchBy === 'nome' ? 'Digite o nome do investidor...' : 'Digite o número do investidor...'}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-white font-bold outline-none focus:border-gold-primary"
+                />
+              </div>
+              <button 
+                onClick={handleSearch}
+                className="bg-gold-primary text-bg-deep px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all"
+              >
+                <Search size={18} />
+              </button>
+            </div>
+
+            {searchResult && (() => {
+              const invProjects = projects.filter(p => p.investidor_id === searchResult.id);
+              const invRecords = records.filter(r => {
+                const proj = projects.find(p => p.id === r.investimento_id);
+                return proj?.investidor_id === searchResult.id;
+              });
+              const totalAumento = invRecords.reduce((acc, r) => acc + Number(r.aumento), 0);
+              const totalJuros = invRecords.reduce((acc, r) => acc + Number(r.juros), 0);
+              const totalIac = invRecords.reduce((acc, r) => acc + Number(r.iac), 0);
+              const totalSaques = invRecords.reduce((acc, r) => acc + Number(r.saque), 0);
+              const totalMultas = invRecords.reduce((acc, r) => acc + Number(r.multa), 0);
+              const capitalInicial = invProjects.reduce((acc, p) => acc + Number(p.capital_inicial), 0);
+              const resultadoFinal = capitalInicial + totalAumento + totalJuros - totalIac - totalSaques;
+
+              return (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between bg-gold-primary/10 p-6 rounded-2xl border border-gold-primary/20">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-gold-primary/20 rounded-2xl flex items-center justify-center">
+                        <Users className="text-gold-primary" size={32} />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-white">{searchResult.nome}</p>
+                        <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">INV-{searchResult.id}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const proj = invProjects[0];
+                        if (proj) { setExtratoInvestor(proj); setShowExtratoModal(true); }
+                      }}
+                      disabled={invProjects.length === 0}
+                      className="bg-gold-primary text-bg-deep px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      <Printer size={18} /> Imprimir Extrato
+                    </button>
+                  </div>
+
+                  <div className="glass-panel rounded-2xl border-white/10 overflow-hidden">
+                    <div className="bg-[#002855] text-white py-4 px-6 font-black uppercase text-[12px] tracking-widest">
+                      Histórico Mensal de Movimentações
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-white/5">
+                          <tr className="text-[10px] font-black uppercase text-white/40 tracking-widest">
+                            <th className="py-4 px-6 text-left">Mês</th>
+                            <th className="py-4 px-6 text-right">Capital</th>
+                            <th className="py-4 px-6 text-right">Aumento</th>
+                            <th className="py-4 px-6 text-right">Juros</th>
+                            <th className="py-4 px-6 text-right">IAC</th>
+                            <th className="py-4 px-6 text-right">Saques</th>
+                            <th className="py-4 px-6 text-right">Multas</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-white">
+                          {invRecords.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="py-12 text-center text-white/30 font-black uppercase tracking-widest">
+                                Sem registros de movimentações
+                              </td>
+                            </tr>
+                          ) : (
+                            invRecords.map((row, idx) => (
+                              <tr key={idx} className="hover:bg-white/[0.02]">
+                                <td className="py-4 px-6 font-medium">{new Date(row.data).toLocaleDateString('pt-AO', { month: 'long', year: 'numeric' }).toUpperCase()}</td>
+                                <td className="py-4 px-6 text-right">{formatarKz(row.capitalInicial || capitalInicial)}</td>
+                                <td className="py-4 px-6 text-right text-emerald-400">{formatarKz(row.aumento)}</td>
+                                <td className="py-4 px-6 text-right text-blue-400">{formatarKz(row.juros)}</td>
+                                <td className="py-4 px-6 text-right text-red-400">{formatarKz(row.iac)}</td>
+                                <td className="py-4 px-6 text-right text-red-400">{formatarKz(row.saque)}</td>
+                                <td className="py-4 px-6 text-right text-slate-400">{formatarKz(row.multa)}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="glass-panel rounded-2xl border-white/10 p-6">
+                    <h4 className="text-sm font-black text-gold-primary uppercase tracking-wider mb-4">Resumo Final</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-white/5 p-4 rounded-xl">
+                        <p className="text-[9px] font-black uppercase text-white/40 mb-1">Capital Inicial</p>
+                        <p className="text-xl font-black text-white">{formatarKz(capitalInicial)}</p>
+                      </div>
+                      <div className="bg-emerald-500/10 p-4 rounded-xl">
+                        <p className="text-[9px] font-black uppercase text-emerald-400 mb-1">Total Aumento</p>
+                        <p className="text-xl font-black text-emerald-400">{formatarKz(totalAumento)}</p>
+                      </div>
+                      <div className="bg-blue-500/10 p-4 rounded-xl">
+                        <p className="text-[9px] font-black uppercase text-blue-400 mb-1">Total Juros</p>
+                        <p className="text-xl font-black text-blue-400">{formatarKz(totalJuros)}</p>
+                      </div>
+                      <div className="bg-red-500/10 p-4 rounded-xl">
+                        <p className="text-[9px] font-black uppercase text-red-400 mb-1">Total IAC</p>
+                        <p className="text-xl font-black text-red-400">{formatarKz(totalIac)}</p>
+                      </div>
+                      <div className="bg-red-500/10 p-4 rounded-xl">
+                        <p className="text-[9px] font-black uppercase text-red-400 mb-1">Total Saques</p>
+                        <p className="text-xl font-black text-red-400">{formatarKz(totalSaques)}</p>
+                      </div>
+                      <div className="bg-red-500/10 p-4 rounded-xl">
+                        <p className="text-[9px] font-black uppercase text-red-400 mb-1">Total Multas</p>
+                        <p className="text-xl font-black text-red-400">{formatarKz(totalMultas)}</p>
+                      </div>
+                      <div className="col-span-2 bg-gold-primary/20 p-4 rounded-xl border border-gold-primary/30">
+                        <p className="text-[9px] font-black uppercase text-gold-primary mb-1">Resultado Final</p>
+                        <p className="text-2xl font-black text-gold-primary">{formatarKz(resultadoFinal)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

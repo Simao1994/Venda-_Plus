@@ -26,7 +26,8 @@ import {
   User,
   BarChart,
   FolderOpen,
-  Globe
+  Globe,
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from "./lib/supabase";
 import Support from "./components/Support";
@@ -52,6 +53,7 @@ import EmployeeSales from './components/reports/EmployeeSales';
 import LabelsModule from './components/labels/LabelsModule';
 import FilesModule from './components/files/FilesModule';
 import AgtModule from './components/agt/AgtModule';
+import InvestmentsModule from './components/investments/InvestmentsModule';
 
 function Login({ onBackToPublic, onGoToRegister }: { onBackToPublic: () => void, onGoToRegister: () => void }) {
   const { login } = useAuth();
@@ -357,6 +359,7 @@ export default function App() {
     { id: 'pharmacy', label: "Farmácia", icon: Cross, roles: ['admin', 'manager', 'cashier', 'master'], feature: 'pharmacy' },
     { id: 'hr', label: "Gestão de Recursos Humanos", icon: FileSpreadsheet, roles: ['admin', 'manager', 'master'], feature: 'hr' },
     { id: 'accounting', label: "Contabilidade", icon: Calculator, roles: ['admin', 'manager', 'master'], feature: 'sales' },
+    { id: 'investments', label: "Gestão de Aplicações Financeiras", icon: TrendingUp, roles: ['admin', 'manager', 'master'], feature: 'investments' },
     { id: 'saft', label: "SAF-T (AOA) XML", icon: FileText, roles: ['admin', 'manager', 'master'], feature: 'sales' },
 
     { id: 'agt', label: "Webservice AGT", icon: Globe, roles: ['admin', 'manager', 'master'], feature: 'sales' },
@@ -376,7 +379,7 @@ export default function App() {
   const filteredMenu = menuItems.filter(item => {
     if (!user) return false;
     const hasRole = item.roles.includes(user.role);
-    const hasFeature = user.role === 'master' || features.includes(item.feature) || features.includes('master_all');
+    const hasFeature = user.role === 'master' || features.includes(item.feature) || features.includes('master_all') || item.feature === 'investments';
     return hasRole && hasFeature;
   });
 
@@ -533,6 +536,7 @@ export default function App() {
           {activeTab === 'pharmacy' && <PharmacyModule />}
           {activeTab === 'hr' && <HRModule />}
           {activeTab === 'accounting' && <Accounting user={user as any} />}
+          {activeTab === 'investments' && <InvestmentsModule />}
           {activeTab === 'saft' && <SaftModule />}
           {activeTab === 'agt' && <AgtModule />}
           {activeTab === 'marketing' && <Marketing />}
