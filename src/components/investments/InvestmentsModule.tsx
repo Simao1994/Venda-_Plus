@@ -310,7 +310,7 @@ export default function InvestmentsModule() {
   }, [showUnifiedModal, numMonths, startDate]);
 
   const formatarNum = (valor: number) => {
-    return new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(valor)).replace(/\./g, ' ');
+    return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor);
   };
 
   const formatarKz = (valor: number) => `${formatarNum(valor)} Kz`;
