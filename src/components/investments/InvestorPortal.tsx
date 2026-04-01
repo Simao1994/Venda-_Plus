@@ -78,11 +78,13 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
     documentTitle: `Extrato_Investidor_${investor?.nome ? String(investor.nome).replace(/\s+/g, '_') : 'Inv'}`
   });
 
+  const formatter = React.useMemo(() => new Intl.NumberFormat('pt-BR', { 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  }), []);
+
   const formatarNum = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    }).format(valor);
+    return formatter.format(valor);
   };
 
   const formatarKz = (valor: number) => `${formatarNum(valor)} Kz`;

@@ -309,8 +309,10 @@ export default function InvestmentsModule() {
     }
   }, [showUnifiedModal, numMonths, startDate]);
 
+  const formatter = React.useMemo(() => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), []);
+
   const formatarNum = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor);
+    return formatter.format(valor);
   };
 
   const formatarKz = (valor: number) => `${formatarNum(valor)} Kz`;
