@@ -98,14 +98,19 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
     const monthsElapsed = parseInt(numMonthsStr) || 12;
     const taxaVal = project.taxa?.toString().includes('3.5') ? 0.035 : 0.05;
     
-    let currentPrincipal = Number(project.capital_inicial);
-    let totalInterestAcum = 0;
-    let totalCommissionAcum = 0;
-    let totalIACAcum = 0;
+    const capitalInicial = Number(project.capital_inicial);
+    let currentPrincipal = capitalInicial;
     const history: any[] = [];
     
+    // Acumuladores totais
+    let totalAumentoAcum = 0;
+    let totalJurosAcum = 0;
+    let totalIACAcum = 0;
+    let totalComissaoAcum = 0;
+    let totalSaqueAcum = 0;
+    let totalMultaAcum = 0;
+    
     for (let i = 0; i < monthsElapsed; i++) {
-        const isLastMonth = i === monthsElapsed - 1;
         const targetDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
         const dateStr = targetDate.toISOString().split('T')[0];
       
@@ -116,32 +121,47 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
         });
 
         const tAumento = Number(monthRecords.reduce((acc, r) => acc + (Number(r.aumento) || 0), 0).toFixed(2));
-        const tSaque = Number(monthRecords.reduce((acc, r) => acc + (Number(r.saque) || 0), 0).toFixed(2));
-        const tMulta = Number(monthRecords.reduce((acc, r) => acc + (Number(r.multa) || 0), 0).toFixed(2));
+        const tSaque   = Number(monthRecords.reduce((acc, r) => acc + (Number(r.saque)   || 0), 0).toFixed(2));
+        const tMulta   = Number(monthRecords.reduce((acc, r) => acc + (Number(r.multa)   || 0), 0).toFixed(2));
         
-        // 1. Base de Rendimento (Capitalização Interna: Principal + Juros Retidos)
-        const baseJuros = Number((currentPrincipal + totalInterestAcum + tAumento).toFixed(2));
+        // Base de cálculo de Juro: Principal corrente + Aumento do mês
+        const baseJuros = Number((currentPrincipal + tAumento).toFixed(2));
         
-        // 2. Valores Mensais (Transparência)
-        const recordedJuros = monthRecords.find(r => r.juros !== undefined && r.juros !== null)?.juros;
-        const recordedIAC = monthRecords.find(r => r.iac !== undefined && r.iac !== null)?.iac;
+        // Valores registados (prevalecem sobre os calculados)
+        const recordedJuros   = monthRecords.find(r => r.juros    !== undefined && r.juros    !== null)?.juros;
+        const recordedIAC     = monthRecords.find(r => r.iac      !== undefined && r.iac      !== null)?.iac;
         const recordedComissao = monthRecords.find(r => r.comissao !== undefined && r.comissao !== null)?.comissao;
 
-        const jurosBruto = recordedJuros !== undefined ? Number(recordedJuros) : Number((baseJuros * taxaVal).toFixed(2));
-        const comissao = recordedComissao !== undefined ? Number(recordedComissao) : Number((jurosBruto * 0.025).toFixed(2));
-        const iacDoMes = recordedIAC !== undefined ? Number(recordedIAC) : Number((jurosBruto * 0.10).toFixed(2));
-
-        // Somar ao pote retido para rendimento futuro
-        totalInterestAcum = Number((totalInterestAcum + jurosBruto).toFixed(2));
-        totalCommissionAcum = Number((totalCommissionAcum + comissao).toFixed(2));
-        totalIACAcum = Number((totalIACAcum + iacDoMes).toFixed(2));
+        const jurosBruto = recordedJuros    !== undefined ? Number(recordedJuros)    : Number((baseJuros * taxaVal).toFixed(2));
+        const comissao   = recordedComissao !== undefined ? Number(recordedComissao) : Number((jurosBruto * 0.025).toFixed(2));
+        const iacDoMes   = recordedIAC      !== undefined ? Number(recordedIAC)      : Number((jurosBruto * 0.10).toFixed(2));
 
         const capitalAbertura = currentPrincipal;
-        // Atualizar principal (Liquidez Mensal)
-        currentPrincipal = Number((currentPrincipal + (tAumento - tSaque - tMulta)).toFixed(2));
+        // Actualizar principal com movimentos líquidos do mês (sem interferência dos encargos)
+        currentPrincipal = Number((currentPrincipal + tAumento - tSaque - tMulta).toFixed(2));
         
-        // 3. Regra de Saldo Mensal (Capital Acumulado + Rendimentos Retidos)
-        const finalRowValue = Number((currentPrincipal + totalInterestAcum - totalCommissionAcum - totalIACAcum).toFixed(2));
+        // Acumular tudo
+        totalAumentoAcum  = Number((totalAumentoAcum  + tAumento).toFixed(2));
+        totalJurosAcum    = Number((totalJurosAcum    + jurosBruto).toFixed(2));
+        totalIACAcum      = Number((totalIACAcum      + iacDoMes).toFixed(2));
+        totalComissaoAcum = Number((totalComissaoAcum + comissao).toFixed(2));
+        totalSaqueAcum    = Number((totalSaqueAcum    + tSaque).toFixed(2));
+        totalMultaAcum    = Number((totalMultaAcum    + tMulta).toFixed(2));
+
+        // ─────────────────────────────────────────────────────────────────
+        // RESULTADO FINAL (linha-a-linha para o extrato)
+        // Fórmula: Capital Inicial + Aumentos + Juros − IAC − Comissão − Multas
+        // (Saques já estão descontados no currentPrincipal)
+        // ─────────────────────────────────────────────────────────────────
+        const finalRowValue = Number((
+          capitalInicial
+          + totalAumentoAcum
+          + totalJurosAcum
+          - totalIACAcum
+          - totalComissaoAcum
+          - totalMultaAcum
+          - totalSaqueAcum
+        ).toFixed(2));
 
         history.push({
             data: dateStr,
@@ -157,15 +177,26 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
         });
     }
     
-    const totals = history.reduce((acc, cur) => ({
-      aumento: Number((acc.aumento + cur.aumento).toFixed(2)),
-      juros: Number((acc.juros + cur.juros).toFixed(2)),
-      comissao: Number((acc.comissao + cur.comissao).toFixed(2)),
-      iac: Number((acc.iac + cur.iac).toFixed(2)),
-      saque: Number((acc.saque + cur.saque).toFixed(2)),
-      multa: Number((acc.multa + cur.multa).toFixed(2)),
-      resultado: cur.capitalFinal
-    }), { aumento: 0, juros: 0, comissao: 0, iac: 0, saque: 0, multa: 0, resultado: Number(project.capital_inicial) });
+    // Resultado Final Total = Capital Inicial + ΣAumentos + ΣJuros − ΣIAC − ΣComissão − ΣMultas − ΣSaques
+    const resultadoFinal = Number((
+      capitalInicial
+      + totalAumentoAcum
+      + totalJurosAcum
+      - totalIACAcum
+      - totalComissaoAcum
+      - totalMultaAcum
+      - totalSaqueAcum
+    ).toFixed(2));
+
+    const totals = {
+      aumento:   totalAumentoAcum,
+      juros:     totalJurosAcum,
+      comissao:  totalComissaoAcum,
+      iac:       totalIACAcum,
+      saque:     totalSaqueAcum,
+      multa:     totalMultaAcum,
+      resultado: resultadoFinal
+    };
     
     return { history, totals };
   };
