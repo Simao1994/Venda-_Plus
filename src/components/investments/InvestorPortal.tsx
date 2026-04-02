@@ -140,11 +140,8 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
         // Atualizar principal (Liquidez Mensal)
         currentPrincipal = Number((currentPrincipal + (tAumento - tSaque - tMulta)).toFixed(2));
         
-        // 3. Regra de Saldo: Apenas capital líquido até ao último mês (Payout)
-        let finalRowValue = currentPrincipal;
-        if (isLastMonth) {
-            finalRowValue = Number((currentPrincipal + totalInterestAcum - totalCommissionAcum - totalIACAcum).toFixed(2));
-        }
+        // 3. Regra de Saldo Mensal (Capital Acumulado + Rendimentos Retidos)
+        const finalRowValue = Number((currentPrincipal + totalInterestAcum - totalCommissionAcum - totalIACAcum).toFixed(2));
 
         history.push({
             data: dateStr,

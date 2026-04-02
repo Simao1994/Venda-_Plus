@@ -461,12 +461,8 @@ export default function InvestmentsModule() {
         // Saques e multas reduzem o capital imediatamente e afetam a base de cálculo futura
         currentPrincipal = Number((currentPrincipal + (aumento - saque - multa)).toFixed(2));
         
-        // 4. Saldo Final da Linha (Regra: Apenas Capital até o fim)
-        let finalValue = currentPrincipal;
-        if (isLastMonth) {
-            // No último mês, liquida tudo: Capital + Juros Retidos - Taxas Retidas
-            finalValue = Number((currentPrincipal + totalInterestAcum - totalCommissionAcum - totalIACAcum).toFixed(2));
-        }
+        // 4. Saldo Final da Linha (Capital Acumulado + Rendimentos Retidos)
+        const finalValue = Number((currentPrincipal + totalInterestAcum - totalCommissionAcum - totalIACAcum).toFixed(2));
 
         const [yLabel, mLabel, dLabel] = row.data.split('-').map(Number);
         const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
