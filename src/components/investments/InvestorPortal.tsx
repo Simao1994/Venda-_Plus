@@ -149,18 +149,15 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
         totalMultaAcum    = Number((totalMultaAcum    + tMulta).toFixed(2));
 
         // ─────────────────────────────────────────────────────────────────
-        // RESULTADO FINAL (linha-a-linha para o extrato)
-        // Fórmula: Capital Inicial + Aumentos + Juros − IAC − Comissão − Multas
-        // (Saques já estão descontados no currentPrincipal)
+        // RESULTADO FINAL
+        // Fórmula: Capital Corrente (após saques/multas) + ΣJuros − ΣIAC − ΣComissão
+        // Saques e multas já estão deduzidos no currentPrincipal — não se repetem
         // ─────────────────────────────────────────────────────────────────
         const finalRowValue = Number((
-          capitalInicial
-          + totalAumentoAcum
+          currentPrincipal
           + totalJurosAcum
           - totalIACAcum
           - totalComissaoAcum
-          - totalMultaAcum
-          - totalSaqueAcum
         ).toFixed(2));
 
         history.push({
@@ -177,15 +174,12 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
         });
     }
     
-    // Resultado Final Total = Capital Inicial + ΣAumentos + ΣJuros − ΣIAC − ΣComissão − ΣMultas − ΣSaques
+    // Resultado Final = Capital Corrente (após todos saques/multas) + ΣJuros − ΣIAC − ΣComissão
     const resultadoFinal = Number((
-      capitalInicial
-      + totalAumentoAcum
+      currentPrincipal
       + totalJurosAcum
       - totalIACAcum
       - totalComissaoAcum
-      - totalMultaAcum
-      - totalSaqueAcum
     ).toFixed(2));
 
     const totals = {

@@ -430,17 +430,13 @@ export default function InvestmentsModule() {
   };
 
   const previewCalculated = useMemo(() => {
-    const capitalInicial = initialCapital;
-    let currentPrincipal = capitalInicial;
-    let totalAumentoAcum = 0;
+    let currentPrincipal = initialCapital;
     let totalInterestAcum = 0;
     let totalCommissionAcum = 0;
     let totalIACAcum = 0;
-    let totalSaqueAcum = 0;
-    let totalMultaAcum = 0;
     const taxaVal = selectedRateType === 'simples' ? 0.035 : 0.05;
 
-    return modalRows.map((row, idx) => {
+    return modalRows.map((row) => {
         const saldoAbertura = currentPrincipal;
         
         const aumento = Number(row.aumento) || 0;
@@ -454,32 +450,28 @@ export default function InvestmentsModule() {
         const comissao = row.comissao !== undefined ? row.comissao : Number((jurosBruto * 0.025).toFixed(2));
         const iacDoMes = row.iac !== undefined ? row.iac : Number((jurosBruto * 0.10).toFixed(2));
         
-        // Acumuladores totais
-        totalAumentoAcum  = Number((totalAumentoAcum  + aumento).toFixed(2));
-        totalInterestAcum = Number((totalInterestAcum + jurosBruto).toFixed(2));
+        // Acumuladores de encargos
+        totalInterestAcum   = Number((totalInterestAcum   + jurosBruto).toFixed(2));
         totalCommissionAcum = Number((totalCommissionAcum + comissao).toFixed(2));
-        totalIACAcum = Number((totalIACAcum + iacDoMes).toFixed(2));
-        totalSaqueAcum = Number((totalSaqueAcum + saque).toFixed(2));
-        totalMultaAcum = Number((totalMultaAcum + multa).toFixed(2));
+        totalIACAcum        = Number((totalIACAcum        + iacDoMes).toFixed(2));
         
         // Actualizar capital com movimentos líquidos do mês
+        // (saques e multas já reduzem o capital — NÃO são descontados novamente no resultado final)
         currentPrincipal = Number((currentPrincipal + aumento - saque - multa).toFixed(2));
         
         // ─────────────────────────────────────────────────────────────────
         // RESULTADO FINAL
-        // Fórmula: Capital Inicial + ΣAumentos + ΣJuros − ΣIAC − ΣComissão − ΣMultas − ΣSaques
+        // Fórmula: Capital Corrente (após saques/multas) + ΣJuros − ΣIAC − ΣComissão
+        // Saques e multas já estão deduzidos no currentPrincipal — não se repetem
         // ─────────────────────────────────────────────────────────────────
         const finalValue = Number((
-          capitalInicial
-          + totalAumentoAcum
+          currentPrincipal
           + totalInterestAcum
           - totalIACAcum
           - totalCommissionAcum
-          - totalMultaAcum
-          - totalSaqueAcum
         ).toFixed(2));
 
-        const [yLabel, mLabel] = row.data.split('-').map(Number);
+        const [, mLabel] = row.data.split('-').map(Number);
         const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
         const mesLabel = mesesNomes[mLabel - 1];
         
@@ -523,8 +515,7 @@ export default function InvestmentsModule() {
     const monthsElapsed = parseInt(numMonthsStr) || 12;
     const taxaVal = project.taxa?.toString().includes('3.5') ? 0.035 : 0.05;
     
-    const capitalInicial = Number(project.capital_inicial);
-    let currentPrincipal = capitalInicial;
+    let currentPrincipal = Number(project.capital_inicial);
     let totalAumentoAcum = 0;
     let totalJurosAcum = 0;
     let totalCommissionAcum = 0;
@@ -558,28 +549,27 @@ export default function InvestmentsModule() {
         const iacDoMes   = recordedIAC      !== undefined ? Number(recordedIAC)      : Number((jurosBruto * 0.10).toFixed(2));
 
         // Acumuladores
-        totalAumentoAcum  = Number((totalAumentoAcum  + tAumento).toFixed(2));
-        totalJurosAcum    = Number((totalJurosAcum    + jurosBruto).toFixed(2));
+        totalAumentoAcum    = Number((totalAumentoAcum    + tAumento).toFixed(2));
+        totalJurosAcum      = Number((totalJurosAcum      + jurosBruto).toFixed(2));
         totalCommissionAcum = Number((totalCommissionAcum + comissao).toFixed(2));
-        totalIACAcum      = Number((totalIACAcum      + iacDoMes).toFixed(2));
-        totalSaqueAcum    = Number((totalSaqueAcum    + tSaque).toFixed(2));
-        totalMultaAcum    = Number((totalMultaAcum    + tMulta).toFixed(2));
+        totalIACAcum        = Number((totalIACAcum        + iacDoMes).toFixed(2));
+        totalSaqueAcum      = Number((totalSaqueAcum      + tSaque).toFixed(2));
+        totalMultaAcum      = Number((totalMultaAcum      + tMulta).toFixed(2));
 
         const capitalAbertura = currentPrincipal;
+        // Saques e multas reduzem o capital corrente mês a mês
         currentPrincipal = Number((currentPrincipal + tAumento - tSaque - tMulta).toFixed(2));
         
         // ─────────────────────────────────────────────────────────────────
         // RESULTADO FINAL
-        // Fórmula: Capital Inicial + ΣAumentos + ΣJuros − ΣIAC − ΣComissão − ΣMultas − ΣSaques
+        // Fórmula: Capital Corrente (após saques/multas) + ΣJuros − ΣIAC − ΣComissão
+        // Saques e multas já estão deduzidos no currentPrincipal — não se repetem
         // ─────────────────────────────────────────────────────────────────
         const finalRowValue = Number((
-          capitalInicial
-          + totalAumentoAcum
+          currentPrincipal
           + totalJurosAcum
           - totalIACAcum
           - totalCommissionAcum
-          - totalMultaAcum
-          - totalSaqueAcum
         ).toFixed(2));
 
         history.push({
@@ -598,15 +588,12 @@ export default function InvestmentsModule() {
         });
     }
     
-    // Resultado Final Total = Capital Inicial + ΣAumentos + ΣJuros − ΣIAC − ΣComissão − ΣMultas − ΣSaques
+    // Resultado Final = Capital Corrente (após todos saques/multas) + ΣJuros − ΣIAC − ΣComissão
     const resultadoFinal = Number((
-      capitalInicial
-      + totalAumentoAcum
+      currentPrincipal
       + totalJurosAcum
       - totalIACAcum
       - totalCommissionAcum
-      - totalMultaAcum
-      - totalSaqueAcum
     ).toFixed(2));
 
     const totals = {
