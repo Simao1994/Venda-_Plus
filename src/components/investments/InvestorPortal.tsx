@@ -245,14 +245,46 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
       <main className="pt-32 pb-20 max-w-7xl mx-auto px-6">
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div>
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-gold-primary/10 border border-gold-primary/20 rounded-full text-gold-primary text-[9px] font-black uppercase tracking-[0.3em] mb-4 italic">
-              <ShieldCheck size={14} />
-              Protocolo de Segurança Ativo
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="inline-flex items-center gap-3 px-4 py-2 bg-gold-primary/10 border border-gold-primary/20 rounded-full text-gold-primary text-[9px] font-black uppercase tracking-[0.3em] italic">
+                <ShieldCheck size={14} />
+                Protocolo AES-256 + SSL Ativo
+              </div>
+              <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-white/40 text-[9px] font-black uppercase tracking-[0.3em] italic">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Sessão Encriptada Ponta-a-Ponta
+              </div>
             </div>
             <h1 className="text-3xl md:text-5xl font-black text-white uppercase italic tracking-tight">
-              Olá, <span className="text-gold-gradient">{String(investor?.nome || 'Investidor').split(' ')[0]}</span>.
+              Olá, <span className="text-gold-gradient">{investor?.nome || 'Investidor'}</span>.
             </h1>
-            <p className="text-white/40 font-medium mt-4 text-sm max-w-xl">
+            
+            <div className="flex flex-wrap gap-4 mt-6">
+              <div className="flex items-center gap-3 px-5 py-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm">
+                <Calendar className="text-gold-primary" size={20} />
+                <div>
+                  <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] leading-none mb-1">Início do Contrato</p>
+                  <p className="text-xs font-black text-white uppercase tracking-tight">
+                    {investments.length > 0 && investments[0].data_inicio 
+                      ? new Date(investments[0].data_inicio).toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' }) 
+                      : '---'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-5 py-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm">
+                <Clock className="text-gold-primary" size={20} />
+                <div>
+                  <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] leading-none mb-1">Término do Contrato</p>
+                  <p className="text-xs font-black text-white uppercase tracking-tight">
+                    {investments.length > 0 && investments[0].data_fim 
+                      ? new Date(investments[0].data_fim).toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' }) 
+                      : '---'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-white/40 font-medium mt-8 text-sm max-w-xl leading-relaxed">
               Bem-vindo ao seu portal de gestão patrimonial. A Amazing Corporation, Lda utiliza rigorosos protocolos de segurança e transparência para garantir a proteção total dos seus ativos, com acesso detalhado ao desempenho e histórico das suas operações.
             </p>
           </div>
@@ -305,7 +337,7 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
                       </td>
                       <td className="px-4 py-6 border border-white/5 text-[10px] font-black text-white/80 uppercase">
                         {inv.regime}<br />
-                        <span className="text-[8px] text-gold-primary">{inv.taxa}%</span>
+                        <span className="text-[8px] text-gold-primary">{inv.taxa}</span>
                       </td>
                       <td className="px-4 py-6 border border-white/5 font-black text-sm whitespace-nowrap">{formatarNum(capIni)} <span className="text-[8px] opacity-30">Kz</span></td>
                       <td className="px-4 py-6 border border-white/5 font-black text-[12px] text-emerald-400 whitespace-nowrap">+{formatarNum(calc.totals.aumento)} <span className="text-[8px] opacity-30">Kz</span></td>
@@ -642,18 +674,11 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
       </footer>
 
       <div className="hidden">
-        <div ref={printRef} className="text-[#002855] bg-white min-h-[297mm] font-sans overflow-visible" style={{ width: '210mm' }}>
-          <style dangerouslySetInnerHTML={{
-            __html: `
-            @page { size: A4 portrait; margin: 5mm; }
-            @media print {
-              body { background: white !important; }
-              .print-container { width: 210mm !important; margin: 0 !important; padding: 0 !important; }
-              table { table-layout: auto !important; width: 100% !important; border-collapse: collapse !important; }
-              th, td { word-wrap: break-word !important; overflow: visible !important; }
-              .no-print { display: none !important; }
-            }
-          `}} />
+        <div ref={printRef} className="text-[#002855] bg-white min-h-[297mm] font-sans overflow-visible relative" style={{ width: '210mm', padding: '15mm', paddingBottom: '30mm' }}>
+
+
+          <div className="hidden print:block a4-page-number-footer" />
+
           <div className="flex justify-between items-start mb-4 border-b-[4px] border-[#002855] pb-4 px-4 pt-4">
             <div className="flex gap-4 items-center">
               <img src="/logo_amazing.png" alt="Amazing Corp" className="h-16 object-contain" />
@@ -663,10 +688,13 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
               </div>
             </div>
             <div className="text-right">
-              <div className="bg-[#002855] text-white px-6 py-2 rounded-lg font-black text-xs inline-block mb-2">PRIVATE BANKING</div>
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Referência</p>
-              <p className="font-bold text-[#002855] tracking-widest">{investor?.numero_sequencial ? `INV-${investor.numero_sequencial.toString().padStart(3, '0')}/026` : (investor?.id || '---')}</p>
+              <div className="text-[#002855] font-black text-base border-2 border-[#002855] px-4 py-1 rounded-lg">
+                {investor?.numero_sequencial ? `INV-${investor.numero_sequencial.toString().padStart(3, '0')}/026` : (investor?.id || '---')}
+              </div>
+              <p className="text-[8px] font-bold uppercase text-slate-400 mt-1 italic">ID de Autenticidade Digital</p>
+
             </div>
+
           </div>
 
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm mx-4">
@@ -677,6 +705,14 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
             <div>
               <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Moeda Corrente:</p>
               <p className="text-xl font-black text-[#002855] uppercase italic">Kwanza (AOA)</p>
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Início do Contrato:</p>
+              <p className="text-lg font-bold text-[#002855] uppercase">{investments.length > 0 && investments[0].data_inicio ? new Date(investments[0].data_inicio).toLocaleDateString('pt-AO') : '---'}</p>
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Término do Contrato:</p>
+              <p className="text-lg font-bold text-[#002855] uppercase">{investments.length > 0 && investments[0].data_fim ? new Date(investments[0].data_fim).toLocaleDateString('pt-AO') : '---'}</p>
             </div>
           </div>
 
@@ -708,8 +744,8 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
                   return (
                     <tr key={inv.id} className="hover:bg-slate-50">
                       <td className="py-2 px-0.5 border-r border-slate-200">
-                        <div className="font-black truncate max-w-[60px] leading-tight">{investor?.nome}</div>
-                        <div className="text-[6px] text-slate-400 truncate max-w-[60px]">{inv.titulo}</div>
+                        <div className="font-black leading-tight text-wrap">{investor?.nome}</div>
+                        <div className="text-[6px] text-slate-400 leading-tight">{inv.titulo}</div>
                       </td>
                       <td className="py-2 px-0.5 border-r border-slate-200 text-[6.5px] leading-none whitespace-nowrap">
                         {inv.data_inicio ? new Date(inv.data_inicio).toLocaleDateString('pt-AO', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''} <br />- <br /> {inv.data_fim ? new Date(inv.data_fim).toLocaleDateString('pt-AO', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
@@ -791,7 +827,9 @@ export default function InvestorPortal({ session, onLogout }: InvestorPortalProp
             </table>
           </div>
 
-          <div className="mt-20 flex justify-between items-end border-t border-slate-100 pt-12">
+          <div className="mt-2 flex justify-between items-end border-t border-slate-100 pt-6">
+
+
             <div className="max-w-[300px]">
               <p className="text-[7px] font-black text-slate-400 uppercase tracking-tight mb-2 max-w-[300px]">
                 Segurança: Encriptação Avançada para Proteção de Dados Pessoais e Confidencialidade das Informações

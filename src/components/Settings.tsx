@@ -5,7 +5,8 @@ import {
   DollarSign, Database, Download, CheckCircle2, Server,
   Shield, Store, Package, Users, User, BarChart3,
   Plus, Newspaper, Megaphone, PieChart, Settings as SettingsIcon,
-  X, Check, FileText, Activity, HelpCircle, RefreshCw, Tag, Smartphone, Folder
+  X, Check, FileText, Activity, HelpCircle, RefreshCw, Tag, Smartphone, Folder,
+  AlertTriangle, Wrench, TrendingUp
 } from 'lucide-react';
 import SystemDocumentation from './documentation/SystemDocumentation';
 import { api } from '../lib/api';
@@ -16,6 +17,7 @@ const MODULE_DEFS = [
   { key: 'customers', label: 'Clientes', icon: <Users size={14} /> },
   { key: 'hr', label: 'Recursos Humanos', icon: <User size={14} /> },
   { key: 'accounting', label: 'Contabilidade', icon: <BarChart3 size={14} /> },
+  { key: 'investments', label: 'Aplicações Financeiras', icon: <TrendingUp size={14} /> },
   { key: 'pharmacy', label: 'Farmácia', icon: <Plus size={14} /> },
   { key: 'blog', label: 'Blog Corporativo', icon: <Newspaper size={14} /> },
   { key: 'marketing', label: 'Marketing', icon: <Megaphone size={14} /> },
@@ -30,9 +32,9 @@ const MODULE_DEFS = [
 
 /** Default permissions auto-applied to new modules when not yet present in role_permissions */
 const DEFAULT_MODULE_PERMISSIONS: Record<string, Record<string, boolean>> = {
-  admin: { files: true, labels: true, support: true, mobile_app: true },
-  manager: { files: true, labels: true, support: true, mobile_app: false },
-  cashier: { files: false, labels: true, support: false, mobile_app: false },
+  admin:   { files: true,  labels: true,  support: true,  mobile_app: true,  investments: true  },
+  manager: { files: true,  labels: true,  support: true,  mobile_app: false, investments: true  },
+  cashier: { files: false, labels: true,  support: false, mobile_app: false, investments: false },
 };
 
 /** Merges new module defaults into role_permissions so new modules auto-appear in the matrix */
@@ -266,43 +268,28 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-8 bg-white/5 p-1 rounded-2xl w-fit border border-white/5">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'profile' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-        >
-          Perfil da Empresa
-        </button>
-        <button
-          onClick={() => setActiveTab('billing')}
-          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'billing' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-        >
-          Séries de Faturação
-        </button>
-        <button
-          onClick={() => setActiveTab('system')}
-          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'system' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-        >
-          Estado do Sistema
-        </button>
-        <button
-          onClick={() => setActiveTab('docs')}
-          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'docs' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-        >
-          Documentação
-        </button>
-        <button
-          onClick={() => setActiveTab('personalization')}
-          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'personalization' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-        >
-          Personalização
-        </button>
-        <button
-          onClick={() => setActiveTab('biografia')}
-          className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'biografia' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-        >
-          Biografia Profissional
-        </button>
+      {/* Tab Navigation — scroll horizontal em mobile */}
+      <div className="flex gap-1.5 mb-6 md:mb-8 bg-white/5 p-1 rounded-2xl border border-white/5 overflow-x-auto tab-bar-scroll w-full md:w-fit">
+        {([
+          { id: 'profile',         label: 'Perfil'        },
+          { id: 'billing',         label: 'Faturação'     },
+          { id: 'system',          label: 'Sistema'       },
+          { id: 'docs',            label: 'Docs'          },
+          { id: 'personalization', label: 'Design'        },
+          { id: 'biografia',       label: 'Biografia'     },
+        ] as const).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`shrink-0 px-4 md:px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20'
+                : 'text-white/40 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {(activeTab === 'profile' || activeTab === 'personalization' || activeTab === 'biografia') ? (
@@ -436,48 +423,103 @@ export default function Settings() {
               </div>
 
               <div className="pt-8 border-t border-white/5">
-                <div className="flex items-center gap-3 mb-6">
-                  <Shield className="text-gold-primary" size={24} />
-                  <h3 className="text-xl font-black text-white uppercase italic">Matriz de Permissões</h3>
+                {/* Cabeçalho da secção */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 sm:mb-6">
+                  <div className="flex items-center gap-3">
+                    <Shield className="text-gold-primary shrink-0" size={20} />
+                    <h3 className="text-base sm:text-xl font-black text-white uppercase italic leading-tight">Matriz de Permissões</h3>
+                  </div>
                 </div>
-                <p className="text-[10px] text-gold-primary/70 mb-6 font-black uppercase tracking-tighter bg-gold-primary/5 p-4 rounded-2xl border border-gold-primary/10">
+                <p className="text-[9px] sm:text-[10px] text-gold-primary/70 mb-4 sm:mb-6 font-black uppercase tracking-tighter bg-gold-primary/5 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-gold-primary/10 leading-relaxed">
                   Ajuste os modelos de permissão para cada papel. Estas definições serão aplicadas automaticamente a cada novo utilizador criado no Venda Plus.
                 </p>
 
-                <div className="overflow-x-auto">
+                {/* ─── VERSÃO MOBILE: cards verticais por módulo ─── */}
+                <div className="flex flex-col gap-3 md:hidden">
+                  {MODULE_DEFS.map((mod) => (
+                    <div key={mod.key} className="bg-white/[0.03] border border-white/5 rounded-2xl p-4">
+                      {/* nome do módulo */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-white/30 border border-white/5 shrink-0">
+                          {mod.icon}
+                        </span>
+                        <span className="font-black text-white/60 text-[10px] uppercase tracking-widest leading-tight">{mod.label}</span>
+                      </div>
+                      {/* roles em linha */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { role: 'admin',   label: 'Admin',   color: 'text-gold-primary'  },
+                          { role: 'manager', label: 'Gerente', color: 'text-blue-400'       },
+                          { role: 'cashier', label: 'Caixa',   color: 'text-emerald-400'    },
+                        ].map(({ role, label, color }) => {
+                          const isChecked = company.role_permissions?.[role]?.[mod.key] === true;
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => togglePermission(role, mod.key)}
+                              className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all active:scale-95 ${
+                                isChecked
+                                  ? 'bg-gold-primary/10 border-gold-primary/30'
+                                  : 'bg-white/5 border-white/5 hover:border-white/10'
+                              }`}
+                            >
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                                isChecked
+                                  ? 'bg-gold-primary text-black shadow-md shadow-gold-primary/20'
+                                  : 'bg-white/5 text-white/10'
+                              }`}>
+                                {isChecked ? <Check size={13} strokeWidth={4} /> : <X size={11} />}
+                              </div>
+                              <span className={`text-[8px] font-black uppercase tracking-wider ${isChecked ? color : 'text-white/20'}`}>
+                                {label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ─── VERSÃO DESKTOP (md+): tabela compacta ─── */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left text-sm border-collapse dark-table">
                     <thead>
                       <tr className="border-b border-white/5">
-                        <th className="py-4 px-2 font-black uppercase tracking-widest text-[10px] text-white/20">Módulo / Funcionalidade</th>
-                        <th className="py-4 px-2 font-black text-gold-primary text-center text-[10px] uppercase tracking-[0.2em]">Admin</th>
-                        <th className="py-4 px-2 font-black text-blue-400 text-center text-[10px] uppercase tracking-[0.2em]">Gerente</th>
-                        <th className="py-4 px-2 font-black text-emerald-400 text-center text-[10px] uppercase tracking-[0.2em]">Caixa</th>
+                        <th className="py-4 px-3 font-black uppercase tracking-widest text-[10px] text-white/20 min-w-[180px]">
+                          Módulo / Funcionalidade
+                        </th>
+                        <th className="py-4 px-3 font-black text-gold-primary text-center text-[10px] uppercase tracking-[0.2em] w-24">Admin</th>
+                        <th className="py-4 px-3 font-black text-blue-400 text-center text-[10px] uppercase tracking-[0.2em] w-24">Gerente</th>
+                        <th className="py-4 px-3 font-black text-emerald-400 text-center text-[10px] uppercase tracking-[0.2em] w-24">Caixa</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {MODULE_DEFS.map((mod) => (
-                        <tr key={mod.key} className="hover:bg-white/5 transition-colors">
-                          <td className="py-4 px-2">
+                        <tr key={mod.key} className="hover:bg-white/5 transition-colors group">
+                          <td className="py-3 px-3">
                             <div className="flex items-center gap-3">
-                              <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/20 border border-white/5">
+                              <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/20 border border-white/5 shrink-0 group-hover:border-gold-primary/20 transition-colors">
                                 {mod.icon}
                               </span>
-                              <span className="font-black text-white/60 text-[10px] uppercase tracking-widest">{mod.label}</span>
+                              <span className="font-black text-white/60 text-[10px] uppercase tracking-widest leading-tight">{mod.label}</span>
                             </div>
                           </td>
                           {['admin', 'manager', 'cashier'].map((role) => {
                             const isChecked = company.role_permissions?.[role]?.[mod.key] === true;
                             return (
-                              <td key={role} className="py-4 px-2 text-center">
+                              <td key={role} className="py-3 px-3 text-center">
                                 <button
                                   type="button"
                                   onClick={() => togglePermission(role, mod.key)}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${isChecked
-                                    ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20 scale-110'
-                                    : 'bg-white/5 text-white/10 hover:bg-white/10 border border-white/5'
-                                    }`}
+                                  className={`w-9 h-9 rounded-xl flex items-center justify-center mx-auto transition-all active:scale-95 ${
+                                    isChecked
+                                      ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20 scale-105'
+                                      : 'bg-white/5 text-white/10 hover:bg-white/10 border border-white/5'
+                                  }`}
                                 >
-                                  {isChecked ? <Check size={14} strokeWidth={4} /> : <X size={12} />}
+                                  {isChecked ? <Check size={15} strokeWidth={4} /> : <X size={12} />}
                                 </button>
                               </td>
                             );
@@ -712,7 +754,7 @@ export default function Settings() {
             <button
               type="submit"
               disabled={saving}
-              className="px-10 py-5 bg-gold-primary text-black rounded-[24px] font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_50px_rgba(212,175,55,0.3)] disabled:opacity-50"
+              className="w-full sm:w-auto px-6 sm:px-10 py-4 sm:py-5 bg-gold-primary text-black rounded-[24px] font-black text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] flex items-center justify-center gap-3 sm:gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_50px_rgba(212,175,55,0.3)] disabled:opacity-50"
             >
               {saving ? (
                 <>
@@ -721,7 +763,7 @@ export default function Settings() {
                 </>
               ) : (
                 <>
-                  <Save size={18} />
+                  <Save size={16} />
                   <span>Guardar Alterações {activeTab === 'personalization' ? 'de Design' : ''}</span>
                 </>
               )}
@@ -849,98 +891,155 @@ export default function Settings() {
       ) : (
         <div className="space-y-6">
           <div className="glass-panel p-8 rounded-[32px] shadow-sm border border-white/10">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-xl font-black text-white flex items-center gap-2 uppercase tracking-tight italic">
-                  <Database className="text-gold-primary" size={24} />
-                  {dbState?.is_master_mode ? 'Diagnóstico Global do Sistema' : 'Diagnóstico da Empresa'}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-xl font-black text-white flex items-center gap-2 uppercase tracking-tight italic flex-wrap">
+                  <Database className="text-gold-primary shrink-0" size={20} />
+                  <span className="truncate">{dbState?.is_master_mode ? 'Diagnóstico Global' : 'Diagnóstico da Empresa'}</span>
                 </h3>
-                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">
-                  {dbState?.is_master_mode ? 'Visão completa de todas as instâncias e dados da plataforma' : 'Informações técnicas e estado operacional da sua conta'}
+                <p className="text-white/40 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mt-1 leading-relaxed">
+                  {dbState?.is_master_mode ? 'Visão completa de todas as instâncias' : 'Estado operacional da sua conta'}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border ${dbState?.db_status === 'Online' ? 'bg-gold-primary/10 text-gold-primary border-gold-primary/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
-                  <div className={`w-2 h-2 rounded-full ${dbState?.db_status === 'Online' ? 'bg-gold-primary animate-pulse' : 'bg-red-500'}`} />
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border ${dbState?.db_status === 'Online' ? 'bg-gold-primary/10 text-gold-primary border-gold-primary/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${dbState?.db_status === 'Online' ? 'bg-gold-primary animate-pulse' : 'bg-red-500'}`} />
                   DB {dbState?.db_status || 'OFFLINE'}
                 </div>
-                <div className="flex items-center gap-2 text-gold-primary bg-white/5 border border-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">
-                  <Server size={14} /> {dbState?.system_status || 'OPERACIONAL'}
+                <div className="flex items-center gap-1.5 sm:gap-2 text-gold-primary bg-white/5 border border-white/10 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
+                  <Server size={12} className="sm:hidden shrink-0" />
+                  <Server size={14} className="hidden sm:block shrink-0" />
+                  <span className="hidden sm:inline">{dbState?.system_status || 'OPERACIONAL'}</span>
+                  <span className="sm:hidden">OK</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <div className="bg-white/5 p-6 rounded-3xl border border-white/10 gold-glow-hover transition-all">
-                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-3 italic">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-10">
+              <div className="bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10 gold-glow-hover transition-all">
+                <p className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-2 sm:mb-3 italic">
                   {dbState?.is_master_mode ? 'UTILIZADORES TOTAIS' : 'UTILIZADORES ACTIVOS'}
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <p className="text-4xl font-black text-white italic">{dbState?.current_users || 0}</p>
-                  {!dbState?.is_master_mode && <p className="text-white/20 font-black text-lg">/ {dbState?.user_limit || '---'}</p>}
+                  <p className="text-3xl sm:text-4xl font-black text-white italic">{dbState?.current_users || 0}</p>
+                  {!dbState?.is_master_mode && <p className="text-white/20 font-black text-base sm:text-lg">/ {dbState?.user_limit || '---'}</p>}
                 </div>
                 <p className="text-[9px] text-gold-primary/50 font-black uppercase mt-2">
-                  {dbState?.is_master_mode ? 'Contagem global da plataforma' : 'Limite do seu plano premium'}
+                  {dbState?.is_master_mode ? 'Contagem global' : 'Limite do plano'}
                 </p>
               </div>
 
-              <div className="bg-white/5 p-6 rounded-3xl border border-white/10 gold-glow-hover transition-all">
-                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-3 italic">TABELAS GERIDAS</p>
-                <p className="text-4xl font-black text-white italic">{dbState?.total_tables || 0}</p>
+              <div className="bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10 gold-glow-hover transition-all">
+                <p className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-2 sm:mb-3 italic">TABELAS GERIDAS</p>
+                <p className="text-3xl sm:text-4xl font-black text-white italic">{dbState?.total_tables || 0}</p>
                 <p className="text-[9px] text-gold-primary/50 font-black uppercase mt-2">Estrutura de dados activa</p>
               </div>
 
-              <div className="bg-white/5 p-6 rounded-3xl border border-white/10 gold-glow-hover transition-all">
-                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-3 italic">ESTADO DO BANCO</p>
-                <p className="text-2xl font-black text-gold-primary uppercase italic">{dbState?.is_master_mode ? 'INFRAESTRUTURA OK' : 'OPERACIONAL'}</p>
-                <p className="text-[9px] text-gold-primary/50 font-black uppercase mt-2">Supabase Cloud + Edge Runtime</p>
+              <div className="bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10 gold-glow-hover transition-all">
+                <p className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-2 sm:mb-3 italic">ESTADO DO BANCO</p>
+                <p className="text-xl sm:text-2xl font-black text-gold-primary uppercase italic">{dbState?.is_master_mode ? 'OK' : 'OPERACIONAL'}</p>
+                <p className="text-[9px] text-gold-primary/50 font-black uppercase mt-2">Supabase Cloud + Edge</p>
               </div>
             </div>
 
             <div className="w-full h-px bg-white/5 mb-10" />
 
             <h4 className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mb-6 italic">RESUMO DE REGISTOS POR TABELA</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-6">
               {dbState?.table_stats ? Object.entries(dbState.table_stats).map(([table, count]: any) => (
-                <div key={table} className="bg-white/5 p-5 rounded-2xl border border-white/10 shadow-sm transition-all hover:border-gold-primary/30 group">
-                  <p className="text-[9px] font-black text-gold-primary/40 uppercase tracking-widest mb-1 italic group-hover:text-gold-primary transition-colors">{table.replace(/_/g, ' ')}</p>
-                  <p className="text-xl font-black text-white italic">{count}</p>
+                <div key={table} className="bg-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-white/10 shadow-sm transition-all hover:border-gold-primary/30 group">
+                  <p className="text-[8px] sm:text-[9px] font-black text-gold-primary/40 uppercase tracking-widest mb-1 italic group-hover:text-gold-primary transition-colors truncate">{table.replace(/_/g, ' ')}</p>
+                  <p className="text-lg sm:text-xl font-black text-white italic">{count}</p>
                 </div>
               )) : (
-                <div className="col-span-full py-12 text-center text-white/10 font-black uppercase tracking-widest text-[10px] animate-pulse italic">
+                <div className="col-span-full py-10 sm:py-12 text-center text-white/10 font-black uppercase tracking-widest text-[9px] sm:text-[10px] animate-pulse italic">
                   SINCRONIZANDO ESTATÍSTICAS DO NÚCLEO...
                 </div>
               )}
             </div>
           </div>
 
-          <div className="glass-panel border-gold-primary/20 p-12 rounded-[40px] text-white overflow-hidden relative shadow-3xl bg-bg-deep/40 mt-12">
+          <div className="glass-panel border-gold-primary/20 p-5 sm:p-8 lg:p-12 rounded-[28px] sm:rounded-[40px] text-white overflow-hidden relative shadow-3xl bg-bg-deep/40 mt-8 sm:mt-12">
+            {/* System Mode Controls */}
+            <div className="mb-8 sm:mb-12 p-5 sm:p-8 bg-white/5 rounded-[20px] sm:rounded-[32px] border border-white/10 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gold-primary/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-gold-primary/10 transition-all duration-700" />
+              
+              <div className="flex flex-col gap-5 sm:gap-6 relative z-10">
+                <div>
+                  <h3 className="text-base sm:text-xl font-black text-gold-primary italic uppercase tracking-tighter flex items-center gap-2 flex-wrap">
+                    <SettingsIcon size={18} className="shrink-0" />
+                    Controlo de <span className="text-gold-gradient">Ambiente Operacional</span>
+                  </h3>
+                  <p className="text-[9px] sm:text-[10px] text-white/30 font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] mt-1">Defina o regime de execução da plataforma global</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                   <button 
+                     onClick={() => { localStorage.setItem('modo_sistema', 'ativo'); window.location.reload(); }}
+                     className={`flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border active:scale-95 ${
+                       localStorage.getItem('modo_sistema') === 'ativo' || !localStorage.getItem('modo_sistema')
+                         ? 'bg-emerald-500 text-white border-emerald-400 shadow-xl shadow-emerald-500/20'
+                         : 'bg-white/5 text-white/40 border-white/5 hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:text-emerald-400'
+                     }`}
+                   >
+                     <div className="w-2 h-2 rounded-full bg-current animate-pulse shrink-0" />
+                     Sistema Ativo
+                   </button>
+                   
+                   <button 
+                     onClick={() => { localStorage.setItem('modo_sistema', 'desenvolvimento'); window.location.reload(); }}
+                     className={`flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border active:scale-95 ${
+                       localStorage.getItem('modo_sistema') === 'desenvolvimento'
+                         ? 'bg-amber-500 text-white border-amber-400 shadow-xl shadow-amber-500/20'
+                         : 'bg-white/5 text-white/40 border-white/5 hover:border-amber-500/30 hover:bg-amber-500/5 hover:text-amber-400'
+                     }`}
+                   >
+                     <AlertTriangle size={14} className="shrink-0" />
+                     Desenvolvimento
+                   </button>
+
+                   <button 
+                     onClick={() => { if(confirm('⚠️ ACTIVAR MODO DE MANUTENÇÃO: Bloqueia o acesso a todos os utilizadores não-administrativos. Confirmar Operação?')) { localStorage.setItem('modo_sistema', 'manutencao'); window.location.reload(); } }}
+                     className={`flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border active:scale-95 ${
+                       localStorage.getItem('modo_sistema') === 'manutencao'
+                         ? 'bg-red-500 text-white border-red-400 shadow-xl shadow-red-500/20'
+                         : 'bg-white/5 text-white/40 border-white/5 hover:border-red-500/30 hover:bg-red-500/5 hover:text-red-400'
+                     }`}
+                   >
+                     <Wrench size={14} className="shrink-0" />
+                     Manutenção
+                   </button>
+                </div>
+              </div>
+            </div>
+
             <div className="absolute top-0 right-0 w-80 h-80 bg-gold-primary/5 rounded-full blur-[120px] -mr-32 -mt-32 opacity-80 pointer-events-none" />
             <div className="relative z-10">
-              <div className="flex items-center gap-6 mb-10">
-                <div className="p-5 bg-gold-primary/10 rounded-3xl border border-gold-primary/20">
-                  <Download className="text-gold-primary" size={32} />
+              <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-10">
+                <div className="p-3 sm:p-5 bg-gold-primary/10 rounded-2xl sm:rounded-3xl border border-gold-primary/20 shrink-0">
+                  <Download className="text-gold-primary" size={24} />
+                  <Download className="text-gold-primary hidden sm:block" size={32} />
                 </div>
-                <div>
-                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Exportar <span className="text-gold-gradient">Cloud Matrix</span></h3>
-                  <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.4em] mt-1">Backup completo da instância relacional da plataforma</p>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-2xl font-black text-white italic uppercase tracking-tighter">Exportar <span className="text-gold-gradient">Cloud Matrix</span></h3>
+                  <p className="text-[9px] sm:text-[10px] text-white/30 font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] mt-1">Backup completo da instância relacional</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                <div className="space-y-4">
-                  <p className="text-sm font-bold text-white/40 leading-relaxed">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8 mb-8 sm:mb-12">
+                <div className="space-y-3 sm:space-y-4">
+                  <p className="text-xs sm:text-sm font-bold text-white/40 leading-relaxed">
                     Isto irá gerar um ficheiro <span className="text-white/60 font-black italic">JSON de alta fidelidade</span> contendo todos os dados, configurações e histórico.
                   </p>
-                  <ul className="space-y-3">
+                  <ul className="space-y-2 sm:space-y-3">
                     {['Schemas Relacionais', 'Metadados de Vendas', 'Registos Contabilísticos'].map(item => (
-                      <li key={item} className="flex items-center gap-3 text-[10px] font-black uppercase text-gold-primary/60 tracking-widest">
-                        <div className="w-1.5 h-1.5 rounded-full bg-gold-primary" /> {item}
+                      <li key={item} className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] font-black uppercase text-gold-primary/60 tracking-widest">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gold-primary shrink-0" /> {item}
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className="bg-white/[0.02] border border-white/5 rounded-[32px] p-8 flex items-center justify-center">
+                <div className="hidden sm:flex bg-white/[0.02] border border-white/5 rounded-[32px] p-8 items-center justify-center">
                   <div className="text-center">
                     <Database size={40} className="text-white/10 mx-auto mb-4" />
                     <p className="text-[10px] font-black uppercase text-white/20 tracking-widest italic">Instância: Global SaaS</p>
@@ -951,12 +1050,12 @@ export default function Settings() {
               <button
                 onClick={handleExport}
                 disabled={exporting}
-                className="group relative flex items-center gap-4 bg-gold-gradient text-bg-deep px-12 py-5 rounded-[24px] font-black uppercase tracking-[0.3em] text-[11px] hover:scale-105 transition-all shadow-2xl shadow-gold-primary/20 active:scale-95 border border-white/10 overflow-hidden"
+                className="group relative w-full sm:w-auto flex items-center justify-center gap-3 sm:gap-4 bg-gold-gradient text-bg-deep px-6 sm:px-12 py-4 sm:py-5 rounded-[20px] sm:rounded-[24px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] text-[10px] sm:text-[11px] hover:scale-[1.02] transition-all shadow-2xl shadow-gold-primary/20 active:scale-95 border border-white/10 overflow-hidden"
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
                 <span className="relative z-10 flex items-center gap-3">
-                  {exporting ? <RefreshCw size={20} className="animate-spin text-bg-deep" /> : <Download size={20} />}
-                  {exporting ? 'A SINCRONIZAR EXPORTAÇÃO...' : 'EXTRAIR MATRIZ DE DADOS'}
+                  {exporting ? <RefreshCw size={18} className="animate-spin text-bg-deep" /> : <Download size={18} />}
+                  {exporting ? 'A SINCRONIZAR...' : 'EXTRAIR MATRIZ DE DADOS'}
                 </span>
               </button>
             </div>

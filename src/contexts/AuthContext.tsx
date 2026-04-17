@@ -10,6 +10,7 @@ interface User {
   currency: string;
   branch_id: number;
   company_home_image?: string;
+  permissions?: Record<string, boolean>;
 }
 
 interface AuthContextType {
@@ -28,8 +29,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token') || localStorage.getItem('erp_token');
-    const savedUser = localStorage.getItem('user') || localStorage.getItem('erp_user');
+    // Check sessionStorage first for impersonated sessions
+    const savedToken = sessionStorage.getItem('token') || sessionStorage.getItem('erp_token') || localStorage.getItem('token') || localStorage.getItem('erp_token');
+    const savedUser = sessionStorage.getItem('user') || sessionStorage.getItem('erp_user') || localStorage.getItem('user') || localStorage.getItem('erp_user');
 
     if (savedToken && savedUser) {
       setToken(savedToken);

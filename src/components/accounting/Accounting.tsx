@@ -122,7 +122,40 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    const handlePrintInvoiceAction = useReactToPrint({
       contentRef: invoicePrintRef,
-      documentTitle: 'Documento_AGT'
+      documentTitle: 'Documento_AGT',
+      pageStyle: `
+         @page { 
+           size: 80mm auto !important; 
+           margin: 0 !important; 
+         }
+         @media print { 
+           html, body { 
+             width: 80mm !important; 
+             min-width: 80mm !important; 
+             max-width: 80mm !important;
+             margin: 0 !important; 
+             padding: 0 !important; 
+             background: #fff; 
+             overflow: visible !important;
+           }
+           .invoice { 
+             width: 80mm !important; 
+             min-width: 80mm !important;
+             max-width: 80mm !important;
+             position: absolute !important; 
+             left: 0 !important; 
+             top: 0 !important; 
+             margin: 0 !important; 
+             padding: 5mm 2mm 5mm 5mm !important;
+             box-sizing: border-box !important;
+             float: left !important;
+             display: block !important;
+           }
+           /* Remova quaisquer rodapés do navegador (A4) */
+           footer, .page-footer, .no-print { display: none !important; }
+           * { -webkit-print-color-adjust: exact !important; }
+         }
+       `
    });
 
    // --- ESTADO DE RELATÓRIOS ---

@@ -4,15 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#059669" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Venda Plus" />
-    <link rel="apple-touch-icon" href="/venda_plus_app_icon.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <title>Venda Plus - Gestão Profissional</title>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // NUCLEAR CLEANUP: Kill SW, clear caches, force one clean reload
+      (function() {
+        if (!('serviceWorker' in navigator)) return;
+
+        var didClean = sessionStorage.getItem('sw_cleaned');
+        if (didClean) return; // Already cleaned this session
+
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          if (regs.length === 0) return; // No SW to clean
+
+          var tasks = regs.map(function(reg) { return reg.unregister(); });
+
+          if (window.caches) {
+            tasks.push(
+              caches.keys().then(function(names) {
+                return Promise.all(names.map(function(n) { return caches.delete(n); }));
+              })
+            );
+          }
+
+          Promise.all(tasks).then(function() {
+            sessionStorage.setItem('sw_cleaned', '1');
+            window.location.reload();
+          });
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

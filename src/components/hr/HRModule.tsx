@@ -40,7 +40,7 @@ import VagasAdminTab from './VagasAdminTab';
 import PerformanceTab from './PerformanceTab';
 import PassesTab from './PassesTab';
 
-export default function HRModule() {
+export default function HRModule({ features = [] }: { features?: string[] }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [autoPrintEmployee, setAutoPrintEmployee] = useState(null);
@@ -68,7 +68,11 @@ export default function HRModule() {
     </div>
   );
 
-  const filteredTabs = tabs.filter(tab => tab.roles.includes(user.role));
+  const filteredTabs = tabs.filter(tab => {
+    const hasRole = user && tab.roles.includes(user.role);
+    const hasFeature = features.includes('hr') || features.includes('master_all');
+    return hasRole && hasFeature;
+  });
 
   return (
     <div className="flex flex-col h-full">

@@ -26,6 +26,9 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import BiographyCard from './BiographyCard';
+import InvestorLoginModal from './investments/InvestorLoginModal';
+import { Wallet } from 'lucide-react';
+import Logo from './Logo';
 
 function DigitalClock() {
   const [time, setTime] = useState(new Date());
@@ -36,21 +39,25 @@ function DigitalClock() {
   }, []);
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-white/[0.03] rounded-2xl border border-white/5 shadow-inner transition-all hover:bg-white/[0.05]">
-      <div className="flex items-center gap-2 text-gold-primary">
-        <Clock size={16} />
-        <span className="text-xs font-black tracking-tight uppercase italic tabular-nums pb-0.5">{time.toLocaleTimeString('pt-PT')}</span>
+    <div className="flex items-center gap-3 px-4 py-2 bg-white/[0.03] rounded-2xl border border-white/5 shadow-inner whitespace-nowrap">
+      <div className="flex items-center gap-2">
+        <Clock size={14} className="text-gold-primary" />
+        <span className="text-[10px] font-black tracking-widest uppercase italic tabular-nums text-white">
+          {time.toLocaleTimeString('pt-PT')}
+        </span>
       </div>
-      <div className="w-px h-4 bg-white/10" />
-      <div className="flex items-center gap-2 text-white/40">
-        <Calendar size={16} />
-        <span className="text-xs font-black tracking-tight uppercase italic pb-0.5">{time.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+      <div className="w-1 h-1 bg-gold-primary/30 rounded-full" />
+      <div className="flex items-center gap-2">
+        <Calendar size={14} className="text-gold-primary/60" />
+        <span className="text-[10px] font-black tracking-widest uppercase italic text-white/40">
+          {time.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}
+        </span>
       </div>
     </div>
   );
 }
 
-export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClick: () => void, onStartClick: () => void }) {
+export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin }: { onLoginClick: () => void, onStartClick: () => void, onInvestorLogin: (session: any) => void }) {
   const [publications, setPublications] = useState<any[]>([]);
   const [vagas, setVagas] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
@@ -64,6 +71,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
   const [search, setSearch] = useState('');
   const [selectedModule, setSelectedModule] = useState<any>(null);
   const [showIntro, setShowIntro] = useState(false);
+  const [showInvestorLogin, setShowInvestorLogin] = useState(false);
 
   const ModuleDetailedInfo: any = {
     'Vendas & Facturação': {
@@ -212,12 +220,9 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div
             onClick={() => setShowIntro(true)}
-            className="flex items-center gap-2 group cursor-pointer -ml-2"
+            className="flex items-center group cursor-pointer -ml-6 pr-16"
           >
-            <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-[0_0_20px_rgba(212,175,55,0.3)] group-hover:shadow-[0_0_30px_rgba(212,175,55,0.5)] transition-all">
-              <Store size={24} />
-            </div>
-            <span className="text-2xl font-black text-white tracking-normal italic uppercase pr-4">VENDA <span className="text-gold-gradient">PLUS</span></span>
+            <Logo />
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -228,17 +233,27 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
             <a href="#contacto" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Contacto</a>
           </div>
 
-          <div className="hidden lg:block">
-            <DigitalClock />
-          </div>
+          <div className="flex items-center gap-8">
+            <div className="hidden lg:block">
+              <DigitalClock />
+            </div>
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onLoginClick}
-              className="px-8 py-3 bg-white/5 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-primary hover:text-bg-deep transition-all border border-white/10 hover:border-gold-primary shadow-2xl"
-            >
-              Acesso Restrito
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setShowInvestorLogin(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-gold-primary/10 text-gold-primary rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-primary hover:text-bg-deep transition-all border border-gold-primary/20 hover:border-gold-primary shadow-xl italic whitespace-nowrap"
+              >
+                <Wallet size={16} />
+                Minha Consulta
+              </button>
+              <button
+                onClick={onLoginClick}
+                className="flex items-center gap-2 px-6 py-3 bg-white/5 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-primary hover:text-bg-deep transition-all border border-white/10 hover:border-gold-primary shadow-2xl italic whitespace-nowrap"
+              >
+                <ShieldCheck size={16} className="text-gold-primary/40" />
+                Acesso Restrito
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -261,7 +276,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           <div className="absolute bottom-[20%] right-[10%] w-[40%] h-[40%] bg-gold-secondary/5 rounded-full blur-[150px]" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 relative z-10 w-full">
+        <div className="max-w-7xl mx-auto px-6 relative z-10 w-full pt-20">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-gold-primary/10 border border-gold-primary/20 rounded-full text-gold-primary text-[10px] font-black uppercase tracking-[0.3em] mb-10 backdrop-blur-xl shadow-[0_0_20px_rgba(212,175,55,0.1)]">
               <ShieldCheck size={16} />
@@ -772,7 +787,7 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
 
       {/* Biographies Section - Moved for better space flow */}
       {companies.some(c => c.bio_nome) && (
-        <section className="py-16 bg-bg-deep relative overflow-hidden z-20">
+        <section className="py-16 bg-bg-deep relative z-20">
           <div className="max-w-7xl mx-auto px-6 relative z-10">
             <div className="mb-12 text-center">
               <div className="inline-flex items-center gap-3 text-gold-primary font-black text-[10px] uppercase tracking-[0.4em] mb-6 italic">
@@ -820,12 +835,13 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
           <div
             onClick={() => setShowIntro(true)}
-            className="flex items-center gap-4 group cursor-pointer"
+            className="flex items-center group cursor-pointer"
           >
-            <div className="w-10 h-10 bg-gold-primary rounded-xl flex items-center justify-center text-bg-deep shadow-2xl group-hover:scale-110 transition-transform">
-              <Store size={24} />
-            </div>
-            <span className="text-2xl font-black text-white tracking-tight italic uppercase pr-1">VENDA <span className="text-gold-gradient">PLUS</span></span>
+            <img 
+              src="/VendaPlus.png" 
+              alt="Venda Plus" 
+              className="h-16 w-auto object-contain brightness-110 drop-shadow-[0_0_15px_rgba(212,175,55,0.2)]" 
+            />
           </div>
 
           <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] italic">
@@ -983,6 +999,12 @@ export default function PublicHome({ onLoginClick, onStartClick }: { onLoginClic
           </div>
         </div>
       )}
+
+      <InvestorLoginModal 
+        isOpen={showInvestorLogin} 
+        onClose={() => setShowInvestorLogin(false)} 
+        onLoginSuccess={onInvestorLogin}
+      />
     </div>
   );
 }

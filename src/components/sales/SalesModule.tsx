@@ -21,7 +21,7 @@ import Reports from '../Reports';
 import PurchaseOrders from '../PurchaseOrders';
 import InventorySessions from './InventorySessions';
 
-export default function SalesModule() {
+export default function SalesModule({ features = [] }: { features?: string[] }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -37,7 +37,11 @@ export default function SalesModule() {
     { id: 'inventory', label: 'Inventário', icon: Activity, roles: ['admin', 'manager', 'master'] },
   ];
 
-  const tabs = allTabs.filter(tab => user && tab.roles.includes(user.role));
+  const tabs = allTabs.filter(tab => {
+    const hasRole = user && tab.roles.includes(user.role);
+    const hasFeature = features.includes('sales') || features.includes('master_all');
+    return hasRole && hasFeature;
+  });
 
   return (
     <div className="flex flex-col h-full bg-transparent">

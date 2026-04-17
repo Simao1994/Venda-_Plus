@@ -152,28 +152,28 @@ export default function InvestmentsModule() {
   // Modal Novo Lançamento Controlled States
   const [modalForm, setModalForm] = useState({
     investimento_id: '',
-    data: new Date().toISOString().slice(0, 16),
+    data: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
     aumento: 0,
     juros: 0,
     iac: 0,
     saque: 0,
-    multa: 0
+    multa: 0,
+    tipo_juros: '', // 'simples' ou 'composto'
+    comissao: 0
   });
 
-  // Auto-calculate IAC when Aumento or Juros changes in Modal
-  useEffect(() => {
-    if (showRecordModal) {
-      const totalTaxable = (Number(modalForm.aumento) || 0) + (Number(modalForm.juros) || 0);
-      setModalForm(prev => ({ ...prev, iac: Number((totalTaxable * 0.10).toFixed(2)) }));
-    }
-  }, [modalForm.aumento, modalForm.juros, showRecordModal]);
 
   // Sync modal project with activeTab project
   useEffect(() => {
     if (showRecordModal && activeProject) {
-      setModalForm(prev => ({ ...prev, investimento_id: activeProject.id }));
+      setModalForm(prev => ({ 
+        ...prev, 
+        investimento_id: activeProject.id,
+        tipo_juros: activeProject.regime?.toLowerCase() === 'composto' ? 'composto' : 'simples'
+      }));
     }
   }, [showRecordModal, activeProject]);
+
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchBy, setSearchBy] = useState<'nome' | 'id'>('nome');
@@ -437,33 +437,35 @@ export default function InvestmentsModule() {
     const taxaVal = selectedRateType === 'simples' ? 0.035 : 0.05;
 
     return modalRows.map((row) => {
-        const saldoAbertura = currentPrincipal;
-        
         const aumento = Number(row.aumento) || 0;
         const saque = Number(row.saque) || 0;
         const multa = Number(row.multa) || 0;
 
-        // Base de juros: principal corrente + aumento do mês
-        const baseJuros = Number((currentPrincipal + aumento).toFixed(2));
+
+
+        // ─────────────────────────────────────────────────────────────────
+        // BASE DE JURO
+        // Composto (5%): Inclui juros acumulados anteriores na base
+        // Simples (3.5%): Apenas capital + aumentos do mês
+        // ─────────────────────────────────────────────────────────────────
+        const baseJuros = taxaVal === 0.05 
+            ? Number((currentPrincipal + totalInterestAcum + aumento).toFixed(2))
+            : Number((currentPrincipal + aumento).toFixed(2));
         
         const jurosBruto = row.jurosBruto !== undefined ? row.jurosBruto : Number((baseJuros * taxaVal).toFixed(2));
         const comissao = row.comissao !== undefined ? row.comissao : Number((jurosBruto * 0.025).toFixed(2));
         const iacDoMes = row.iac !== undefined ? row.iac : Number((jurosBruto * 0.10).toFixed(2));
         
-        // Acumuladores de encargos
+        // Acumuladores de encargos (Σ)
         totalInterestAcum   = Number((totalInterestAcum   + jurosBruto).toFixed(2));
         totalCommissionAcum = Number((totalCommissionAcum + comissao).toFixed(2));
         totalIACAcum        = Number((totalIACAcum        + iacDoMes).toFixed(2));
         
-        // Actualizar capital com movimentos líquidos do mês
-        // (saques e multas já reduzem o capital — NÃO são descontados novamente no resultado final)
+        const saldoAbertura = currentPrincipal;
+        // Actualizar capital com movimentos líquidos do mês (Líquido de encargos)
         currentPrincipal = Number((currentPrincipal + aumento - saque - multa).toFixed(2));
         
-        // ─────────────────────────────────────────────────────────────────
-        // RESULTADO FINAL
-        // Fórmula: Capital Corrente (após saques/multas) + ΣJuros − ΣIAC − ΣComissão
-        // Saques e multas já estão deduzidos no currentPrincipal — não se repetem
-        // ─────────────────────────────────────────────────────────────────
+        // RESULTADO FINAL (Lógica sincronizada)
         const finalValue = Number((
           currentPrincipal
           + totalInterestAcum
@@ -508,7 +510,7 @@ export default function InvestmentsModule() {
   };
 
   const calculateProjectFullHistory = (project: Investment, currentRecords: Record[]) => {
-    if (!project) return { history: [], totals: { aumento: 0, juros: 0, iac: 0, comissao: 0, saque: 0, multa: 0, resultado: 0 } };
+    if (!project) return { history: [], totals: { capitalInicial: 0, aumento: 0, juros: 0, iac: 0, comissao: 0, saque: 0, multa: 0, resultado: 0 } };
     
     const startDate = new Date(project.data_inicio);
     const numMonthsStr = project.duracao ? String(project.duracao).replace(/\D/g, '') : '12';
@@ -537,8 +539,14 @@ export default function InvestmentsModule() {
         const tSaque   = Number(monthRecords.reduce((acc, r) => acc + (Number(r.saque)   || 0), 0).toFixed(2));
         const tMulta   = Number(monthRecords.reduce((acc, r) => acc + (Number(r.multa)   || 0), 0).toFixed(2));
         
-        // Base de juros: principal corrente + aumento do mês
-        const baseJuros = Number((currentPrincipal + tAumento).toFixed(2));
+        // ─────────────────────────────────────────────────────────────────
+        // BASE DE CÁLCULO DE JURO (Sincronizada)
+        // Composto (5%): Inclui juros acumulados anteriores na base
+        // Simples (3.5%): Apenas capital + aumentos do mês
+        // ─────────────────────────────────────────────────────────────────
+        const baseJuros = taxaVal === 0.05 
+            ? Number((currentPrincipal + totalJurosAcum + tAumento).toFixed(2))
+            : Number((currentPrincipal + tAumento).toFixed(2));
         
         const recordedJuros    = monthRecords.find(r => Number(r.juros)    > 0)?.juros;
         const recordedIAC      = monthRecords.find(r => Number(r.iac)      > 0)?.iac;
@@ -560,11 +568,6 @@ export default function InvestmentsModule() {
         // Saques e multas reduzem o capital corrente mês a mês
         currentPrincipal = Number((currentPrincipal + tAumento - tSaque - tMulta).toFixed(2));
         
-        // ─────────────────────────────────────────────────────────────────
-        // RESULTADO FINAL
-        // Fórmula: Capital Corrente (após saques/multas) + ΣJuros − ΣIAC − ΣComissão
-        // Saques e multas já estão deduzidos no currentPrincipal — não se repetem
-        // ─────────────────────────────────────────────────────────────────
         const finalRowValue = Number((
           currentPrincipal
           + totalJurosAcum
@@ -597,6 +600,7 @@ export default function InvestmentsModule() {
     ).toFixed(2));
 
     const totals = {
+      capitalInicial: Number(project.capital_inicial),
       aumento:   totalAumentoAcum,
       juros:     totalJurosAcum,
       comissao:  totalCommissionAcum,
@@ -609,15 +613,38 @@ export default function InvestmentsModule() {
     return { history, totals };
   };
 
-  const calculatedHistory = useMemo(() => {
-    if (!activeProject) return [];
-    return calculateProjectFullHistory(activeProject, records.filter(r => r.investimento_id === activeProject.id)).history;
-  }, [activeProject, records]);
+  // ─────────────────────────────────────────────────────────────────
+  // OPTIMIZAÇÃO: Uma única computação para history + totals do projeto ativo
+  // Antes: 2× useMemo chamavam calculateProjectFullHistory separadamente
+  // Agora: 1× useMemo, partilhando o resultado entre history e totals
+  // ─────────────────────────────────────────────────────────────────
+  const activeProjectRecords = useMemo(() =>
+    records.filter(r => r.investimento_id === activeProject?.id)
+  , [records, activeProject?.id]);
 
-  const totals = useMemo(() => {
-    if (!activeProject) return { aumento: 0, juros: 0, iac: 0, resultado: 0 };
-    return calculateProjectFullHistory(activeProject, records.filter(r => r.investimento_id === activeProject.id)).totals;
-  }, [activeProject, records]);
+  const { calculatedHistory, totals } = useMemo(() => {
+    const empty = {
+      calculatedHistory: [] as any[],
+      totals: { capitalInicial: 0, aumento: 0, juros: 0, iac: 0, comissao: 0, saque: 0, multa: 0, resultado: 0 }
+    };
+    if (!activeProject) return empty;
+    const result = calculateProjectFullHistory(activeProject, activeProjectRecords);
+    return { calculatedHistory: result.history, totals: result.totals };
+  }, [activeProject, activeProjectRecords]);
+
+  // ─────────────────────────────────────────────────────────────────
+  // OPTIMIZAÇÃO: Pré-calcular totais de todos os projetos uma vez só
+  // Antes: calculateProjectFullHistory chamada em loop no JSX (O(N²))
+  // Agora: um único useMemo percorre projetos e cria um Map
+  // ─────────────────────────────────────────────────────────────────
+  const allProjectTotals = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof calculateProjectFullHistory>['totals']>();
+    projects.forEach(proj => {
+      const projRecords = records.filter(r => r.investimento_id === proj.id);
+      map.set(proj.id, calculateProjectFullHistory(proj, projRecords).totals);
+    });
+    return map;
+  }, [projects, records]);
 
   const handleUnifiedRegistration = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -670,48 +697,42 @@ export default function InvestmentsModule() {
           console.log(`[SAVE] Sincronizando histórico de movimentações...`);
           await api.delete(`/api/applications/${existingProject.id}/records`); // Limpar antigos
           
-          for (const row of previewCalculated) {
-            const vAumento = Number(row.aumento) || 0;
-            const vSaque = Number(row.saque) || 0;
-            const vMulta = Number(row.multa) || 0;
-            const vJuros = Number(row.jurosBruto) || 0;
-            const vIAC = Number(row.iac) || 0;
-            const vComissao = Number(row.comissao) || 0;
-            
-            if (vAumento > 0 || vSaque > 0 || vMulta > 0 || vJuros > 0) {
-              await api.post('/api/applications/records', { 
-                investimento_id: existingProject.id, 
-                data: row.data, 
-                aumento: vAumento, 
-                saque: vSaque, 
-                multa: vMulta,
-                juros: vJuros,
-                iac: vIAC,
-                comissao: vComissao,
-                observacoes: 'Atualização pela Estratégia' 
-              });
-            }
-          }
+            // Gravar todos os meses via BATCH para performance instantânea
+            const currentTimeStr = new Date().toTimeString().split(' ')[0];
+            const batchRecords = previewCalculated.map(row => ({
+              investimento_id: existingProject.id, 
+              investidor_id: existingProject.investidor_id,
+              data: row.data.includes('T') ? row.data : `${row.data}T${currentTimeStr}`, 
+              aumento: Number(row.aumento) || 0, 
+              saque: Number(row.saque) || 0, 
+              multa: Number(row.multa) || 0,
+              juros: Number(row.jurosBruto) || 0,
+              iac: Number(row.iac) || 0,
+              comissao: Number(row.comissao) || 0,
+              observacoes: (Number(row.aumento) > 0 || Number(row.saque) > 0 || Number(row.multa) > 0) ? 'Atualização pela Estratégia' : 'Rendimento Mensal' 
+            }));
+
+            await api.post('/api/applications/records/batch', { records: batchRecords });
         } else if (!isOnlyInvestor && initialCapital > 0) {
           console.log(`[SAVE] Criando nova aplicação para investidor existente...`);
           const appRes = await api.post('/api/applications', appPayload).then(r => r.json());
           
-          // Gravar registros da nova aplicação
-          for (const row of previewCalculated) {
-            if (row.aumento > 0 || row.saque > 0 || row.multa > 0 || row.jurosBruto > 0) {
-              await api.post('/api/applications/records', { 
-                investimento_id: appRes.id, 
-                data: row.data, 
-                aumento: row.aumento, 
-                saque: row.saque, 
-                multa: row.multa, 
-                juros: row.jurosBruto,
-                iac: row.iac,
-                comissao: row.comissao,
-                observacoes: 'Lançamento Inicial' 
-              });
-            }
-          }
+          // Gravar registros da nova aplicação via BATCH
+          const currentTimeStr = new Date().toTimeString().split(' ')[0];
+          const batchRecords = previewCalculated.map(row => ({
+            investimento_id: appRes.id, 
+            investidor_id: invId,
+            data: row.data.includes('T') ? row.data : `${row.data}T${currentTimeStr}`, 
+            aumento: row.aumento, 
+            saque: row.saque, 
+            multa: row.multa, 
+            juros: row.jurosBruto,
+            iac: row.iac,
+            comissao: row.comissao,
+            observacoes: (row.aumento > 0 || row.saque > 0 || row.multa > 0) ? 'Lançamento Inicial' : 'Rendimento Mensal'
+          }));
+
+          await api.post('/api/applications/records/batch', { records: batchRecords });
         }
       } else {
         console.log('[API] Tentando POST para /api/investments/investors');
@@ -740,21 +761,22 @@ export default function InvestmentsModule() {
             duracao: `${numMonths} Meses`
           }).then(r => r.json());
 
-          for (const row of previewCalculated) {
-            if (row.aumento > 0 || row.saque > 0 || row.multa > 0 || row.jurosBruto > 0) {
-              await api.post('/api/applications/records', { 
-                investimento_id: appRes.id, 
-                data: row.data, 
-                aumento: row.aumento, 
-                saque: row.saque, 
-                multa: row.multa,
-                juros: row.jurosBruto,
-                iac: row.iac,
-                comissao: row.comissao,
-                observacoes: 'Lançamento Inicial' 
-              });
-            }
-          }
+          // Criar registros iniciais via BATCH
+          const currentTimeStr = new Date().toTimeString().split(' ')[0];
+          const batchRecords = previewCalculated.map(row => ({
+            investimento_id: appRes.id, 
+            investidor_id: invId,
+            data: row.data.includes('T') ? row.data : `${row.data}T${currentTimeStr}`, 
+            aumento: row.aumento, 
+            saque: row.saque, 
+            multa: row.multa,
+            juros: row.jurosBruto,
+            iac: row.iac,
+            comissao: row.comissao,
+            observacoes: (row.aumento > 0 || row.saque > 0 || row.multa > 0) ? 'Lançamento Inicial' : 'Rendimento Mensal'
+          }));
+
+          await api.post('/api/applications/records/batch', { records: batchRecords });
         }
       }
       
@@ -771,46 +793,27 @@ export default function InvestmentsModule() {
     }
   };
 
-  // Trigger suggestion automatically only when "Aumento" is provided
+  // Trigger suggestion automatically when relevant fields change
   useEffect(() => {
     if (showRecordModal && modalForm.investimento_id) {
-      if ((Number(modalForm.aumento) || 0) > 0) {
-        suggestRendimento();
-      } else {
-        // Clear fields if Aumento is empty/zero
-        setModalForm(prev => ({ ...prev, juros: 0, iac: 0, saque: 0, multa: 0 }));
-      }
+      suggestRendimento(modalForm.aumento, modalForm.tipo_juros);
     }
-  }, [modalForm.investimento_id, modalForm.aumento, showRecordModal]);
+  }, [modalForm.investimento_id, modalForm.aumento, modalForm.tipo_juros, showRecordModal]);
 
-  const suggestRendimento = () => {
-    const proj = projects.find(p => p.id === modalForm.investimento_id);
-    if (!proj) return;
+  // Sugestão de Rendimento baseada estritamente no Depósito Atual
+  const suggestRendimento = (forcedAumento?: number, forcedType?: string) => {
+    const currentAumento = forcedAumento !== undefined ? Number(forcedAumento) : (Number(modalForm.aumento) || 0);
+    const currentType = forcedType || modalForm.tipo_juros;
+    const rateNum = currentType === 'composto' ? 0.05 : 0.035;
 
-    // Fixed Rates: Composto = 5% (0.05), Simples = 3.5% (0.035)
-    const rateNum = proj.regime === 'Composto' ? 0.05 : 0.035;
-
-    // Calculate current month's capital base
-    const projRecords = records.filter(r => r.investimento_id === proj.id);
-    let capitalBase = proj.capital_inicial;
-
-    projRecords.forEach(r => {
-      capitalBase += (Number(r.aumento) || 0);
-      capitalBase -= (Number(r.saque) || 0);
-      
-      if (proj.regime === 'Composto') {
-        capitalBase += (Number(r.juros) || 0);
-        capitalBase -= (Number(r.iac) || 0);
-      }
-    });
-
-    const currentAumento = Number(modalForm.aumento) || 0;
-    const finalBase = capitalBase + currentAumento;
-
-    const calculatedJuros = Number((finalBase * rateNum).toFixed(2));
+    // 3. Calculate based ONLY on the current applied amount
+    const calculatedJuros = Number((currentAumento * rateNum).toFixed(2));
+    const calculatedComissao = Number((currentAumento * 0.025).toFixed(2));
+    
     setModalForm(prev => ({ 
       ...prev, 
       juros: calculatedJuros,
+      comissao: calculatedComissao,
       iac: Number((calculatedJuros * 0.10).toFixed(2))
     }));
   };
@@ -824,23 +827,30 @@ export default function InvestmentsModule() {
     }
 
     try {
+      const currentTime = new Date().toTimeString().split(' ')[0];
+      const finalData = modalForm.data.includes('T') ? modalForm.data : `${modalForm.data}T${currentTime}`;
+
       await api.post('/api/applications/records', { 
         ...modalForm, 
+        data: finalData,
         aumento: Number(modalForm.aumento) || 0, 
         juros: Number(modalForm.juros) || 0,
         iac: Number(modalForm.iac) || 0,
+        comissao: Number(modalForm.comissao) || 0,
         saque: Number(modalForm.saque) || 0, 
         multa: Number(modalForm.multa) || 0 
       });
       setShowRecordModal(false); 
       setModalForm({
         investimento_id: '',
-        data: new Date().toISOString().slice(0, 16),
+        data: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
         aumento: 0,
         juros: 0,
         iac: 0,
         saque: 0,
-        multa: 0
+        multa: 0,
+        tipo_juros: '',
+        comissao: 0
       });
       fetchData();
       alert('Lançamento registado com sucesso!');
@@ -858,6 +868,7 @@ export default function InvestmentsModule() {
         aumento: Number(rawData.aumento) || 0, 
         juros: Number(rawData.juros) || 0,
         iac: Number(rawData.iac) || 0,
+        comissao: Number(rawData.comissao) || 0,
         saque: Number(rawData.saque) || 0, 
         multa: Number(rawData.multa) || 0 
       });
@@ -880,6 +891,18 @@ export default function InvestmentsModule() {
           <p className="text-gold-primary/40 font-black text-[10px] uppercase tracking-[0.4em]">Banking Assets Management 2026</p>
         </div>
         <div className="flex items-center gap-3">
+          <button onClick={() => { 
+            setIsEditing(false); 
+            setEditingInvestor(null); 
+            setModalTab('perfil'); 
+            setSelectedInvestor(null); 
+            setModalRows([]); 
+            setBirthDate(''); 
+            setInvestorPhoto(null);
+            setShowUnifiedModal(true); 
+          }} className="bg-white/5 border border-white/10 text-white/60 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2 group">
+            <UserPlus size={18} className="text-gold-primary" /> Novo Investidor
+          </button>
           <button onClick={() => { 
             setIsEditing(false); 
             setEditingInvestor(null); 
@@ -1378,7 +1401,7 @@ export default function InvestmentsModule() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {projects.map(proj => {
-                    const { totals: t } = calculateProjectFullHistory(proj, records.filter(r => r.investimento_id === proj.id));
+                    const t = allProjectTotals.get(proj.id) ?? { capitalInicial: 0, aumento: 0, juros: 0, iac: 0, comissao: 0, saque: 0, multa: 0, resultado: 0 };
                     return (
                       <tr key={proj.id} className="hover:bg-white/[0.02] transition-all">
                         <td className="py-4 px-4">
@@ -1411,7 +1434,7 @@ export default function InvestmentsModule() {
               const proj = projects.find(p => p.investidor_id === searchResult.id);
               if (!proj) return <p className="text-[10px] uppercase font-black opacity-20 text-center py-10 tracking-widest italic">Nenhuma Aplicação Ativa Detectada</p>;
               
-              const { totals: t } = calculateProjectFullHistory(proj, records.filter(r => r.investimento_id === proj.id));
+              const t = allProjectTotals.get(proj.id) ?? { capitalInicial: 0, aumento: 0, juros: 0, iac: 0, comissao: 0, saque: 0, multa: 0, resultado: 0 };
 
               return (
                 <div className="space-y-6">
@@ -1456,7 +1479,30 @@ export default function InvestmentsModule() {
       )}
 
       {activeTab === 'investors' && (
-        <div className="glass-panel p-8 rounded-[40px] border-white/5 overflow-hidden shadow-2xl animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="bg-amber-500/10 border-l-4 border-amber-500 p-6 rounded-2xl flex items-start gap-4 mb-4">
+            <AlertCircle className="text-amber-500 shrink-0 mt-1" size={20} />
+            <div>
+              <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest mb-1">Nota para a Gestão</p>
+              <p className="text-[11px] text-white/60 font-medium leading-relaxed">
+                Esta lista contém apenas **Investidores Externos** com acesso ao Portal do Investidor.
+                Colaboradores internos (Staff) devem ser geridos no módulo de **"Equipa & Licenças"** com a permissão "Investimentos" ativada.
+              </p>
+            </div>
+          </div>
+
+          <div className="glass-panel p-8 rounded-[40px] border-white/5 overflow-hidden shadow-2xl relative">
+            <div className="flex items-center justify-between mb-8">
+               <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Base de Dados de <span className="text-gold-primary">Investidores</span></h3>
+               <button onClick={() => { 
+                  setIsEditing(false); 
+                  setEditingInvestor(null); 
+                  setModalTab('perfil'); 
+                  setShowUnifiedModal(true); 
+                }} className="bg-gold-primary/10 border border-gold-primary/20 text-gold-primary px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-primary/20 transition-all flex items-center gap-2">
+                  <UserPlus size={16} /> Adicionar Novo Investidor
+                </button>
+            </div>
           <table className="w-full text-white font-mono-table">
             <thead>
               <tr className="text-left text-[10px] font-black uppercase tracking-widest text-gold-primary/40 border-b border-white/5">
@@ -1503,7 +1549,8 @@ export default function InvestmentsModule() {
             </tbody>
           </table>
         </div>
-      )}
+      </div>
+    )}
 
       {activeTab === 'expired_contracts' && (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -1739,7 +1786,12 @@ export default function InvestmentsModule() {
                         </div>
 
                         <div>
-                          <span className="text-[9px] font-black uppercase text-gold-primary/40 tracking-[0.3em] block mb-4 border-l-2 border-gold-primary/20 pl-3">III. CONTACTOS & ACESSO AO PORTAL</span>
+                          <div className="flex items-center justify-between mb-4 border-l-2 border-gold-primary/20 pl-3">
+                            <span className="text-[9px] font-black uppercase text-gold-primary/40 tracking-[0.3em] block">III. CONTACTOS & ACESSO AO PORTAL</span>
+                            {!isEditing && (
+                              <span className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase px-2 py-1 rounded-lg border border-emerald-500/20">Criação de Conta de Utilizador Ativa</span>
+                            )}
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-white">
                             <div className="space-y-2">
                               <label className="text-[10px] font-black uppercase opacity-40 ml-3 tracking-[0.2em]">Telefone Principal</label>
@@ -2146,7 +2198,15 @@ export default function InvestmentsModule() {
                   <select 
                     name="investimento_id" 
                     value={modalForm.investimento_id}
-                    onChange={(e) => setModalForm({...modalForm, investimento_id: e.target.value})}
+                    onChange={(e) => {
+                      const projId = e.target.value;
+                      const proj = projects.find(p => p.id === projId);
+                      setModalForm(prev => ({
+                        ...prev,
+                        investimento_id: projId,
+                        tipo_juros: proj?.regime?.toLowerCase() === 'composto' ? 'composto' : 'simples'
+                      }));
+                    }}
                     required 
                     className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-gold-primary transition-all appearance-none cursor-pointer"
                   >
@@ -2166,7 +2226,7 @@ export default function InvestmentsModule() {
                          name="data" 
                          type="datetime-local" 
                          value={modalForm.data}
-                         onChange={(e) => setModalForm({...modalForm, data: e.target.value})}
+                         onChange={(e) => setModalForm(prev => ({ ...prev, data: e.target.value }))}
                          required 
                          className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-gold-primary transition-all shadow-inner" 
                        />
@@ -2179,45 +2239,77 @@ export default function InvestmentsModule() {
                          step="any" 
                          placeholder="0" 
                          value={modalForm.aumento || ''}
-                         onChange={(e) => setModalForm({...modalForm, aumento: parseFloat(e.target.value) || 0})}
-                         className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-emerald-500" 
+                         onChange={(e) => setModalForm(prev => ({ ...prev, aumento: parseFloat(e.target.value) || 0 }))}
+                         className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-emerald-500 shadow-inner" 
                        />
                    </div>
+                   {/* SELEÇÃO DE TIPO DE JUROS - PREMIUM TOGGLE */}
                    <div className="space-y-3">
-                       <div className="flex justify-between items-center px-4">
-                         <label className="text-[11px] font-black uppercase text-blue-400 opacity-50 tracking-widest">Juros Gerados (Kz)</label>
-                         <button 
-                           type="button" 
-                           onClick={suggestRendimento}
-                           className="text-[9px] font-black text-gold-primary hover:text-white uppercase tracking-tighter bg-gold-primary/10 px-2 py-1 rounded border border-gold-primary/20 transition-all active:scale-95"
-                         >
-                           Sugerir
-                         </button>
+                       <label className="text-[11px] font-black uppercase text-gold-primary opacity-50 ml-6 tracking-widest">Modo de Cálculo de Juros</label>
+                       <div className="grid grid-cols-2 gap-1 p-1 bg-white/5 rounded-3xl border border-white/10 h-[68px] shadow-inner">
+                           <button 
+                             type="button" 
+                             onClick={() => setModalForm(prev => ({ ...prev, tipo_juros: 'simples' }))} 
+                             className={`rounded-2xl font-black text-[10px] uppercase transition-all flex flex-col items-center justify-center leading-tight ${modalForm.tipo_juros === 'simples' ? 'bg-gold-primary text-bg-deep shadow-2xl' : 'text-white/30 hover:text-white/50'}`}
+                           >
+                             <span>SIMPLES</span>
+                             <span className="text-[8px] opacity-60">3,5% s/ Base</span>
+                           </button>
+                           <button 
+                             type="button" 
+                             onClick={() => setModalForm(prev => ({ ...prev, tipo_juros: 'composto' }))} 
+                             className={`rounded-2xl font-black text-[10px] uppercase transition-all flex flex-col items-center justify-center leading-tight ${modalForm.tipo_juros === 'composto' ? 'bg-gold-primary text-bg-deep shadow-2xl' : 'text-white/30 hover:text-white/50'}`}
+                           >
+                             <span>COMPOSTO</span>
+                             <span className="text-[8px] opacity-60">5% s/ Acumul.</span>
+                           </button>
                        </div>
-                       <input 
-                         name="juros" 
-                         type="number" 
-                         step="any" 
-                         placeholder="0" 
-                         value={modalForm.juros || ''}
-                         onChange={(e) => setModalForm({...modalForm, juros: parseFloat(e.target.value) || 0})}
-                         className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-blue-400" 
-                       />
                    </div>
                    <div className="space-y-3">
-                       <label className="text-[11px] font-black uppercase text-rose-400 opacity-50 ml-6 tracking-widest">Retenção IAC (10%) (Kz)</label>
-                       <input 
-                         name="iac" 
-                         type="number" 
-                         step="any" 
-                         placeholder="0" 
-                         value={modalForm.iac || ''}
-                         readOnly
-                         className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-rose-400/60 font-black text-lg outline-none cursor-not-allowed shadow-inner"
-                       />
-                       <p className="text-[9px] text-rose-400/40 ml-6 font-bold">* Calculado automaticamente</p>
+                       <label className="text-[11px] font-black uppercase text-blue-400 opacity-50 ml-6 tracking-widest">Juros (Kz)</label>
+                       <div className="relative">
+                         <input 
+                           name="juros" 
+                           type="number" 
+                           step="any" 
+                           placeholder="0" 
+                           value={modalForm.juros || ''}
+                           readOnly
+                           className="w-full bg-blue-500/5 border border-blue-500/20 rounded-3xl px-8 py-5 text-blue-400 font-black text-lg outline-none cursor-not-allowed shadow-[inset_0_2px_10px_rgba(0,0,0,0.3)]" 
+                         />
+                         <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                         </div>
+                       </div>
+                       <p className="text-[9px] text-blue-400/40 ml-6 font-bold">* Projetado via {modalForm.tipo_juros === 'composto' ? '5%' : '3.5%'}</p>
                    </div>
-                   <div className="space-y-3">
+                   <div className="space-y-3 text-center">
+                        <label className="text-[11px] font-black uppercase text-rose-400 opacity-50 ml-6 tracking-widest">Retenção IAC (10%) (Kz)</label>
+                        <input 
+                          name="iac" 
+                          type="number" 
+                          step="any" 
+                          placeholder="0" 
+                          value={modalForm.iac || ''}
+                          readOnly
+                          className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-rose-400/60 font-black text-lg text-center outline-none cursor-not-allowed shadow-inner"
+                        />
+                        <p className="text-[9px] text-rose-400/40 ml-6 font-bold">* Calculado automaticamente</p>
+                   </div>
+                   <div className="space-y-3 text-center">
+                        <label className="text-[11px] font-black uppercase text-gold-primary opacity-50 ml-6 tracking-widest">Comissão Bancária (2.5%) (Kz)</label>
+                        <input 
+                          name="comissao" 
+                          type="number" 
+                          step="any" 
+                          placeholder="0" 
+                          value={modalForm.comissao || ''}
+                          readOnly
+                          className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-gold-primary/60 font-black text-lg text-center outline-none cursor-not-allowed shadow-inner"
+                        />
+                        <p className="text-[9px] text-gold-primary/40 ml-6 font-bold">* Deduzido automaticamente</p>
+                   </div>
+                   <div className="col-span-2 space-y-3">
                        <label className="text-[11px] font-black uppercase text-rose-500 opacity-50 ml-6 tracking-widest">Valor do Saque (Kz)</label>
                        <input 
                          name="saque" 
@@ -2225,7 +2317,7 @@ export default function InvestmentsModule() {
                          step="any" 
                          placeholder="0" 
                          value={modalForm.saque || ''}
-                         onChange={(e) => setModalForm({...modalForm, saque: parseFloat(e.target.value) || 0})}
+                          onChange={(e) => setModalForm(prev => ({ ...prev, saque: parseFloat(e.target.value) || 0 }))}
                          className="w-full bg-red-500/5 border border-red-500/20 rounded-3xl px-8 py-5 text-rose-500 font-black text-lg outline-none focus:border-rose-500" 
                        />
                    </div>
@@ -2237,7 +2329,7 @@ export default function InvestmentsModule() {
                        step="any" 
                        placeholder="0" 
                        value={modalForm.multa || ''}
-                       onChange={(e) => setModalForm({...modalForm, multa: parseFloat(e.target.value) || 0})}
+                       onChange={(e) => setModalForm(prev => ({ ...prev, multa: parseFloat(e.target.value) || 0 }))}
                        className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg text-center outline-none focus:border-gold-primary shadow-inner" 
                      />
                    </div>
@@ -2273,19 +2365,23 @@ export default function InvestmentsModule() {
                         <input name="juros" type="number" step="any" defaultValue={editingRecord.juros} className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-blue-400" />
                     </div>
                     <div className="space-y-3">
-                        <label className="text-[11px] font-black uppercase text-rose-400 opacity-50 ml-6 tracking-widest">Retenção IAC (Kz)</label>
-                        <input name="iac" type="number" step="any" defaultValue={editingRecord.iac} className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-rose-400" />
+                        <label className="text-[11px] font-black uppercase text-rose-400 opacity-50 ml-6 tracking-widest">Retenção IAC (10%) (Kz)</label>
+                        <input name="iac" type="number" step="any" defaultValue={editingRecord.iac} readOnly className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-rose-400/60 font-black text-lg text-center outline-none cursor-not-allowed shadow-inner" />
                     </div>
                     <div className="space-y-3">
+                        <label className="text-[11px] font-black uppercase text-gold-primary opacity-50 ml-6 tracking-widest">Comissão Bancária (2.5%) (Kz)</label>
+                        <input name="comissao" type="number" step="any" defaultValue={editingRecord.comissao || 0} readOnly className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-gold-primary/60 font-black text-lg text-center outline-none cursor-not-allowed shadow-inner" />
+                    </div>
+                    <div className="col-span-2 space-y-3">
                         <label className="text-[11px] font-black uppercase text-rose-500 opacity-50 ml-6 tracking-widest">Valor do Saque (Kz)</label>
-                        <input name="saque" type="number" step="any" defaultValue={editingRecord.saque} className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-rose-500" />
+                        <input name="saque" type="number" step="any" defaultValue={editingRecord.saque} className="w-full bg-red-500/5 border border-red-500/20 rounded-3xl px-8 py-5 text-rose-500 font-black text-lg outline-none focus:border-rose-500" />
                     </div>
-                    <div className="space-y-3">
-                        <label className="text-[11px] font-black uppercase text-slate-400 opacity-50 ml-6 tracking-widest">Multa Aplicada (Kz)</label>
-                        <input name="multa" type="number" step="any" defaultValue={editingRecord.multa} className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg outline-none focus:border-slate-400" />
+                    <div className="col-span-2 space-y-3 text-center">
+                      <label className="text-[11px] font-black uppercase text-slate-100 opacity-50 tracking-widest block">Multa Bancária Aplicada (Kz)</label>
+                      <input name="multa" type="number" step="any" defaultValue={editingRecord.multa} className="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-5 text-white font-black text-lg text-center outline-none focus:border-gold-primary shadow-inner" />
                     </div>
                   </div>
-                  <button type="submit" className="w-full py-8 bg-gradient-to-r from-gold-primary to-gold-secondary text-bg-deep rounded-[35px] font-black text-[14px] uppercase tracking-[0.3em] shadow-[0_20px_80px_rgba(212,175,55,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all outline-none">Atualizar Lançamento</button>
+                  <button type="submit" className="w-full bg-gold-primary text-bg-deep py-7 rounded-[40px] font-black text-[14px] uppercase tracking-[0.4em] shadow-[0_20px_50px_rgba(212,175,55,0.3)] hover:scale-[1.03] active:scale-[0.97] transition-all border-t-4 border-white/20 mt-4">Actualizar Lançamento</button>
                </form>
             </div>
          </div>
@@ -2293,10 +2389,21 @@ export default function InvestmentsModule() {
 
       {/* A4 Report Styles - Premium FinOps Version */}
       <div style={{ display: 'none' }}>
-        <div ref={reportRef} className="p-24 text-[#002855] bg-white min-h-[297mm]">
+        <div ref={reportRef} className="p-24 pb-10 text-[#002855] bg-white min-h-[297mm] relative">
+
+
+
+           <div className="hidden print:block a4-page-number-footer" />
+
            <div className="flex justify-between items-start mb-20 border-b-[15px] border-[#002855] pb-14 uppercase">
               <div className="relative">
-                  <h1 className="text-6xl font-black tracking-tighter mb-2 text-[#002855]">VDP PRIVATE</h1>
+                  <div className="flex items-baseline gap-6">
+                    <h1 className="text-6xl font-black tracking-tighter mb-2 text-[#002855]">VENDA PLUS</h1>
+                    <div className="text-lg font-black text-gold-primary border-b-2 border-gold-primary pb-0.5">
+                      {activeProject.investidores?.numero_sequencial ? `INV-${activeProject.investidores.numero_sequencial.toString().padStart(3, '0')}/026` : `INV-${activeProject.investidores?.id || '---'}`}
+                    </div>
+
+                  </div>
                   <p className="text-[14px] font-black opacity-60 tracking-[0.6em] ml-2">ASSETS MANAGEMENT EXECUTIVES</p>
               </div>
               <div className="text-right flex flex-col items-end">
@@ -2348,9 +2455,9 @@ export default function InvestmentsModule() {
                        <td className="p-8 border-r border-slate-200 text-center text-red-800/80 font-black text-lg">{formatarNum(row.iac)}</td>
                     </tr>
                  ))}
-                 <tr className="bg-[#002855] text-white font-black h-36 border-t-8 border-[#002855] shadow-inner">
-                    <td className="p-10 text-center uppercase text-[15px] tracking-[0.4em]">Consolidação Residual</td>
-                    <td className="p-10 text-center opacity-30 text-xs">-</td>
+                  <tr className="bg-[#002855] text-white font-black h-36 border-t-8 border-[#002855] shadow-inner">
+                     <td className="p-10 text-center uppercase text-[15px] tracking-[0.4em]">Consolidação Residual</td>
+                     <td className="p-10 text-center font-black text-2xl tracking-tighter italic">{formatarNum(totals.capitalInicial)}</td>
                     <td className="p-10 text-center font-black text-2xl tracking-tighter italic">{formatarNum(totals.aumento)}</td>
                     <td className="p-10 text-center opacity-30 text-xs">-</td>
                     <td className="p-10 text-center font-black text-2xl tracking-tighter italic">{formatarNum(totals.juros)}</td>
@@ -2374,17 +2481,17 @@ export default function InvestmentsModule() {
               </div>
            </div>
 
-           <div className="mt-56 flex justify-between px-32 mb-40 relative">
+           <div className="mt-8 flex justify-between px-32 mb-4 relative">
               <div className="absolute top-0 left-0 w-full h-px bg-[#002855]/5 pointer-events-none" />
               <div className="text-center w-96 font-serif">
                  <div className="h-1 bg-[#002855] mb-6 shadow-xl" />
                  <p className="text-[14px] font-black uppercase text-[#002855] italic tracking-[0.4em] mb-2">Venda Plus General Management</p>
                  <p className="text-[10px] opacity-40 font-bold tracking-tighter">Selo de Autenticidade Digital ID: 2992-B</p>
               </div>
-<div className="text-center w-96 font-serif">
+              <div className="text-center w-96 font-serif">
                  <div className="h-1 bg-[#002855] mb-6 shadow-xl" />
                  <p className="text-[14px] font-black uppercase text-[#002855] italic tracking-[0.4em] mb-2">Assinatura Certificada do Titular</p>
-                 <p className="text-[10px] opacity-40 font-bold tracking-tighter">Identidade Reconhecida sob Protocolo de CustÃ³dia</p>
+                 <p className="text-[10px] opacity-40 font-bold tracking-tighter">Identidade Reconhecida sob Protocolo de Custódia</p>
               </div>
             </div>
          </div>
@@ -2394,6 +2501,15 @@ export default function InvestmentsModule() {
          <div className="fixed inset-0 bg-bg-deep/95 backdrop-blur-3xl z-[100] flex items-center justify-center p-4">
            <div className="glass-panel w-full max-w-4xl rounded-[40px] overflow-hidden border-gold-primary/20 gold-glow shadow-[0_0_150px_rgba(212,175,55,0.1)]">
              <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+               <div className="flex flex-col gap-1">
+                 <div className="flex items-baseline gap-4">
+                   <h1 className="text-4xl font-black tracking-tighter mb-2">VENDA PLUS</h1>
+                   <div className="text-base font-black text-gold-primary border-b-2 border-gold-primary px-2">
+                     {extratoInvestor.investidores?.numero_sequencial ? `INV-${extratoInvestor.investidores.numero_sequencial.toString().padStart(3, '0')}/026` : `INV-${extratoInvestor.investidores?.id || '---'}`}
+                   </div>
+                 </div>
+                 <p className="text-[11px] font-black opacity-60 tracking-[0.4em]">ASSETS MANAGEMENT</p>
+               </div>
                <h3 className="text-2xl font-black text-gold-gradient italic tracking-widest uppercase">Extrato do Investidor</h3>
                <div className="flex gap-3">
                  <button onClick={() => { handleExtratoPrint(); }} className="bg-gold-primary text-bg-deep px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2">
@@ -2404,11 +2520,18 @@ export default function InvestmentsModule() {
              </div>
              <div className="p-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
                <div style={{ display: 'none' }}>
-                 <div ref={extratoRef} className="p-16 text-[#002855] bg-white min-h-[297mm]">
+                 <div ref={extratoRef} className="p-16 pb-10 text-[#002855] bg-white min-h-[297mm] relative">
+                    <div className="hidden print:block a4-page-number-footer" />
+
                    <div className="flex justify-between items-start mb-12 border-b-[10px] border-[#002855] pb-8">
                      <div>
-                       <h1 className="text-4xl font-black tracking-tighter mb-2">VDP PRIVATE</h1>
-                       <p className="text-[11px] font-black opacity-60 tracking-[0.4em]">ASSETS MANAGEMENT</p>
+                       <div className="flex items-baseline gap-4">
+                        <h1 className="text-4xl font-black tracking-tighter mb-2">VENDA PLUS</h1>
+                        <div className="text-base font-black text-gold-primary border-b-2 border-gold-primary px-2">
+                          {extratoInvestor.investidores?.numero_sequencial ? `INV-${extratoInvestor.investidores.numero_sequencial.toString().padStart(3, '0')}/026` : `INV-${extratoInvestor.investidores?.id || '---'}`}
+                        </div>
+                      </div>
+                      <p className="text-[11px] font-black opacity-60 tracking-[0.4em]">ASSETS MANAGEMENT</p>
                      </div>
                      <div className="text-right">
                        <div className="bg-[#002855] text-white px-6 py-2 rounded-lg text-[10px] font-black tracking-[0.2em] mb-2">EXTRATO INDIVIDUAL</div>
@@ -2430,7 +2553,8 @@ export default function InvestmentsModule() {
                    </div>
 
                    {(() => {
-                      const { history: invHistory, totals: t } = calculateProjectFullHistory(extratoInvestor, records.filter(r => r.investimento_id === extratoInvestor.id));
+                      const extratoRecords = records.filter(r => r.investimento_id === extratoInvestor.id);
+                       const { history: invHistory, totals: t } = calculateProjectFullHistory(extratoInvestor, extratoRecords);
                       return (
                         <>
                           <div className="bg-[#002855] text-white py-4 px-8 rounded-t-xl font-black uppercase text-[12px] tracking-[0.3em]">
@@ -2463,9 +2587,9 @@ export default function InvestmentsModule() {
                               ))}
                             </tbody>
                             <tfoot className="bg-[#002855] text-white">
-                              <tr className="text-[10px] font-black uppercase">
-                                <td className="p-4 border border-[#002855]">TOTAL CONSOLIDADO</td>
-                                <td className="p-4 border border-[#002855] text-right">-</td>
+                               <tr className="text-[10px] font-black uppercase">
+                                 <td className="p-4 border border-[#002855]">TOTAL CONSOLIDADO</td>
+                                 <td className="p-4 border border-[#002855] text-right font-black text-white/90">{formatarNum(t.capitalInicial)}</td>
                                 <td className="p-4 border border-[#002855] text-right text-blue-300">{formatarNum(t.juros)}</td>
                                 <td className="p-4 border border-[#002855] text-right text-red-300">{formatarNum(t.iac)}</td>
                                 <td className="p-4 border border-[#002855] text-right">
@@ -2507,7 +2631,7 @@ export default function InvestmentsModule() {
                            </div>
                          </div>
 
-                         <div className="mt-12 text-center text-[10px] opacity-40 font-medium">
+                         <div className="mt-2 text-center text-\[10px\] opacity-40 font-medium">
                            Documento gerado em {new Date().toLocaleString('pt-AO')} - Venda Plus General Management
                          </div>
                        </>

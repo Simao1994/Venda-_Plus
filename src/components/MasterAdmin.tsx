@@ -12,7 +12,10 @@ import {
     ArrowRight,
     Link,
     Database,
-    Shield
+    Shield,
+    Eye,
+    Landmark,
+    Check
 } from 'lucide-react';
 import {
     BarChart,
@@ -43,10 +46,11 @@ interface Company {
 }
 
 export default function MasterAdmin() {
-    const [activePortalTab, setActivePortalTab] = useState<'licenses' | 'plans' | 'config'>('licenses');
+    const [activePortalTab, setActivePortalTab] = useState<'licenses' | 'plans' | 'config' | 'payments'>('licenses');
     const [configs, setConfigs] = useState<any[]>([]);
     const [stats, setStats] = useState<MasterStats | null>(null);
     const [companies, setCompanies] = useState<Company[]>([]);
+    const [payments, setPayments] = useState<any[]>([]);
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -79,10 +83,44 @@ export default function MasterAdmin() {
         data_expiracao: '',
         status: 'active',
         valor_pago: 0,
-        tipo_plano: 'mensal'
+        tipo_plano: 'mensal',
+        features: null as string[] | null
     });
 
+    const handleSubFieldChange = (field: string, value: any) => {
+        let newFormData = { ...subscriptionFormData, [field]: value };
+        
+        // Auto-calculate if plan or cycle changed
+        if (field === 'plan_id' || field === 'tipo_plano') {
+            const plan = plans.find(p => Number(p.id) === Number(newFormData.plan_id));
+            if (plan) {
+                const duration = newFormData.tipo_plano === 'trimestrial' ? 3 :
+                                 newFormData.tipo_plano === 'semestrial' ? 6 :
+                                 newFormData.tipo_plano === 'anual' ? 12 : 1;
+                
+                const newExpiry = new Date();
+                newExpiry.setMonth(newExpiry.getMonth() + duration);
+
+                const price = newFormData.tipo_plano === 'anual' ? (plan.price_yearly || plan.price_monthly * 12) :
+                              newFormData.tipo_plano === 'semestrial' ? (plan.price_semestrial || plan.price_monthly * 6) :
+                              newFormData.tipo_plano === 'trimestrial' ? (plan.price_trimestrial || plan.price_monthly * 3) :
+                              plan.price_monthly;
+
+                newFormData.data_expiracao = newExpiry.toISOString().split('T')[0];
+                newFormData.valor_pago = price;
+            }
+        }
+        
+        setSubscriptionFormData(newFormData);
+    };
+
     const [isSaving, setIsSaving] = useState(false);
+    const [paymentConfig, setPaymentConfig] = useState({
+        payment_iban: '',
+        payment_beneficiary: '',
+        payment_phone: ''
+    });
+    const [savingPaymentConfig, setSavingPaymentConfig] = useState(false);
 
 
     useEffect(() => {
@@ -102,19 +140,58 @@ export default function MasterAdmin() {
             const companiesData = await companiesRes.json();
             const plansData = await plansRes.json();
 
-            setStats(statsData);
-            setCompanies(companiesData);
-            setPlans(plansData);
+            setStats(statsData && !statsData.error ? statsData : null);
+            setCompanies(Array.isArray(companiesData) ? companiesData : []);
+            setPlans(Array.isArray(plansData) ? plansData : []);
 
             // Fetch configs if in config tab
             if (activePortalTab === 'config') {
                 const configRes = await fetch('/api/saas/master/config', { headers: { 'Authorization': `Bearer ${token}` } });
-                setConfigs(await configRes.json());
+                const configData = await configRes.json();
+                setConfigs(Array.isArray(configData) ? configData : []);
             }
+
+            // Fetch payments if in payments tab
+            if (activePortalTab === 'payments') {
+                const payRes = await fetch('/api/saas/master/payments', { headers: { 'Authorization': `Bearer ${token}` } });
+                const payData = await payRes.json();
+                setPayments(Array.isArray(payData) ? payData : []);
+            }
+            // Fetch payment config
+            const payConfigRes = await fetch('/api/saas/config/payment', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (payConfigRes.ok) {
+                const payConfigData = await payConfigRes.json();
+                // Ensure string format for inputs
+                const sanitized = { ...payConfigData };
+                if (typeof sanitized.payment_iban !== 'string') sanitized.payment_iban = String(sanitized.payment_iban || '');
+                setPaymentConfig(prev => ({ ...prev, ...sanitized }));
+            }
+
         } catch (error) {
             console.error('Error fetching master data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const savePaymentConfig = async () => {
+        setSavingPaymentConfig(true);
+        try {
+            const token = localStorage.getItem('erp_token');
+            const res = await fetch('/api/saas/config/payment', {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentConfig)
+            });
+            if (res.ok) alert('✅ Informações bancárias atualizadas com sucesso!');
+            else {
+                const err = await res.json();
+                alert(`Erro: ${err.error}`);
+            }
+        } catch (e: any) {
+            alert(`Erro: ${e.message}`);
+        } finally {
+            setSavingPaymentConfig(false);
         }
     };
 
@@ -132,6 +209,31 @@ export default function MasterAdmin() {
             fetchData();
         } catch (error) {
             console.error('Error approving company:', error);
+        }
+    };
+
+    const approvePayment = async (id: number) => {
+        if (!confirm('Dar baixa neste pagamento e activar a licença?')) return;
+        try {
+            const token = localStorage.getItem('erp_token');
+            console.log('ðŸ“¡ [Master Portal] A tentar aprovar pagamento:', id, 'com token:', token?.substring(0, 10) + '...');
+            const res = await fetch(`/api/saas/master/payments/${id}/approve`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (res.ok) {
+                alert('Pagamento aprovado e licença activada!');
+                fetchData();
+            } else {
+                const err = await res.json();
+                alert(`Erro ao aprovar: ${err.error || 'Falha na resposta do servidor'}`);
+            }
+        } catch (error: any) {
+            console.error('Error approving payment:', error);
+            alert(`Erro na requisição: ${error.message}`);
         }
     };
 
@@ -154,10 +256,12 @@ export default function MasterAdmin() {
                 setShowSubscriptionModal(false);
                 fetchData();
             } else {
-                alert('Erro ao atualizar subscrição');
+                const errData = await res.json();
+                alert(`Erro ao atualizar subscrição: ${errData.error || 'Falha no servidor'}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating subscription:', error);
+            alert(`Erro na requisição: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -179,14 +283,17 @@ export default function MasterAdmin() {
             });
 
             if (res.ok) {
+                alert('Estado da entidade atualizado com sucesso!');
                 setShowSubscriptionModal(false);
                 fetchData();
+            } else {
+                const err = await res.json();
+                alert(`Erro ao atualizar estado: ${err.error || 'Falha no servidor'}`);
             }
         } catch (error) {
             console.error('Error updating status:', error);
         }
     };
-
 
     const handlePlanSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -195,7 +302,7 @@ export default function MasterAdmin() {
             const url = editingPlan ? `/api/saas/master/plans/${editingPlan.id}` : '/api/saas/master/plans';
             const method = editingPlan ? 'PUT' : 'POST';
 
-            await fetch(url, {
+            const res = await fetch(url, {
                 method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -204,10 +311,15 @@ export default function MasterAdmin() {
                 body: JSON.stringify(planFormData)
             });
 
-            setShowPlanModal(false);
-            setEditingPlan(null);
-            setPlanFormData({ name: '', price_monthly: 0, price_semestrial: 0, price_yearly: 0, features: [], public_features: [], is_featured: false, duration_months: 1, user_limit: 5 });
-            fetchData();
+            if (res.ok) {
+                setShowPlanModal(false);
+                setEditingPlan(null);
+                setPlanFormData({ name: '', price_monthly: 0, price_semestrial: 0, price_yearly: 0, features: [], public_features: [], is_featured: false, duration_months: 1, user_limit: 5, description: '' });
+                fetchData();
+            } else {
+                const err = await res.json();
+                alert('Erro ao salvar plano: ' + err.error);
+            }
         } catch (error) {
             console.error('Error saving plan:', error);
         }
@@ -291,6 +403,7 @@ export default function MasterAdmin() {
                     <div className="flex bg-white/5 p-1.5 rounded-[28px] backdrop-blur-3xl border border-white/5 shadow-2xl">
                         {[
                             { id: 'licenses', label: 'Monitoramento Licenças', icon: <Building2 size={16} /> },
+                            { id: 'payments', label: 'Validação de Planos (Pagamentos)', icon: <Landmark size={16} /> },
                             { id: 'plans', label: 'Matriz de Planos', icon: <TrendingUp size={16} /> },
                             { id: 'config', label: 'Engine Config', icon: <Database size={16} /> },
                         ].map((tab) => (
@@ -347,7 +460,7 @@ export default function MasterAdmin() {
 
             {/* Main Content */}
             <div className="max-w-7xl mx-auto">
-                {activePortalTab === 'licenses' ? (
+                {activePortalTab === 'licenses' && (
                     <div className="grid grid-cols-1 gap-8">
                         {/* Licenses Table */}
                         <div className="glass-panel rounded-[40px] overflow-hidden">
@@ -439,12 +552,22 @@ export default function MasterAdmin() {
                                                                 onClick={() => {
                                                                     setSelectedCompany(company);
                                                                     const sub = company.saas_subscriptions?.[0];
+                                                                    const parseFeatures = (f: any) => {
+                                                                        if (Array.isArray(f)) return f;
+                                                                        if (typeof f === 'string') {
+                                                                            try { return JSON.parse(f); } catch (e) { return []; }
+                                                                        }
+                                                                        return [];
+                                                                    };
+                                                                    const subFeatures = sub?.features ? parseFeatures(sub.features) : null;
+
                                                                     setSubscriptionFormData({
                                                                         plan_id: sub?.plan_id || plans[0]?.id || 1,
                                                                         data_expiracao: sub?.data_expiracao?.split('T')[0] || '',
                                                                         status: sub?.status || 'active',
                                                                         valor_pago: sub?.valor_pago || 0,
-                                                                        tipo_plano: sub?.tipo_plano || 'mensal'
+                                                                        tipo_plano: sub?.tipo_plano || 'mensal',
+                                                                        features: subFeatures
                                                                     });
                                                                     setShowSubscriptionModal(true);
                                                                 }}
@@ -487,7 +610,84 @@ export default function MasterAdmin() {
                             </div>
                         </div>
                     </div>
-                ) : (
+                )}
+
+                {activePortalTab === 'payments' && (
+                    <div className="glass-panel rounded-[40px] overflow-hidden">
+                        <div className="p-8 border-b border-white/5 bg-white/[0.02]">
+                            <h2 className="text-xl font-black text-gold-primary uppercase tracking-tight italic">Controlo de <span className="text-white">Liquidação</span></h2>
+                            <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mt-1">Validação de ativos e renovações pendentes</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full dark-table">
+                                <thead>
+                                    <tr className="border-b border-white/5">
+                                        <th className="text-left py-6 px-8 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Data</th>
+                                        <th className="text-left py-6 px-8 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Empresa</th>
+                                        <th className="text-left py-6 px-8 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Valor</th>
+                                        <th className="text-left py-6 px-8 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Método</th>
+                                        <th className="text-left py-6 px-8 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Comprovativo</th>
+                                        <th className="text-right py-6 px-8 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Acção</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {payments.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="py-20 text-center">
+                                                <p className="text-white/20 font-black uppercase text-xs tracking-widest italic">Nenhum pagamento pendente para validação</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        payments.map(pay => (
+                                            <tr key={pay.id} className="hover:bg-white/[0.03] transition-colors group">
+                                                <td className="py-6 px-8 text-[11px] font-black text-white/40 italic">
+                                                    {new Date(pay.created_at).toLocaleString()}
+                                                </td>
+                                                <td className="py-6 px-8">
+                                                    <div>
+                                                        <p className="font-black text-white text-[13px] uppercase">
+                                                            {(pay.companies as any)?.name || (pay.companies as any)?.[0]?.name || 'N/A'}
+                                                        </p>
+                                                        <p className="text-[10px] text-white/20 font-black lowercase">
+                                                            {(pay.companies as any)?.email || (pay.companies as any)?.[0]?.email || '---'}
+                                                        </p>
+                                                    </div>
+                                                </td>
+                                                <td className="py-6 px-8 text-sm font-black text-gold-primary">
+                                                    {pay.amount.toLocaleString()} Kz
+                                                </td>
+                                                <td className="py-6 px-8 text-[10px] font-black text-white/60 uppercase tracking-widest">
+                                                    {pay.method}
+                                                </td>
+                                                <td className="py-6 px-8">
+                                                    <a
+                                                        href={pay.proof_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 text-gold-primary rounded-xl hover:bg-gold-primary hover:text-bg-deep transition-all border border-white/10 group/btn"
+                                                    >
+                                                        <Eye size={14} />
+                                                        <span className="text-[9px] font-black uppercase tracking-widest">Ver Documento</span>
+                                                    </a>
+                                                </td>
+                                                <td className="py-6 px-8 text-right">
+                                                    <button
+                                                        onClick={() => approvePayment(pay.id)}
+                                                        className="px-6 py-3 bg-gold-gradient text-bg-deep rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-gold-primary/20"
+                                                    >
+                                                        Dar Baixa & Activar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {activePortalTab === 'plans' && (
                     <div className="glass-panel border-white/5 rounded-[40px] overflow-hidden shadow-2xl">
                         <div className="p-10 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                             <div>
@@ -589,7 +789,7 @@ export default function MasterAdmin() {
                             </div>
 
                             <div className="space-y-12">
-                                {configs.map((cfg) => (
+                                 {configs.filter(c => !['payment_iban', 'payment_beneficiary', 'payment_phone'].includes(c.key)).map((cfg) => (
                                     <div key={cfg.key} className="p-10 bg-white/[0.02] rounded-[32px] border border-white/5 hover:border-gold-primary/20 transition-all duration-700 group hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
                                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                                             <div className="space-y-2">
@@ -600,7 +800,7 @@ export default function MasterAdmin() {
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        const token = sessionStorage.getItem('erp_token');
+                                                        const token = localStorage.getItem('erp_token');
                                                         const res = await fetch(`/api/saas/master/config/${cfg.key}`, {
                                                             method: 'PUT',
                                                             headers: {
@@ -632,6 +832,62 @@ export default function MasterAdmin() {
                                         />
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+
+                        {/* Payment Config Panel */}
+                        <div className="glass-panel rounded-[40px] p-12 border-white/5 relative overflow-hidden shadow-3xl">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-gold-primary to-gold-secondary opacity-30" />
+                            <div className="flex items-center gap-5 mb-10">
+                                <div className="p-4 bg-gold-primary/10 rounded-3xl border border-gold-primary/20">
+                                    <CreditCard size={32} className="text-gold-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Credenciais <span className="text-gold-gradient">Bancárias</span></h2>
+                                    <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.4em] mt-1">Informações de pagamento exibidas aos clientes</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">IBAN / Conta Bancária</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary text-white font-mono font-black tracking-[0.08em] outline-none shadow-inner placeholder:text-white/20"
+                                        placeholder="AO06 0051 0000 0000 0000 0000 0"
+                                        value={paymentConfig.payment_iban}
+                                        onChange={e => setPaymentConfig({ ...paymentConfig, payment_iban: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Entidade Beneficiária</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary text-white font-black tracking-[0.05em] outline-none shadow-inner placeholder:text-white/20"
+                                        placeholder="Nome da Empresa / Entidade"
+                                        value={paymentConfig.payment_beneficiary}
+                                        onChange={e => setPaymentConfig({ ...paymentConfig, payment_beneficiary: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Contacto / Referência (Opcional)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary text-white font-black tracking-[0.05em] outline-none shadow-inner placeholder:text-white/20"
+                                        placeholder="+244 9xx xxx xxx"
+                                        value={paymentConfig.payment_phone}
+                                        onChange={e => setPaymentConfig({ ...paymentConfig, payment_phone: e.target.value })}
+                                    />
+                                </div>
+                                <div className="flex justify-end pt-4">
+                                    <button
+                                        onClick={savePaymentConfig}
+                                        disabled={savingPaymentConfig}
+                                        className="px-10 py-5 bg-gradient-to-r from-gold-primary via-gold-secondary to-gold-primary text-bg-deep rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:scale-[1.02] active:scale-95 shadow-[0_0_30px_rgba(212,175,55,0.3)] transition-all disabled:opacity-50"
+                                    >
+                                        {savingPaymentConfig ? 'A Guardar...' : 'Guardar Credenciais Bancárias'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -746,23 +1002,29 @@ export default function MasterAdmin() {
                                 <div className="md:col-span-2">
                                     <label className="block text-[10px] font-black uppercase text-white/40 tracking-widest mb-4">Módulos Activos</label>
                                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {['vendas', 'estoque', 'financeiro', 'hr', 'marketing', 'pharmacy'].map((m) => (
-                                            <div key={m} className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/10 hover:border-gold-primary transition-all">
+                                        {[
+                                            { id: 'sales', label: 'Vendas / POS' },
+                                            { id: 'pharmacy', label: 'Farmácia' },
+                                            { id: 'hr', label: 'Recursos Humanos' },
+                                            { id: 'marketing', label: 'Marketing' },
+                                            { id: 'investments', label: 'Investimentos' }
+                                        ].map((m) => (
+                                            <div key={m.id} className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/10 hover:border-gold-primary transition-all">
                                                 <input
                                                     type="checkbox"
-                                                    className="w-5 h-5 rounded-lg text-gold-primary focus:ring-gold-primary border-white/10 bg-black/20"
-                                                    checked={planFormData.features.includes(m)}
+                                                    className="w-5 h-5 rounded-lg text-gold-primary focus:ring-gold-primary border-white/10 bg-black/20 font-bold"
+                                                    checked={planFormData.features.includes(m.id)}
                                                     onChange={(e) => {
                                                         const feats = [...planFormData.features];
-                                                        if (e.target.checked) feats.push(m);
+                                                        if (e.target.checked) feats.push(m.id);
                                                         else {
-                                                            const idx = feats.indexOf(m);
+                                                            const idx = feats.indexOf(m.id);
                                                             if (idx > -1) feats.splice(idx, 1);
                                                         }
                                                         setPlanFormData({ ...planFormData, features: feats });
                                                     }}
                                                 />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{m}</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{m.label}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -804,7 +1066,7 @@ export default function MasterAdmin() {
                         <form onSubmit={handleCompanySubmit} className="p-10 space-y-8 bg-bg-deep/40">
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Legal Entity Name</label>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Nome da Instituição / Empresa</label>
                                     <input
                                         type="text"
                                         required
@@ -814,7 +1076,7 @@ export default function MasterAdmin() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Administrative Dispatch</label>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Email de Acesso (Administrador)</label>
                                     <input
                                         type="email"
                                         required
@@ -824,7 +1086,7 @@ export default function MasterAdmin() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Security Credential</label>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Palavra-Passe Principal</label>
                                     <input
                                         type="password"
                                         required
@@ -838,9 +1100,9 @@ export default function MasterAdmin() {
                                 <button
                                     type="button"
                                     onClick={() => setShowCompanyModal(false)}
-                                    className="flex-1 py-5 bg-white/5 text-white/30 rounded-[24px] font-black uppercase text-[11px] tracking-[0.3em] hover:bg-white/10 transition-all border border-white/5"
+                                    className="flex-1 py-5 bg-white/10 text-white/70 rounded-[24px] font-black uppercase text-[11px] tracking-[0.3em] hover:bg-white/20 transition-all border border-white/10"
                                 >
-                                    Abortar
+                                    Cancelar
                                 </button>
                                 <button
                                     submit
@@ -857,23 +1119,23 @@ export default function MasterAdmin() {
             {showSubscriptionModal && (
                 <div className="fixed inset-0 bg-bg-deep/90 backdrop-blur-2xl flex items-center justify-center z-[100] p-4">
                     <div className="glass-panel border-white/20 rounded-[40px] w-full max-w-xl overflow-hidden shadow-3xl">
-                        <div className="p-10 border-b border-white/5 flex justify-between items-center bg-white/5">
+                        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
                             <div>
-                                <h3 className="text-2xl font-black text-white italic uppercase tracking-tight italic">Ciclo de <span className="text-gold-gradient">Subscrição</span></h3>
-                                <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mt-2 italic">{selectedCompany?.name}</p>
+                                <h3 className="text-xl font-black text-white italic uppercase tracking-tight">Ciclo de <span className="text-gold-gradient">Subscrição</span></h3>
+                                <p className="text-[9px] text-white/30 font-black uppercase tracking-[0.3em] mt-1 italic">{selectedCompany?.name}</p>
                             </div>
                             <button onClick={() => setShowSubscriptionModal(false)} className="text-white/20 hover:text-gold-primary transition-all">
-                                <XCircle size={32} />
+                                <XCircle size={28} />
                             </button>
                         </div>
                         <form onSubmit={updateSubscription} className="p-10 space-y-8 bg-bg-deep/40">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Tier Privilege</label>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Nível de Acesso (Plano)</label>
                                     <select
                                         className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary text-white font-black tracking-[0.1em] outline-none shadow-inner"
                                         value={subscriptionFormData.plan_id}
-                                        onChange={e => setSubscriptionFormData({ ...subscriptionFormData, plan_id: Number(e.target.value) })}
+                                        onChange={e => handleSubFieldChange('plan_id', Number(e.target.value))}
                                     >
                                         {plans.map(p => (
                                             <option key={p.id} value={p.id} className="bg-zinc-900">{p.name}</option>
@@ -881,71 +1143,125 @@ export default function MasterAdmin() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Billing Cycle</label>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Ciclo de Renovação</label>
                                     <select
                                         className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary text-white font-black uppercase tracking-[0.1em] outline-none shadow-inner"
                                         value={subscriptionFormData.tipo_plano}
-                                        onChange={e => setSubscriptionFormData({ ...subscriptionFormData, tipo_plano: e.target.value })}
+                                        onChange={e => handleSubFieldChange('tipo_plano', e.target.value)}
                                     >
-                                        <option value="mensal" className="bg-zinc-900">Mensal</option>
-                                        <option value="semestrial" className="bg-zinc-900">Semestral</option>
-                                        <option value="anual" className="bg-zinc-900">Anual</option>
+                                        <option value="mensal" className="bg-zinc-900">Mensal (+1 Mês)</option>
+                                        <option value="trimestrial" className="bg-zinc-900">Trimestrial (+3 Meses)</option>
+                                        <option value="semestrial" className="bg-zinc-900">Semestral (+6 Meses)</option>
+                                        <option value="anual" className="bg-zinc-900">Anual (+12 Meses)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Expiration Deadline</label>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Data Limite de Acesso</label>
                                     <input
                                         type="date"
                                         required
                                         className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary text-white font-black text-sm shadow-inner"
                                         value={subscriptionFormData.data_expiracao}
-                                        onChange={e => setSubscriptionFormData({ ...subscriptionFormData, data_expiracao: e.target.value })}
+                                        onChange={e => handleSubFieldChange('data_expiracao', e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Financial Commitment</label>
+                                    <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-3 ml-2">Total Liquidado (Kz)</label>
                                     <input
                                         type="number"
                                         required
                                         className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-gold-primary text-white font-black tracking-[0.1em] shadow-inner"
                                         value={subscriptionFormData.valor_pago}
-                                        onChange={e => setSubscriptionFormData({ ...subscriptionFormData, valor_pago: Number(e.target.value) })}
+                                        onChange={e => handleSubFieldChange('valor_pago', Number(e.target.value))}
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-4 pt-8 border-t border-white/5">
-                                <p className="w-full text-[10px] font-black uppercase text-white/20 tracking-[0.4em] mb-2 ml-2 italic">Entity Operational Status</p>
-                                <button
-                                    type="button"
-                                    onClick={() => updateCompanyStatus('active')}
-                                    className={`px-8 py-4 rounded-[20px] text-[10px] font-black uppercase tracking-[0.3em] border transition-all ${selectedCompany?.status === 'active' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-white/5 border-white/10 text-white/20 hover:border-emerald-500/50'}`}
-                                >
-                                    Activate Entidade
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => updateCompanyStatus('suspended')}
-                                    className={`px-8 py-4 rounded-[20px] text-[10px] font-black uppercase tracking-[0.3em] border transition-all ${selectedCompany?.status === 'suspended' ? 'bg-gold-primary/20 border-gold-primary text-gold-primary shadow-[0_0_20px_rgba(212,175,55,0.2)]' : 'bg-white/5 border-white/10 text-white/20 hover:border-gold-primary/50'}`}
-                                >
-                                    Suspend Ops
-                                </button>
+                            <div className="pt-6 border-t border-white/5">
+                                <label className="block text-[10px] font-black uppercase text-white/40 tracking-[0.25em] mb-4 ml-2">Módulos Habilitados para esta Entidade</label>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {[
+                                        { id: 'sales', label: 'Vendas, POS & Facturação' },
+                                        { id: 'products', label: 'Produtos & Stock' },
+                                        { id: 'customers', label: 'Gestão de Clientes & CRM' },
+                                        { id: 'pharmacy', label: 'Gestão de Farmácia & Medicamentos' },
+                                        { id: 'hr', label: 'Recursos Humanos (RH)' },
+                                        { id: 'accounting', label: 'Contabilidade & Fluxos' },
+                                        { id: 'investments', label: 'Aplicações Financeiras (Investimentos)' },
+                                        { id: 'marketing', label: 'Marketing Digital & Promoções' },
+                                        { id: 'reports', label: 'Relatórios & Analytics' },
+                                        { id: 'settings', label: 'Configurações e Utilizadores' },
+                                        { id: 'support', label: 'Suporte Técnico Premium' },
+                                        { id: 'files', label: 'Gestão de Arquivos Cloud' },
+                                        { id: 'labels', label: 'Impressão de Etiquetas' },
+                                        { id: 'mobile_app', label: 'Dashboard App Mobile' }
+                                    ].map((m) => {
+                                        const currentFeatures = Array.isArray(subscriptionFormData.features) ? subscriptionFormData.features : [];
+                                        const isChecked = currentFeatures.includes(m.id);
+                                        return (
+                                            <div key={m.id} className={`flex items-center gap-3 bg-white/5 p-4 rounded-2xl border transition-all cursor-pointer ${isChecked ? 'border-gold-primary shadow-[0_0_15px_rgba(212,175,55,0.1)]' : 'border-white/10 hover:border-gold-primary/50'}`}
+                                                onClick={() => {
+                                                    const feats = [...currentFeatures];
+                                                    if (feats.includes(m.id)) {
+                                                        setSubscriptionFormData({...subscriptionFormData, features: feats.filter(f => f !== m.id)});
+                                                    } else {
+                                                        setSubscriptionFormData({...subscriptionFormData, features: [...feats, m.id]});
+                                                    }
+                                                }}
+                                            >
+                                                <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${isChecked ? 'bg-gold-primary border-gold-primary' : 'border-white/20'}`}>
+                                                    {isChecked && <Check size={12} className="text-black" />}
+                                                </div>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${isChecked ? 'text-gold-primary' : 'text-white/40'}`}>{m.label}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="mt-4 flex justify-end">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setSubscriptionFormData({...subscriptionFormData, features: null})}
+                                        className={`text-[9px] font-black uppercase tracking-[0.3em] px-5 py-3 rounded-xl border transition-all ${subscriptionFormData.features === null ? 'bg-gold-primary text-black border-gold-primary shadow-[0_0_15px_rgba(212,175,55,0.3)]' : 'text-white/40 border-white/10 hover:text-white/80 hover:border-white/30'}`}
+                                    >
+                                        {subscriptionFormData.features === null ? '✓ No Padrão do Plano' : 'Ativar Padrão do Plano'}
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="flex gap-6 pt-6">
+                            <div className="pt-6 border-t border-white/5">
+                                <p className="text-[9px] font-black uppercase text-white/20 tracking-[0.4em] mb-3 ml-2 italic">Estado Operacional da Entidade</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateCompanyStatus('active')}
+                                        className={`px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] border transition-all ${selectedCompany?.status === 'active' ? 'bg-emerald-500 text-black border-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/10 text-white/30 hover:border-emerald-500/50 hover:bg-white/10'}`}
+                                    >
+                                        ● Entidade Activa
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateCompanyStatus('suspended')}
+                                        className={`px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] border transition-all ${selectedCompany?.status === 'suspended' ? 'bg-red-600 text-white border-red-600 shadow-[0_0_25px_rgba(220,38,38,0.4)]' : 'bg-white/5 border-white/10 text-white/30 hover:border-red-600/50 hover:bg-white/10'}`}
+                                    >
+                                        ■ Suspender Acesso
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 pt-6">
                                 <button
                                     type="button"
                                     onClick={() => setShowSubscriptionModal(false)}
-                                    className="flex-1 py-5 bg-white/5 text-white/30 rounded-[24px] font-black uppercase text-[11px] tracking-[0.3em] hover:bg-white/10 transition-all border border-white/5"
+                                    className="flex-1 py-5 bg-white/10 text-white/80 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white/20 transition-all border border-white/10 shadow-lg active:scale-95"
                                 >
-                                    Fechar
+                                    Cancelar Operação
                                 </button>
                                 <button
-                                    submit
+                                    type="submit"
                                     disabled={isSaving}
-                                    className="flex-1 py-5 bg-gold-gradient text-bg-deep rounded-[24px] font-black uppercase text-[11px] tracking-[0.3em] hover:scale-105 shadow-2xl shadow-gold-primary/20 transition-all disabled:opacity-50 active:scale-95"
+                                    className="flex-[1.5] py-5 bg-gradient-to-r from-gold-primary via-gold-secondary to-gold-primary text-bg-deep rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(212,175,55,0.4)] transition-all disabled:opacity-50"
                                 >
-                                    {isSaving ? 'Synchronizing...' : 'Sincronizar Cloud'}
+                                    {isSaving ? 'A Sincronizar...' : 'Sincronizar Cloud'}
                                 </button>
                             </div>
                         </form>

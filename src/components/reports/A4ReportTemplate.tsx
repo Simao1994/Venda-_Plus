@@ -28,39 +28,25 @@ export const A4ReportTemplate = forwardRef<HTMLDivElement, A4ReportTemplateProps
     const companyPhone = companyData?.phone || companyData?.company_phone;
 
     return (
-        <div ref={ref} className="bg-white text-black" style={{
+        <div ref={ref} className="bg-white text-black a4-report-container" style={{
             width,
             minHeight,
             padding: '15mm',
+
             margin: '0 auto',
             boxSizing: 'border-box',
             fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
         }}>
+
             <style>{`
         @page {
           size: A4 ${orientation};
-          margin: 0;
-        }
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; margin: 0; padding: 0; }
-          .a4-print-no-break { page-break-inside: avoid; }
-          .a4-print-page-break { page-break-after: always; }
-          
-          /* Standardized tables for printing */
-          .a4-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; }
-          .a4-table th { background-color: #f3f4f6 !important; color: #111; font-weight: 900; text-transform: uppercase; padding: 8px 6px; text-align: left; border-bottom: 2px solid #000; }
-          .a4-table td { padding: 6px; border-bottom: 1px solid #e5e7eb; color: #333; }
-          .a4-table tr:nth-child(even) { background-color: #fafafa !important; }
-          .a4-table tr { page-break-inside: avoid; }
-          .a4-table tfoot td { font-weight: 900; background-color: #f3f4f6 !important; border-top: 2px solid #000; border-bottom: 2px solid #000; }
-          
-          /* Helper classes for text alignments */
-          .text-right { text-align: right !important; }
-          .text-center { text-align: center !important; }
-          .font-bold { font-weight: 700 !important; }
-          .font-black { font-weight: 900 !important; }
         }
       `}</style>
+
+
+            {/* Pagination Element (Fixed in Print) */}
+            <div className="hidden print:block a4-page-number-footer" />
 
             {/* Global A4 Header */}
             <div className="flex flex-col md:flex-row justify-between items-start border-b-[3px] border-black pb-4 mb-6 a4-print-no-break">

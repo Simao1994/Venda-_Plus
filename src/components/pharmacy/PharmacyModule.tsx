@@ -20,7 +20,7 @@ import PharmacyInventory from './PharmacyInventory';
 import PharmacyStockAdjustment from './PharmacyStockAdjustment';
 import PharmacyEmployeeSales from './PharmacyEmployeeSales';
 
-export default function PharmacyModule() {
+export default function PharmacyModule({ features = [] }: { features?: string[] }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -41,7 +41,11 @@ export default function PharmacyModule() {
     { id: 'ajustes', label: 'Ajustes de Stock', icon: Activity, roles: ['admin', 'manager', 'master'] },
   ];
 
-  const tabs = allTabs.filter(tab => user && tab.roles.includes(user.role));
+  const tabs = allTabs.filter(tab => {
+    const hasRole = user && tab.roles.includes(user.role);
+    const hasFeature = features.includes('pharmacy') || features.includes('master_all');
+    return hasRole && hasFeature;
+  });
 
   return (
     <div className="flex flex-col h-full bg-transparent">

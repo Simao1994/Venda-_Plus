@@ -14,15 +14,48 @@ const MODULE_DEFS = [
   { key: 'sales', label: 'Vendas & PDV', icon: '🛒', desc: 'POS, vendas, caixas' },
   { key: 'products', label: 'Produtos & Stock', icon: '📦', desc: 'Gestão de inventário' },
   { key: 'customers', label: 'Clientes', icon: '👥', desc: 'Base de clientes, fidelidade' },
+  { key: 'suppliers', label: 'Fornecedores', icon: '🚚', desc: 'Gestão de compras e parceiros' },
   { key: 'hr', label: 'Gestão de Recursos Humanos', icon: '👤', desc: 'Funcionários, salários, gestão de pessoal' },
   { key: 'accounting', label: 'Contabilidade', icon: '📊', desc: 'Plano de contas, lançamentos' },
+  { key: 'investments', label: 'Gestão de Aplicações Financeiras', icon: '💰', desc: 'Gestão de investimentos e capital' },
+  { key: 'saft', label: 'SAF-T (AOA) XML', icon: '📄', desc: 'Exportação de faturação' },
+  { key: 'agt', label: 'Webservice AGT', icon: '🌐', desc: 'Comunicação com o governo' },
+  { key: 'employee_sales', label: 'Desempenho Vendas', icon: '📊', desc: 'Relatórios por funcionário' },
   { key: 'pharmacy', label: 'Farmácia', icon: '💊', desc: 'Medicamentos, lotes' },
   { key: 'blog', label: 'Blog Corporativo', icon: '📰', desc: 'Publicações e notícias' },
   { key: 'marketing', label: 'Marketing', icon: '📣', desc: 'Campanhas e promoções' },
   { key: 'reports', label: 'Relatórios', icon: '📈', desc: 'Dashboards e análises' },
   { key: 'users', label: 'Gestão de Utilizadores', icon: '🔑', desc: 'Criar e gerir contas' },
   { key: 'settings', label: 'Configurações', icon: '⚙️', desc: 'Definições da empresa' },
+  { key: 'files', label: 'Ficheiros & Documentos', icon: '📁', desc: 'Gestão de documentos' },
+  { key: 'labels', label: 'Etiquetas', icon: '🏷️', desc: 'Impressão de etiquetas' },
+  { key: 'support', label: 'Suporte Técnico', icon: '🏠', desc: 'Pedidos de assistência' },
+  { key: 'mobile', label: 'APP Mobile', icon: '📱', desc: 'Configurações mobile' },
 ];
+
+// Map each module to the feature flag required in App.tsx to see/configure it
+const MODULE_FEATURE_MAP: Record<string, string> = {
+  sales: 'sales',
+  products: 'sales',
+  customers: 'sales',
+  suppliers: 'sales',
+  hr: 'hr',
+  accounting: 'sales',
+  investments: 'investments',
+  saft: 'sales',
+  agt: 'sales',
+  employee_sales: 'sales',
+  pharmacy: 'pharmacy',
+  blog: 'marketing',
+  marketing: 'marketing',
+  reports: 'sales', // Match most common for dashboards
+  users: 'settings',
+  settings: 'settings',
+  files: 'marketing',
+  labels: 'sales',
+  support: 'support',
+  mobile: 'marketing'
+};
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   master: { label: 'Omni Master', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
@@ -38,9 +71,10 @@ const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
   cashier: Object.fromEntries(MODULE_DEFS.map(m => [m.key, ['sales', 'products', 'customers'].includes(m.key)])),
 };
 
-export default function Users() {
+export default function Users({ authorizedModules = [], readOnly = false }: { authorizedModules?: string[]; readOnly?: boolean }) {
   const { token, user: currentUser } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
+  const [userLimit, setUserLimit] = useState<number>(1);
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,11 +98,23 @@ export default function Users() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, companyRes] = await Promise.all([
+      const [usersRes, companyRes, subRes] = await Promise.all([
         api.get('/api/users'),
-        supabase.from('companies').select('id, name, access_token, role_permissions').eq('id', currentUser?.company_id).single()
+        supabase.from('companies').select('id, name, access_token, role_permissions').eq('id', currentUser?.company_id).single(),
+        supabase.from('saas_subscriptions').select('*, saas_plans(user_limit)').eq('company_id', currentUser?.company_id).eq('status', 'active').maybeSingle()
       ]);
-      if (usersRes.ok) setUsers(await usersRes.json());
+      if (usersRes.ok) {
+        const data = await usersRes.json();
+        const rawUsers = data.users || [];
+        // Frontend failsafe: never show master accounts to non-master users
+        const filtered = currentUser?.role === 'master'
+          ? rawUsers
+          : rawUsers.filter((u: any) => u.role !== 'master');
+        setUsers(filtered);
+        // Get limit from direct Supabase query (more reliable than server response)
+        const limit = subRes.data?.saas_plans?.user_limit || data.limit || 10;
+        setUserLimit(limit);
+      }
       if (companyRes.data) setCompany(companyRes.data);
     } catch (err) {
       console.error('Erro ao carregar utilizadores:', err);
@@ -107,7 +153,7 @@ export default function Users() {
         fetchData();
       } else {
         const data = await res.json();
-        alert(data.error || 'Erro ao criar utilizador.');
+        alert(data.error || 'Ops! Ocorreu um problema ao criar o utilizador. Verifique os dados e tente novamente.');
       }
     } finally {
       setSaving(false);
@@ -121,9 +167,20 @@ export default function Users() {
   };
 
   const openPermissions = (u: any) => {
-    const defaultForRole = company?.role_permissions?.[u.role] || DEFAULT_PERMS[u.role] || DEFAULT_PERMS.cashier;
-    const currentPerms = u.permissions || defaultForRole;
-    setPendingPerms({ ...DEFAULT_PERMS.cashier, ...currentPerms });
+    // 1. Recover current permissions (Base)
+    const currentPerms = u.permissions || company?.role_permissions?.[u.role] || DEFAULT_PERMS[u.role] || {};
+    
+    // 2. We initialize pendingPerms with ALL current permissions to avoid losing ones not shown in the grid
+    const basePerms = { ...currentPerms };
+    
+    // 3. Ensure all modules in MODULE_DEFS have at least a false value if they didn't exist
+    MODULE_DEFS.forEach(mod => {
+      if (basePerms[mod.key] === undefined) {
+        basePerms[mod.key] = false;
+      }
+    });
+
+    setPendingPerms(basePerms);
     setEditingPermissions(u);
   };
 
@@ -131,14 +188,21 @@ export default function Users() {
     if (!editingPermissions) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('users')
-        .update({ permissions: pendingPerms })
-        .eq('id', editingPermissions.id);
-      if (error) throw error;
-      setEditingPermissions(null);
-      fetchData();
+      // Use the API instead of direct Supabase update for consistency and backend-sync
+      const res = await api.put(`/api/users/${editingPermissions.id}`, { 
+        permissions: pendingPerms 
+      });
+
+      if (res.ok) {
+        setEditingPermissions(null);
+        await fetchData();
+        alert('As permissões foram actualizadas com sucesso! 🎉');
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Não conseguimos guardar as alterações neste momento.');
+      }
     } catch (err: any) {
-      alert(`Erro ao guardar permissões: ${err.message}`);
+      alert(err.message);
     } finally {
       setSaving(false);
     }
@@ -160,8 +224,9 @@ export default function Users() {
         .single();
       if (error) throw error;
       setCompany((prev: any) => ({ ...prev, access_token: data.access_token }));
+      alert('Link de acesso corporativo gerado com sucesso! 🔗');
     } catch (err: any) {
-      alert(`Erro ao gerar link: ${err.message}`);
+      alert(`Não foi possível gerar o link: ${err.message}`);
     } finally {
       setGeneratingLink(false);
     }
@@ -178,7 +243,9 @@ export default function Users() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  if (currentUser?.role !== 'admin' && currentUser?.role !== 'master') {
+  const hasUsersAccess = readOnly || currentUser?.role === 'admin' || currentUser?.role === 'master' || currentUser?.permissions?.['users'] === true;
+
+  if (!hasUsersAccess) {
     return (
       <div className="flex flex-col items-center justify-center p-20 glass-panel rounded-[32px] border border-white/10">
         <Lock size={64} className="text-red-500/50 mb-6 animate-pulse" />
@@ -218,7 +285,16 @@ export default function Users() {
         {/* Matriz de permissões */}
         <div className="glass-panel rounded-[32px] border border-white/10 shadow-sm overflow-hidden">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/5">
-            {MODULE_DEFS.map((mod, i) => (
+            {MODULE_DEFS.filter(mod => {
+              if (authorizedModules.length === 0) return true;
+              const requiredFeature = MODULE_FEATURE_MAP[mod.key] || mod.key;
+              
+              // Core modules always visible for editing by admins
+              const isAlwaysVisible = ['users', 'settings', 'support', 'subscription'].includes(mod.key);
+              if (isAlwaysVisible) return true;
+              
+              return authorizedModules.includes(requiredFeature) || authorizedModules.includes('master_all');
+            }).map((mod, i) => (
               <button
                 key={mod.key}
                 onClick={() => setPendingPerms(p => ({ ...p, [mod.key]: !p[mod.key] }))}
@@ -265,16 +341,45 @@ export default function Users() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-white italic uppercase tracking-tight">Utilizadores <span className="text-gold-primary">&</span> Controlo</h1>
+          <h1 className="text-3xl font-black text-white italic uppercase tracking-tight">
+            {readOnly ? "Licença & Equipa" : "Gestão de Utilizadores"}
+          </h1>
           <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mt-1 italic">Gestão de acessos, privilégios e auditoria de segurança em tempo real</p>
         </div>
-        <div className="flex gap-2">
-          {activeTab === 'users' && (
-            <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-3 px-8 py-4 bg-gold-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gold-secondary transition-all shadow-2xl shadow-gold-primary/20 active:scale-95">
-              <UserPlus size={18} /> Novo Utilizador
-            </button>
-          )}
+        <div className="flex flex-col items-center gap-4">
+          <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-3 flex items-center gap-6 w-full md:w-auto">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Licença SaaS</span>
+              <span className="text-sm font-black text-white italic tracking-widest">
+                {users.length} <span className="text-gold-primary mx-1">/</span> {userLimit >= 999999 ? 'Ilimitado' : userLimit}
+              </span>
+            </div>
+            {userLimit < 999999 && (
+              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all ${users.length >= userLimit ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-gold-primary'}`} 
+                  style={{ width: `${Math.min((users.length / userLimit) * 100, 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            {activeTab === 'users' && !readOnly && (
+              <button 
+                onClick={() => {
+                  if (users.length >= userLimit) {
+                    alert('Limite de utilizadores atingido para esta licença. Por favor, faça o upgrade da sua assinatura para adicionar mais pessoal.');
+                    return;
+                  }
+                  setShowModal(true);
+                }}
+                disabled={users.length >= userLimit && currentUser?.role !== 'master'}
+                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-gold-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gold-secondary transition-all shadow-2xl shadow-gold-primary/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:hover:scale-100"
+              >
+                <UserPlus size={18} /> Novo Utilizador
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -286,53 +391,59 @@ export default function Users() {
         >
           Contas de Utilizador
         </button>
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'logs' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white'}`}
-        >
-          Log de Atividades
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'logs' ? 'bg-gold-primary text-black shadow-lg shadow-gold-primary/20' : 'text-white/40 hover:text-white'}`}
+          >
+            Log de Atividades
+          </button>
+        )}
       </div>
 
       {activeTab === 'users' && (
         <>
           {/* ─── LINK DE ACESSO DA EMPRESA ─── */}
-          <div className="glass-panel overflow-hidden rounded-[32px] p-8 relative border border-gold-primary/20 shadow-2xl">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gold-primary/10 rounded-full blur-3xl -mr-20 -mt-20 opacity-50" />
-            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-gold-primary/20 flex items-center justify-center">
-                    <Link2 size={16} className="text-gold-primary" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gold-primary/60 italic">Link de Acesso Corporativo</span>
+          {!readOnly && (
+            <div className="glass-panel rounded-[32px] border border-white/10 p-10 relative overflow-hidden group">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-gold-primary/10 rounded-2xl flex items-center justify-center border border-gold-primary/20">
+                  <Link2 className="text-gold-primary" size={20} />
                 </div>
-                <p className="text-sm font-medium text-white/50 mb-6 leading-relaxed">
-                  Distribua este token digital para os seus colaboradores. Permite o acesso imediato ao painel de autenticação sem configurações manuais.
-                </p>
-                {accessLink ? (
-                  <div className="flex items-center gap-3 bg-black/40 rounded-2xl p-4 border border-white/5 backdrop-blur-md">
-                    <code className="flex-1 text-[11px] text-gold-primary/70 font-mono truncate tracking-tight">{accessLink}</code>
-                    <button onClick={copyLink}
-                      className={`flex-shrink-0 flex items-center gap-2 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-white/10 text-white/40 hover:bg-gold-primary hover:text-black border border-white/5'
-                        }`}>
-                      {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                      {copied ? 'Copiado' : 'Copiar'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5 border-dashed text-center">
-                    <p className="text-[10px] text-white/20 font-black uppercase italic tracking-widest">Aguardando geração de token de segurança...</p>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Link de Acesso Corporativo</h3>
+                  <p className="text-[9px] text-white/30 font-black uppercase mt-1">Distribua este token digital para os seus colaboradores. Permite o acesso imediato ao painel de autenticação sem configurações manuais.</p>
+                </div>
+                {!company?.access_token && (
+                   <button onClick={generateAccessLink} disabled={generatingLink} className="ml-auto flex items-center gap-2 px-6 py-3 bg-gold-primary text-black rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-gold-secondary transition-all active:scale-95 disabled:opacity-50">
+                     {generatingLink ? <RefreshCw size={14} className="animate-spin" /> : <Link2 size={14} />}
+                     {generatingLink ? 'Gerando...' : 'Ativar Link'}
+                   </button>
+                )}
+                {company?.access_token && (
+                   <button onClick={generateAccessLink} disabled={generatingLink} className="ml-auto flex items-center gap-2 px-4 py-2 hover:bg-white/5 text-white/40 rounded-xl font-black uppercase text-[8px] tracking-widest transition-all">
+                     <RefreshCw size={12} className={generatingLink ? 'animate-spin' : ''} />
+                     Renovar Token
+                   </button>
                 )}
               </div>
-              <button onClick={generateAccessLink} disabled={generatingLink}
-                className="flex-shrink-0 flex items-center gap-3 px-10 py-5 bg-gold-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gold-secondary transition-all shadow-2xl shadow-gold-primary/20 active:scale-95 disabled:opacity-50">
-                {generatingLink ? <RefreshCw size={18} className="animate-spin" /> : <Key size={18} />}
-                {accessLink ? 'Renovar Token' : 'Gerar Token de Acesso'}
-              </button>
+
+              <div className="relative group/link">
+                <div className={`w-full bg-[#050505] border ${copied ? 'border-emerald-500/50 shadow-lg shadow-emerald-500/10' : 'border-white/5'} rounded-2xl p-4 pr-32 font-mono text-[11px] text-white/60 truncate transition-all`}>
+                  {accessLink || 'TOKEN NÃO ATIVADO'}
+                </div>
+                {accessLink && (
+                  <button 
+                    onClick={copyLink}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl font-black uppercase text-[9px] tracking-widest transition-all group-active/link:scale-95"
+                  >
+                    {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                    {copied ? 'Copiado!' : 'Copiar'}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ─── LISTA DE UTILIZADORES ─── */}
           {loading ? (
@@ -393,24 +504,26 @@ export default function Users() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <button
-                          onClick={() => openPermissions(u)}
-                          className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-gold-primary hover:text-black rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 shadow-xl hover:shadow-gold-primary/20"
-                          title="Gerir Permissões de Acesso"
-                        >
-                          <Shield size={14} /> Permissões
-                        </button>
-                        {u.id !== currentUser?.id && (
+                      {!readOnly && (
+                        <div className="flex items-center gap-3 flex-shrink-0">
                           <button
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="p-3 bg-white/5 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all border border-white/5"
-                            title="Eliminar Conta"
+                            onClick={() => openPermissions(u)}
+                            className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-gold-primary hover:text-black rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 shadow-xl hover:shadow-gold-primary/20"
+                            title="Gerir Permissões de Acesso"
                           >
-                            <Trash2 size={16} />
+                            <Shield size={14} /> Permissões
                           </button>
-                        )}
-                      </div>
+                          {u.id !== currentUser?.id && (
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              className="p-3 bg-white/5 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all border border-white/5"
+                              title="Eliminar Conta"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

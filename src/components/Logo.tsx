@@ -1,59 +1,43 @@
-
-import React, { useState } from 'react';
+import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { TrendingUp } from 'lucide-react';
 
 interface LogoProps {
   className?: string;
-  showTagline?: boolean;
-  light?: boolean;
   onClick?: () => void;
   collapsed?: boolean;
+  isPublic?: boolean;
 }
 
-/**
- * Identidade Visual da Amazing Corporation.
- * Substituído o logotipo gráfico por identidade textual simplificada.
- */
-const Logo: React.FC<LogoProps> = ({ className = "", onClick, collapsed }) => {
-  const [error, setError] = useState(false);
-
-  // Logo "Venda Plus" para o sistema
-  const systemLogo = "/assets/logo.png";
-  const fallbackLogo = "/venda_plus_app_icon.png";
-
-  if (error) {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
-          <span className="text-zinc-900 font-black text-xs">V</span>
-        </div>
-        {!collapsed && (
-          <span className="text-xl font-black tracking-tighter text-white uppercase">
-            Venda<span className="text-yellow-500">Plus</span>
-          </span>
-        )}
-      </div>
-    );
-  }
+const Logo: React.FC<LogoProps> = ({ className = "", onClick, collapsed, isPublic }) => {
+  const { user } = useAuth();
+  const isMaster = user?.role === 'master';
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
-      <img
-        src={systemLogo}
-        alt="Venda Plus"
-        className={`${collapsed ? 'w-8 h-8' : 'w-auto h-8'} object-contain`}
-        onError={(e) => {
-          const target = e.target as HTMLImageElement;
-          if (target.src.includes(systemLogo)) {
-            target.src = fallbackLogo;
-          } else {
-            setError(true);
-          }
-        }}
-      />
+    <div 
+      className={`flex items-center gap-3 transition-all cursor-pointer select-none group ${className}`} 
+      onClick={onClick}
+    >
+      <div className={`${collapsed ? 'w-10 h-10' : 'w-10 h-10'} bg-gradient-to-br from-gold-primary to-gold-secondary rounded-xl flex items-center justify-center text-bg-deep shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-transform group-hover:scale-110 shrink-0`}>
+        <TrendingUp size={22} className="shrink-0" />
+      </div>
+      
       {!collapsed && (
-        <span className="text-xl font-black tracking-tighter text-white uppercase">
-          Venda<span className="text-yellow-500">Plus</span>
-        </span>
+        <div className="flex items-center gap-2 leading-none">
+          <span className="text-xl font-black tracking-tighter italic text-gold-gradient whitespace-nowrap">
+            VENDA <span className="text-white group-hover:text-gold-primary transition-colors">PLUS</span>
+          </span>
+          {isMaster && (
+            <div className="flex flex-col border-l border-gold-primary/20 pl-2 ml-1">
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-gold-primary">
+                MASTER
+              </span>
+              <span className="text-[6px] font-bold text-white/20 uppercase tracking-widest">
+                CORE
+              </span>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

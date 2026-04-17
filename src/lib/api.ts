@@ -21,8 +21,16 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
         console.error('🔴 [API] Sessão expirada ou inválida. Redirecionando...');
         localStorage.removeItem('erp_token');
         localStorage.removeItem('erp_user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
         window.location.href = '/'; // Redirect to login/home
         throw new Error('Sessão expirada. Por favor, faça login novamente.');
+    }
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`🔴 [API] Erro ${response.status}:`, errorData);
+        throw new Error(errorData.error || `Erro na requisição (${response.status})`);
     }
 
     return response;

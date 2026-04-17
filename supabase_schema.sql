@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS saas_subscriptions (
     data_inicio TIMESTAMPTZ DEFAULT NOW(),
     data_expiracao TIMESTAMPTZ NOT NULL,
     valor_pago REAL DEFAULT 0,
+    features JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

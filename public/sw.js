@@ -1,23 +1,25 @@
-const CACHE_NAME = 'venda-plus-v1';
-const ASSETS_TO_CACHE = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    '/venda_plus_app_icon.png'
-];
-
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
-    );
+// SELF-DESTRUCT: This SW unregisters itself and clears all caches immediately.
+// It exists only to replace the old broken SW that was causing infinite fetch loops.
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
-        })
-    );
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((names) => {
+      return Promise.all(names.map((name) => caches.delete(name)));
+    }).then(() => {
+      return self.registration.unregister();
+    }).then(() => {
+      return self.clients.matchAll();
+    }).then((clients) => {
+      clients.forEach((client) => client.navigate(client.url));
+    })
+  );
+});
+
+// Do NOT intercept any fetch requests
+self.addEventListener('fetch', () => {
+  // Intentionally empty - let the browser handle all requests natively
+  return;
 });

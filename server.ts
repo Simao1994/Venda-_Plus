@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 
 import { createServer as createViteServer } from "vite";
+// Re-trigger migrations on file change
 import path from "path";
 import cors from "cors";
 import jwt from "jsonwebtoken";
@@ -15,6 +16,31 @@ import crypto from "crypto";
 import { onInvoiceCreated } from "./agt_webservice_integration/index.ts";
 import { registerSaftRoutes } from "./saft_ao/index.ts";
 import { prepareSigningData, signAGTDocument, getHashControl } from "./src/lib/agt_rsa.ts";
+
+// --- PERFORMANCE CACHE ---
+const companyMetadataCache = new Map<number, any>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+async function getCachedMetadata(companyId: number) {
+  const cached = companyMetadataCache.get(companyId);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    return cached.data;
+  }
+
+  const [
+    { data: companyData },
+    { data: config },
+    { data: keys }
+  ] = await Promise.all([
+    supabase.from("companies").select("nif").eq("id", companyId).single(),
+    supabase.from('agt_configs').select('cert_number').eq('company_id', companyId).maybeSingle(),
+    supabase.from('agt_keys').select('private_key').eq('company_id', companyId).eq('is_active', true).maybeSingle()
+  ]);
+
+  const data = { companyData, config, keys };
+  companyMetadataCache.set(companyId, { data, timestamp: Date.now() });
+  return data;
+}
 
 // --- HELPERS ---
 // AGT Hash Generation: Number|Date|Total|CompanyNIF
@@ -115,26 +141,140 @@ function isValidNif(nif: string | null | undefined): boolean {
 async function startServer() {
 
 
-  console.log('🚀 Server starting...');
+  console.log('[START] Server starting...');
 
   // 0. Key Validation
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   if (anonKey && serviceKey && anonKey === serviceKey) {
-    console.error('⚠️ [CRÍTICO] SUPABASE_SERVICE_ROLE_KEY é igual à ANON_KEY!');
-    console.error('⚠️ As operações administrativas do servidor serão bloqueadas pelo RLS.');
-    console.error('⚠️ Por favor, obtenha a "service_role" key correta no Dashboard do Supabase.');
+    console.error('[WARN] [CRíTICO] SUPABASE_SERVICE_ROLE_KEY é igual í  ANON_KEY!');
+    console.error('[WARN] As operações administrativas do servidor serão bloqueadas pelo RLS.');
+    console.error('[WARN] Por favor, obtenha a "service_role" key correta no Dashboard do Supabase.');
   }
 
   // Sync database schema on startup (NON-BLOCKING)
   syncDatabaseSchema().then(async () => {
-    console.log('✅ Database Schema Sync Complete');
-    console.log('✅ Base migrations checked.');
+    console.log('[OK] Database Schema Sync Complete');
+    console.log('[OK] Base migrations checked.');
   }).catch(err => {
-    console.error('❌ Database Schema Sync Failed:', err.message);
+    console.error('âŒ Database Schema Sync Failed:', err.message);
   });
 
-  console.log('📊 Diagnostic: Skipping repair loop for startup speed.');
+  console.log('[DIAGNOSTIC] Diagnostic: Skipping repair loop for startup speed.');
+
+  // EMERGENCY DDL HOTFIX v1.0.3
+  (async () => {
+    try {
+      console.log('🔄 Executando comandos de emergência (BD Sync)...');
+      const emergencySql = `
+        DO $$ 
+        BEGIN 
+          -- Módulo de Investimentos
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'investimentos_lancamentos') THEN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'investimentos_lancamentos' AND column_name = 'comissao') THEN
+                ALTER TABLE investimentos_lancamentos ADD COLUMN comissao DOUBLE PRECISION DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'investimentos_lancamentos' AND column_name = 'iac') THEN
+                ALTER TABLE investimentos_lancamentos ADD COLUMN iac DOUBLE PRECISION DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'investimentos_lancamentos' AND column_name = 'investidor_id') THEN
+                ALTER TABLE investimentos_lancamentos ADD COLUMN investidor_id TEXT;
+            END IF;
+            -- Correção de tipo para incluir hora
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'investimentos_lancamentos' AND column_name = 'data' AND data_type = 'date') THEN
+                ALTER TABLE investimentos_lancamentos ALTER COLUMN data TYPE TEXT;
+            END IF;
+
+            -- BACKFILL: Associar registros antigos ao investidor_id para performance
+            UPDATE investimentos_lancamentos il
+            SET investidor_id = i.investidor_id
+            FROM investimentos i
+            WHERE il.investimento_id = i.id
+              AND il.investidor_id IS NULL;
+          END IF;
+
+          -- Módulo de Utilizadores: Coluna de Permissões JSONB
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'permissions') THEN
+                ALTER TABLE users ADD COLUMN permissions JSONB DEFAULT '{}'::jsonb;
+            END IF;
+          END IF;
+
+          -- SaaS Subscriptions: Coluna de Módulos (JSONB)
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'saas_subscriptions') THEN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'saas_subscriptions' AND column_name = 'features') THEN
+                ALTER TABLE saas_subscriptions ADD COLUMN features JSONB DEFAULT '[]'::jsonb;
+            END IF;
+          END IF;
+
+          -- SaaS Config: Tabela de Configurações Globais (IBAN, etc.)
+          CREATE TABLE IF NOT EXISTS saas_config (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+          -- Seed default payment info if not exists
+          INSERT INTO saas_config (key, value) VALUES
+            ('payment_iban', 'AO06 0051 0000 1234 5678 9012 3'),
+            ('payment_beneficiary', 'Venda Plus SaaS - Pagamentos'),
+            ('payment_phone', '')
+          ON CONFLICT (key) DO NOTHING;
+
+          -- AUTO-ACTIVATION: Garantir que planos de teste não ficam suspensos por erro de sistema
+          UPDATE saas_subscriptions SET status = 'active' WHERE status IN ('pending', 'suspended');
+          UPDATE companies SET status = 'active' WHERE status = 'pending';
+        END $$;
+
+        -- 🚀 PERFORMANCE: Atomic Sale Creation
+        CREATE OR REPLACE FUNCTION create_sale_with_items(
+          p_data JSONB,
+          p_items JSONB
+        ) RETURNS BIGINT AS $func$
+        DECLARE
+          v_sale_id BIGINT;
+          v_item JSONB;
+        BEGIN
+          INSERT INTO sales (
+            company_id, branch_id, user_id, register_id, customer_id, 
+            customer_nif, customer_name, total, subtotal, tax, 
+            amount_paid, change, discount, is_pro_forma, payment_method, 
+            is_exempt, exemption_reason, status, invoice_number, 
+            hash, prev_hash, agt_phrase, is_certified
+          ) VALUES (
+            (p_data->>'company_id')::BIGINT, (p_data->>'branch_id')::BIGINT, (p_data->>'user_id')::BIGINT,
+            (p_data->>'register_id')::BIGINT, (p_data->>'customer_id')::BIGINT,
+            (p_data->>'customer_nif'), (p_data->>'customer_name'), (p_data->>'total')::NUMERIC,
+            (p_data->>'subtotal')::NUMERIC, (p_data->>'tax')::NUMERIC,
+            (p_data->>'amount_paid')::NUMERIC, (p_data->>'change')::NUMERIC, (p_data->>'discount')::NUMERIC,
+            (p_data->>'is_pro_forma')::BOOLEAN, (p_data->>'payment_method'),
+            (p_data->>'is_exempt')::BOOLEAN, (p_data->>'exemption_reason'), (p_data->>'status'),
+            (p_data->>'invoice_number'), (p_data->>'hash'), (p_data->>'prev_hash'),
+            (p_data->>'agt_phrase'), (p_data->>'is_certified')::BOOLEAN
+          ) RETURNING id INTO v_sale_id;
+
+          FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+            INSERT INTO sale_items (
+              company_id, sale_id, product_id, quantity, unit_price, subtotal
+            ) VALUES (
+              (p_data->>'company_id')::BIGINT, v_sale_id, (v_item->>'id')::BIGINT,
+              (v_item->>'quantity')::NUMERIC, (v_item->>'sale_price')::NUMERIC,
+              ((v_item->>'quantity')::NUMERIC * (v_item->>'sale_price')::NUMERIC)
+            );
+          END LOOP;
+
+          RETURN v_sale_id;
+        END;
+        $func$ LANGUAGE plpgsql;
+
+        NOTIFY pgrst, 'reload schema';
+      `;
+      const { error } = await (supabase as any).rpc('exec_sql', { sql_query: emergencySql });
+      if (error) console.error('⚠️ [AVISO] Falha ao executar DDL de emergência:', error.message);
+      else console.log('✅ [OK] DDL de emergência concluído com sucesso.');
+    } catch (err: any) {
+      console.error('❌ Emergency DDL Failed:', err.message);
+    }
+  })();
 
   const app = express();
   app.use(cors());
@@ -147,22 +287,34 @@ async function startServer() {
   app.use("/api/documents", blockMutation);
   app.use("/api/contabil_faturas", blockMutation);
 
-  // Auth Middleware
-  const authenticate = (req: any, res: any, next: any) => {
+  // Auth Middleware - always re-fetches user from DB to prevent stale sessions
+  const authenticate = async (req: any, res: any, next: any) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ error: "Unauthorized" });
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded;
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      // Always sync from DB so company relocations take effect immediately
+      const { data: dbUser } = await supabase
+        .from("users")
+        .select("id, name, email, role, company_id, permissions")
+        .eq("id", decoded.id)
+        .single();
+      req.user = dbUser || decoded;
+      
+      // Normalize role for robust checks
+      if (req.user) {
+        req.user.normRole = req.user.role?.toString().toLowerCase().trim() || '';
+      }
+      
       next();
     } catch (err: any) {
-      console.error('❌ [AUTH] Token Inválido:', err.message);
+      console.error('[AUTH] Token Inválido:', err.message);
       res.status(401).json({ error: "Invalid token" });
     }
   };
   // SaaS License Middleware
   const checkLicense = async (req: any, res: any, next: any) => {
-    if (req.user.role === 'master') return next();
+    if (req.user.normRole === 'master') return next();
 
     const { data: subs, error } = await supabase
       .from("saas_subscriptions")
@@ -200,17 +352,110 @@ async function startServer() {
 
     if (error || !subscription) return res.status(403).json({ error: "Plano inativo ou expirado." });
 
-    const features = subscription.saas_plans?.features || [];
-    if (!features.includes(feature)) {
+    const parseFeatures = (f: any) => {
+      if (Array.isArray(f)) return f;
+      if (typeof f === 'string') {
+        try { return JSON.parse(f); } catch (e) { return []; }
+      }
+      return [];
+    };
+
+    const subFeatures = subscription.features; // JSONB from DB
+    const planFeatures = parseFeatures(subscription.saas_plans?.features);
+    
+    // Strict Precedence: If subFeatures is an array (even if empty), it's the source of truth.
+    // Otherwise (if null), fallback to planFeatures.
+    const combinedFeatures = Array.isArray(subFeatures) ? subFeatures : planFeatures;
+
+    if (!combinedFeatures.includes(feature) && !combinedFeatures.includes('master_all')) {
       return res.status(403).json({ error: `O seu plano atual não inclui o módulo de ${feature}. Entre em contacto para fazer upgrade.` });
     }
     next();
   };
 
+  // --- PUBLIC INVESTOR PORTAL LOGIN ---
+  app.post('/api/public/investor-verify', async (req: any, res) => {
+    try {
+      const { investor_id, nif, email, password } = req.body;
+      console.log(`[INVESTOR LOGIN] Tentativa: ${investor_id || email}`);
+      
+      // Criar a query base (permitir 'Ativo' ou 'ativo' por via das dúvidas)
+      let query = supabase.from('investidores').select('*, companies(name, nif)').or('status.eq.Ativo,status.eq.ativo');
+
+      if (investor_id && nif) {
+        const numericIdMatch = investor_id.match(/\d+/);
+        const numericId = numericIdMatch ? parseInt(numericIdMatch[0]) : null;
+        
+        if (numericId !== null) {
+          query = query.eq('numero_sequencial', numericId).ilike('nif', nif.trim()).eq('password', password.trim());
+        } else {
+          query = query.eq('id', investor_id).ilike('nif', nif.trim()).eq('password', password.trim());
+        }
+      } else if (email && password) {
+        // Permitir login tanto por E-mail como por BI (NIF) usando a senha
+        // Importante: Usar aspas no filtro OR para lidar com caracteres especiais do e-mail (@, .)
+        const identifier = email.trim();
+        query = query.or(`email.ilike."${identifier}",nif.ilike."${identifier}"`).eq('password', password.trim());
+      } else {
+        return res.status(400).json({ error: 'Credenciais incompletas.' });
+      }
+
+      const { data: investor, error } = await query.single();
+      
+      if (error || !investor) {
+        console.error(`[INVESTOR LOGIN] Falha login para ${investor_id || email}:`, error?.message || 'Não encontrado');
+        return res.status(401).json({ error: 'Credenciais inválidas ou cadastro aguardando ativação.' });
+      }
+
+      // 3. Otimização: Carregamento em paralelo dos investimentos e do histórico
+      const [investmentsRes, historyRes] = await Promise.all([
+        supabase
+          .from('investimentos')
+          .select('*')
+          .eq('investidor_id', investor.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('investimentos_lancamentos')
+          .select('*')
+          .eq('investidor_id', investor.id) // Se houver investidor_id na tabela de lançamentos
+          .order('data', { ascending: true })
+      ]);
+
+      const investments = investmentsRes.data || [];
+      let history = historyRes.data || [];
+
+      // Fallback: se a tabela de lançamentos não tiver investidor_id, procurar pelos IDs dos investimentos
+      if (history.length === 0 && investments.length > 0) {
+        const investmentIds = investments.map(i => i.id);
+        const { data: historyData } = await supabase
+          .from('investimentos_lancamentos')
+          .select('*')
+          .in('investimento_id', investmentIds)
+          .order('data', { ascending: true });
+        history = historyData || [];
+      }
+
+      const token = jwt.sign(
+        { id: investor.id, role: 'investor', company_id: investor.company_id },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      res.json({ 
+        token, 
+        investor,
+        investments: investments || [],
+        history
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- Investments Monthly Record ---
   app.post('/api/investments/records', authenticate, async (req: any, res) => {
     try {
-      const { investimento_id, data: entryData, aumento, juros, iac, saque, multa, observacoes } = req.body;
+      const { investimento_id, data: entryData, aumento, juros, iac, comissao, saque, multa, observacoes } = req.body;
       const { data, error } = await supabase
         .from('investimentos_lancamentos')
         .insert([{
@@ -220,6 +465,7 @@ async function startServer() {
           aumento: Number(aumento) || 0,
           juros: Number(juros) || 0,
           iac: Number(iac) || 0,
+          comissao: Number(comissao) || 0,
           saque: Number(saque) || 0,
           multa: Number(multa) || 0,
           observacoes
@@ -292,15 +538,28 @@ async function startServer() {
   });
 
   const isMaster = (req: any, res: any, next: any) => {
-    if (req.user.role !== 'master') return res.status(403).json({ error: "Acesso reservado ao administrador do sistema (Master)." });
+    if (req.user.normRole !== 'master') {
+      console.warn(`[AUTH] Access Denied (isMaster): User ${req.user.email} has role '${req.user.role}'`);
+      return res.status(403).json({ error: "Esta funcionalidade é exclusiva para o Administrador Master do sistema." });
+    }
     next();
   };
 
   const isAdmin = (req: any, res: any, next: any) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'master') {
-      return res.status(403).json({ error: "Acesso negado. Apenas administradores podem realizar esta ação." });
+    if (req.user.normRole !== 'admin' && req.user.normRole !== 'master') {
+      console.warn(`[AUTH] Access Denied (isAdmin): User ${req.user.email} has role '${req.user.role}'`);
+      return res.status(403).json({ error: "Apenas administradores podem realizar esta ação. Por favor, contacte o suporte se precisar de acesso." });
     }
     next();
+  };
+
+  const canManageUsers = (req: any, res: any, next: any) => {
+    const hasPermission = req.user.permissions?.users === true || req.user.permissions?.users === 'true';
+    if (req.user.normRole === 'admin' || req.user.normRole === 'master' || hasPermission) {
+      return next();
+    }
+    console.warn(`[AUTH] Access Denied (canManageUsers): User ${req.user.email} has role '${req.user.role}' and permissions:`, req.user.permissions);
+    return res.status(403).json({ error: "Ops! Parece que não tem privilégios suficientes para gerir outros utilizadores. Fale com o administrador da sua empresa." });
   };
 
   // Generic Data Validator
@@ -332,7 +591,7 @@ async function startServer() {
         ip_address: ip
       });
     } catch (err) {
-      console.error('❌ Failed to log activity:', err);
+      console.error('âŒ Failed to log activity:', err);
     }
   };
 
@@ -349,7 +608,7 @@ async function startServer() {
       if (error) throw error;
       res.json(logs || []);
     } catch (err: any) {
-      console.error('❌ Failed to fetch activity logs:', err);
+      console.error('âŒ Failed to fetch activity logs:', err);
       res.status(500).json({ error: "Erro ao carregar logs de atividade." });
     }
   });
@@ -410,7 +669,7 @@ async function startServer() {
 
       res.json(result);
     } catch (err: any) {
-      console.error('❌ Failed to fetch employee sales report:', err);
+      console.error('âŒ Failed to fetch employee sales report:', err);
       res.status(500).json({ error: "Erro ao gerar relatório." });
     }
   });
@@ -449,7 +708,7 @@ async function startServer() {
 
       res.json({ result: textResult });
     } catch (err: any) {
-      console.error('❌ Error processing AI audit:', err);
+      console.error('âŒ Error processing AI audit:', err);
       res.status(500).json({ error: "Erro ao processar auditoria da Venda Plus." });
     }
   });
@@ -464,7 +723,7 @@ async function startServer() {
       .limit(1);
 
     if (error) {
-      console.error('❌ Erro na consulta de login (Supabase):', error.message);
+      console.error('âŒ Erro na consulta de login (Supabase):', error.message);
       return res.status(401).json({ error: "Credenciais inválidas (Erro de Ligação)" });
     }
 
@@ -483,7 +742,7 @@ async function startServer() {
     const matches = bcrypt.compareSync(password, user.password);
 
     if (!matches) {
-      console.error(`❌ Senha incorreta para: ${email}`);
+      console.error(`âŒ Senha incorreta para: ${email}`);
       const newAttempts = (user.failed_attempts || 0) + 1;
       let updatePayload: any = { failed_attempts: newAttempts };
 
@@ -508,7 +767,7 @@ async function startServer() {
     const isExpired = (Date.now() - lastUpdate) > ninetyDays;
     const mustChange = !!user.must_change_password || isExpired;
 
-    console.log(`✅ Login bem-sucedido: ${email}${mustChange ? ' (Senha Expirada/Forçada)' : ''}`);
+    console.log(`[OK] Login bem-sucedido: ${email}${mustChange ? ' (Senha Expirada/Forçada)' : ''}`);
 
 
     // Log login activity
@@ -521,8 +780,9 @@ async function startServer() {
       company_id: user.company_id,
       branch_id: user.branch_id,
       role: user.role,
+      permissions: user.permissions || {},
       must_change_password: mustChange
-    }, JWT_SECRET);
+    }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
       token,
@@ -533,6 +793,7 @@ async function startServer() {
         name: user.name,
         email: user.email,
         role: user.role,
+        permissions: user.permissions || {},
         company_id: user.company_id,
         company_name: companies?.name,
         currency: companies?.currency,
@@ -586,10 +847,11 @@ async function startServer() {
         id: user.id,
         company_id: user.company_id,
         branch_id: user.branch_id,
-        role: user.role
-      }, JWT_SECRET);
+        role: user.role,
+        permissions: user.permissions || {}
+      }, JWT_SECRET, { expiresIn: '7d' });
 
-      console.log(`✅ Token login bem-sucedido para empresa: ${company.name}`);
+      console.log(`[OK] Token login bem-sucedido para empresa: ${company.name}`);
 
       res.json({
         token: sessionToken,
@@ -598,6 +860,7 @@ async function startServer() {
           name: user.name,
           email: user.email,
           role: user.role,
+          permissions: user.permissions || {},
           company_id: user.company_id,
           company_name: company.name,
           currency: company.currency,
@@ -612,7 +875,7 @@ async function startServer() {
         }
       });
     } catch (err: any) {
-      console.error('❌ Erro no login por token:', err.message);
+      console.error('âŒ Erro no login por token:', err.message);
       res.status(500).json({ error: "Erro interno no servidor." });
     }
   });
@@ -625,8 +888,8 @@ async function startServer() {
 
   app.post("/api/saas/register", async (req, res) => {
     const { name, email, password, plan_id, tipo_plano, status } = req.body;
-    const initialStatus = status === 'active' ? 'active' : 'pending';
-    const subStatus = status === 'active' ? 'active' : 'suspended';
+    const initialStatus = status === 'active' ? 'active' : 'active'; // Default to active for trial/demo
+    const subStatus = status === 'active' ? 'active' : 'active'; // Default to active for initial access
 
     console.log(`[Registo SaaS] Iniciando para: ${email} (${name})`);
 
@@ -644,7 +907,7 @@ async function startServer() {
         .select("id, access_token")
         .single();
       if (cError) {
-        console.error('❌ Erro ao criar empresa:', cError.message);
+        console.error('âŒ Erro ao criar empresa:', cError.message);
         return res.status(500).json({ error: `Erro na empresa: ${cError.message}` });
       }
 
@@ -655,7 +918,7 @@ async function startServer() {
       }]).select("id").single();
 
       if (bError) {
-        console.error('❌ Erro ao criar filial padrão:', bError.message);
+        console.error('âŒ Erro ao criar filial padrão:', bError.message);
         await supabase.from("companies").delete().eq("id", company.id);
         return res.status(500).json({ error: `Erro na filial: ${bError.message}` });
       }
@@ -672,7 +935,7 @@ async function startServer() {
       }]).select("id").single();
 
       if (uError) {
-        console.error('❌ Erro ao criar utilizador admin:', uError.message);
+        console.error('âŒ Erro ao criar utilizador admin:', uError.message);
         // Clean up company and branch if user creation fails
         await supabase.from("branches").delete().eq("id", branch.id);
         await supabase.from("companies").delete().eq("id", company.id);
@@ -684,7 +947,7 @@ async function startServer() {
       const { data: plan, error: pError } = await supabase.from("saas_plans").select("duration_months, price_monthly, price_semestrial, price_yearly").eq("id", plan_id).single();
 
       if (pError || !plan) {
-        console.error('❌ Plano não encontrado:', plan_id, pError?.message);
+        console.error('âŒ Plano não encontrado:', plan_id, pError?.message);
         return res.status(400).json({ error: "Plano selecionado não é válido." });
       }
 
@@ -696,34 +959,59 @@ async function startServer() {
 
       const valor = tipo_plano === 'anual' ? plan.price_yearly : (tipo_plano === 'semestrial' ? plan.price_semestrial : plan.price_monthly);
 
+      const defaultFeatures = ['sales', 'products', 'customers', 'hr', 'accounting', 'investments', 'pharmacy', 'blog', 'marketing', 'reports', 'settings', 'labels', 'files', 'support', 'mobile_app'];
       const { error: sError } = await supabase.from("saas_subscriptions").insert([{
         company_id: company.id,
         plan_id,
         tipo_plano,
         data_expiracao: expiry.toISOString(),
         valor_pago: valor,
-        status: subStatus
+        status: subStatus,
+        features: defaultFeatures
       }]);
 
       if (sError) {
-        console.error('❌ Erro ao criar subscrição:', sError.message);
+        console.error('âŒ Erro ao criar subscrição:', sError.message);
         return res.status(500).json({ error: `Erro na subscrição: ${sError.message}` });
       }
 
-      console.log(`✅ Registo SaaS concluído com sucesso para: ${email}`);
+      console.log(`[OK] Registo SaaS concluído com sucesso para: ${email}`);
       res.json({
         success: true,
         company_id: company.id,
         access_token: company.access_token
       });
     } catch (err: any) {
-      console.error('❌ Erro inesperado no registo:', err.message);
+      console.error('âŒ Erro inesperado no registo:', err.message);
       res.status(500).json({ error: "Erro interno do servidor durante o registo." });
     }
   });
 
+  app.post("/api/saas/payments", authenticate, async (req: any, res) => {
+    const { amount, proof_url, method } = req.body;
+
+    const { data, error } = await supabase
+      .from("saas_payments")
+      .insert([{
+        company_id: req.user.company_id,
+        amount: Number(amount) || 0,
+        proof_url,
+        method: method || 'BANK_TRANSFER',
+        status: 'pending'
+      }])
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Log payment submission
+    await logActivity(req, 'PAYMENT_SUBMITTED', 'SUBSCRIPTION', `Comprovativo de pagamento de ${amount} enviado para validação.`, { proof_url });
+
+    res.json(data);
+  });
+
   // Master Admin Area
-  app.get("/api/saas/master/stats", authenticate, isMaster, async (req, res) => {
+  app.get("/api/saas/master/stats", authenticate, isAdmin, async (req, res) => {
     const { count: companiesCount } = await supabase.from("companies").select("*", { count: 'exact', head: true });
     const { data: activeSubs } = await supabase.from("saas_subscriptions").select("valor_pago").eq("status", "active");
     const { count: pendingPayments } = await supabase.from("saas_payments").select("*", { count: 'exact', head: true }).eq("status", "pending");
@@ -735,6 +1023,132 @@ async function startServer() {
       mrr,
       pendingPayments: pendingPayments || 0
     });
+  });
+
+  app.get("/api/saas/master/payments", authenticate, isMaster, async (req: any, res: any) => {
+    const { data, error } = await supabase
+      .from("saas_payments")
+      .select(`
+        *,
+        companies (
+          name,
+          email
+        )
+      `)
+      .eq("status", "pending")
+      .order('created_at', { ascending: false });
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  });
+
+  app.post("/api/saas/master/payments/:id/approve", authenticate, isMaster, async (req: any, res: any) => {
+    const { id } = req.params;
+    
+    // 1. Get payment and plan details
+    console.log(`ðŸ” [Master Approve] Processando pagamento ID: ${id}`);
+    const { data: payment, error: pError } = await supabase
+      .from("saas_payments")
+      .select(`
+        company_id,
+        companies (
+          id,
+          name,
+          saas_subscriptions (
+            id,
+            plan_id,
+            saas_plans (
+              duration_months
+            )
+          )
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (pError) {
+      console.error(`â Œ [Master Approve] Erro ao buscar pagamento:`, pError);
+      return res.status(500).json({ error: "Erro ao localizar pagamento e empresa associada." });
+    }
+    
+    if (!payment) return res.status(404).json({ error: "Pagamento não localizado na base de dados." });
+
+    console.log(`ðŸ“¦ [Master Approve] Dados brutos para análise:`, JSON.stringify(payment, null, 2));
+
+    const comp = payment.companies as any;
+    // Robust access to subscription (handles single object or array)
+    let subscription = null;
+    if (comp?.saas_subscriptions) {
+      subscription = Array.isArray(comp.saas_subscriptions) ? comp.saas_subscriptions[0] : comp.saas_subscriptions;
+    }
+
+    if (!subscription) {
+      console.log(`âš ï¸  [Master Approve] Subscrição ausente. A tentar recuperar o plano no banco de dados para a empresa ${payment.company_id}...`);
+      
+      // Get first available plan as default
+      const { data: defaultPlan } = await supabase.from("saas_plans").select("id, duration_months").order('id').limit(1).single();
+      
+      if (!defaultPlan) {
+        console.error(`â Œ [Master Approve] Nenhum plano SaaS encontrado.`);
+        return res.status(400).json({ error: "Aprovação Falhou: Não existem planos configurados na 'Matriz de Planos'. Por favor, crie pelo menos um plano SaaS antes de aprovar pagamentos." });
+      }
+
+      const planId = defaultPlan.id;
+      const duration = defaultPlan.duration_months || 1;
+
+      // Calculate a temporary expiry (today) to satisfy NOT NULL constraint
+      const tempExpiry = new Date().toISOString();
+
+      const { data: newSub, error: sError } = await supabase.from("saas_subscriptions").insert([{
+        company_id: payment.company_id,
+        plan_id: planId,
+        status: 'active', // Changed from 'pending' to satisfy DB check constraint
+        tipo_plano: 'mensal',
+        valor_pago: 0,
+        data_expiracao: tempExpiry
+      }]).select("id, plan_id, saas_plans(duration_months)").single();
+
+      if (sError) {
+        console.error(`â Œ [Master Approve] Erro na inserção da subscrição:`, sError);
+        return res.status(500).json({ 
+          error: "Erro de Vinculação: " + (sError.message || "A base de dados rejeitou a activação automática."),
+          details: sError.hint || "Verifique se o plano com ID " + planId + " existe na Matriz de Planos."
+        });
+      }
+      subscription = newSub;
+      console.log(`âœ… [Master Approve] Subscrição vinculada automaticamente ID: ${subscription.id}`);
+    }
+
+    const durationMonths = (subscription as any).saas_plans?.duration_months || 1;
+    
+    // 2. Calculate new expiration date (from now)
+    const newExpiryDate = new Date();
+    newExpiryDate.setMonth(newExpiryDate.getMonth() + durationMonths);
+
+    console.log(`âœ… [Master Approve] Nova expiração: ${newExpiryDate.toISOString()} (${durationMonths} meses)`);
+
+    // 3. Update payment status
+    const { error: up1 } = await supabase.from("saas_payments").update({ status: 'approved' }).eq("id", id);
+    if (up1) return res.status(500).json({ error: "Erro ao actualizar estado do pagamento." });
+
+    // 4. Activate Company and Subscription with New Date and Payment Value
+    const { error: up2 } = await supabase.from("companies").update({ status: 'active' }).eq("id", payment.company_id);
+    const { error: up3 } = await supabase.from("saas_subscriptions").update({ 
+      status: 'active',
+      data_expiracao: newExpiryDate.toISOString(),
+      valor_pago: (payment as any).amount // Ensure revenue is tracked
+    }).eq("id", subscription.id);
+
+    if (up2 || up3) {
+      console.error(`â Œ [Master Approve] Erro ao activar:`, { up2, up3 });
+      return res.status(500).json({ error: "Erro ao activar empresa ou subscrição." });
+    }
+
+    // Log activity
+    await logActivity(req, 'PAYMENT_APPROVED', 'MASTER', `Pagamento ID ${id} aprovado. Licença renovada por ${durationMonths} meses até ${newExpiryDate.toLocaleDateString()}.`, { payment_id: id });
+
+    console.log(`ðŸŽ‰ [Master Approve] Sucesso total para o pagamento ${id}`);
+    res.json({ success: true });
   });
 
   app.get("/api/saas/master/companies", authenticate, isMaster, async (req, res) => {
@@ -752,19 +1166,54 @@ async function startServer() {
         )
       `)
       .order('created_at', { ascending: false });
+    
+    // Sort subscriptions internally if needed, but the view should handle it
+    if (data) {
+      data.forEach((company: any) => {
+        if (company.saas_subscriptions && Array.isArray(company.saas_subscriptions)) {
+          company.saas_subscriptions.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        }
+      });
+    }
+    
     res.json(data || []);
   });
 
   app.post("/api/saas/master/approve-subscription", authenticate, isMaster, async (req, res) => {
     const { company_id } = req.body;
+    console.log(`🚀 [Master Approve] Ativando empresa ${company_id}...`);
+    
+    // 1. Get current subscription to find plan
+    const { data: sub } = await supabase
+      .from("saas_subscriptions")
+      .select("*, saas_plans(features)")
+      .eq("company_id", company_id)
+      .maybeSingle();
+
+    const parseF = (f: any) => {
+      if (Array.isArray(f)) return f;
+      if (typeof f === 'string') {
+        try { return JSON.parse(f); } catch (e) { return []; }
+      }
+      return [];
+    };
+
+    const initialFeatures = sub?.features?.length > 0 ? parseF(sub.features) : (parseF(sub?.saas_plans?.features) || ['sales']);
+
     await supabase.from("companies").update({ status: 'active' }).eq("id", company_id);
-    await supabase.from("saas_subscriptions").update({ status: 'active' }).eq("company_id", company_id);
+    await supabase.from("saas_subscriptions").update({ 
+      status: 'active',
+      features: initialFeatures
+    }).eq("company_id", company_id);
+    
     res.json({ success: true });
   });
 
   app.post("/api/saas/master/execute-sql", authenticate, isMaster, async (req: any, res) => {
     const { sql, name } = req.body;
-    console.log(`📋 [Master SQL] Executando bloco: ${name || 'Manual'} por ${req.user.email}`);
+    console.log(`ðŸ“‹ [Master SQL] Executando bloco: ${name || 'Manual'} por ${req.user.email}`);
 
     try {
       if (name) {
@@ -778,25 +1227,86 @@ async function startServer() {
         res.json({ success: true, data });
       }
     } catch (err: any) {
-      console.error('❌ Erro no Master SQL:', err.message);
+      console.error('âŒ Erro no Master SQL:', err.message);
       res.status(500).json({ error: err.message });
     }
   });
 
   app.put("/api/saas/master/companies/:id/subscription", authenticate, isMaster, async (req, res) => {
     const { id } = req.params;
-    const { plan_id, data_expiracao, status, valor_pago, tipo_plano } = req.body;
+    const { plan_id, data_expiracao, status, valor_pago, tipo_plano, features } = req.body;
+
+    console.log(`🔄 [Master Sync] A atualizar subscrição para empresa ID: ${id}`);
+    console.log(`📦 [Body]`, { plan_id, data_expiracao, status, valor_pago, tipo_plano, features });
+
+    // 1. Check if subscription exists
+    const { data: existing, error: checkError } = await supabase
+      .from("saas_subscriptions")
+      .select("id")
+      .eq("company_id", id)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error(`❌ [Master Sync] Erro ao verificar:`, checkError);
+      return res.status(500).json({ error: checkError.message });
+    }
+
+    let saveError;
+    const subData = {
+      plan_id: Number(plan_id),
+      data_expiracao,
+      status,
+      valor_pago: Number(valor_pago),
+      tipo_plano,
+      features: features === undefined ? null : features
+    };
+
+    if (existing) {
+      const { error } = await supabase
+        .from("saas_subscriptions")
+        .update(subData)
+        .eq("company_id", id);
+      saveError = error;
+    } else {
+      const { error } = await supabase
+        .from("saas_subscriptions")
+        .insert([{ ...subData, company_id: id }]);
+      saveError = error;
+    }
+
+    if (saveError) {
+      console.error(`❌ [Master Sync] Erro Supabase:`, saveError);
+      return res.status(500).json({ error: saveError.message });
+    }
+    res.json({ success: true });
+  });
+
+  // --- SaaS Config: Payment Info ---
+  // Public GET: anyone logged in can read payment info (to show IBAN for payment)
+  app.get("/api/saas/config/payment", authenticate, async (req, res) => {
+    const { data, error } = await supabase
+      .from("saas_config")
+      .select("key, value")
+      .in("key", ["payment_iban", "payment_beneficiary", "payment_phone"]);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const config = Object.fromEntries((data || []).map((r: any) => [r.key, r.value]));
+    res.json(config);
+  });
+
+  // Master-only PUT: update payment info
+  app.put("/api/saas/config/payment", authenticate, isMaster, async (req, res) => {
+    const { payment_iban, payment_beneficiary, payment_phone } = req.body;
+    const updates = [
+      { key: "payment_iban", value: payment_iban, updated_at: new Date().toISOString() },
+      { key: "payment_beneficiary", value: payment_beneficiary, updated_at: new Date().toISOString() },
+      { key: "payment_phone", value: payment_phone || "", updated_at: new Date().toISOString() },
+    ];
 
     const { error } = await supabase
-      .from("saas_subscriptions")
-      .update({
-        plan_id,
-        data_expiracao,
-        status,
-        valor_pago,
-        tipo_plano
-      })
-      .eq("company_id", id);
+      .from("saas_config")
+      .upsert(updates, { onConflict: "key" });
 
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
@@ -806,11 +1316,71 @@ async function startServer() {
     const { id } = req.params;
     const { status } = req.body;
 
+    console.log(`ï¿½ï¿½ï¿½ï¿½ [Master Status] Alterando status da empresa ${id} para: ${status}`);
     const { error } = await supabase
       .from("companies")
       .update({ status })
       .eq("id", id);
 
+    if (error) {
+      console.error(`â Œ [Master Status] Erro Supabase:`, error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ success: true });
+  });
+  // Master Admin Plan Management
+  app.post("/api/saas/master/plans", authenticate, isMaster, async (req, res) => {
+    const { name, description, price_monthly, price_semestrial, price_yearly, duration_months, user_limit, features, public_features, is_featured } = req.body;
+    const { data, error } = await supabase
+      .from("saas_plans")
+      .insert([{
+        name,
+        description,
+        price_monthly,
+        price_semestrial,
+        price_yearly,
+        duration_months: Number(duration_months) || 1,
+        user_limit: Number(user_limit) || 10,
+        features: JSON.stringify(features || []),
+        public_features: public_features || [],
+        is_featured: !!is_featured
+      }])
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  });
+
+  app.put("/api/saas/master/plans/:id", authenticate, isMaster, async (req, res) => {
+    const { id } = req.params;
+    const { name, description, price_monthly, price_semestrial, price_yearly, duration_months, user_limit, features, public_features, is_featured } = req.body;
+    
+    const { data, error } = await supabase
+      .from("saas_plans")
+      .update({
+        name,
+        description,
+        price_monthly,
+        price_semestrial,
+        price_yearly,
+        duration_months: Number(duration_months) || 1,
+        user_limit: Number(user_limit) || 10,
+        features: JSON.stringify(features || []),
+        public_features: public_features || [],
+        is_featured: !!is_featured
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  });
+
+  app.delete("/api/saas/master/plans/:id", authenticate, isMaster, async (req, res) => {
+    const { id } = req.params;
+    const { error } = await supabase.from("saas_plans").delete().eq("id", id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
   });
@@ -853,7 +1423,7 @@ async function startServer() {
         is_master_mode: isMaster
       });
     } catch (err: any) {
-      console.error('❌ Erro no diagnóstico:', err.message);
+      console.error('âŒ Erro no diagnóstico:', err.message);
       res.json({
         db_status: 'Offline',
         system_status: 'Erro de Ligação',
@@ -934,7 +1504,7 @@ async function startServer() {
 
     if (!hasUpper || !hasLower || !hasNumber) {
       return res.status(400).json({
-        error: "A senha deve conter pelo menos uma letra maiúscula, uma minúscula e um número."
+        error: "A senha deve conter pelo menos uma letra maiíºscula, uma miníºscula e um níºmero."
       });
     }
 
@@ -974,23 +1544,66 @@ async function startServer() {
     }
   });
 
-  app.get("/api/users", authenticate, isAdmin, async (req: any, res) => {
+  app.get("/api/users", authenticate, canManageUsers, async (req: any, res) => {
 
-    const { data: users, error } = await supabase
+    let query = supabase
       .from("users")
-      .select("id, name, email, role, created_at")
+      .select("id, name, email, role, permissions, created_at")
       .eq("company_id", req.user.company_id);
 
+    // Non-master callers must never see global master accounts
+    if (req.user.role !== 'master') {
+      query = query.neq("role", "master");
+    }
+
+    const { data: users, error } = await query;
+
     if (error) return res.status(500).json({ error: error.message });
-    res.json(users || []);
+
+    let limit = 1;
+    if (req.user.role !== 'master') {
+      const { data: subscription } = await supabase
+        .from("saas_subscriptions")
+        .select("*, saas_plans(user_limit)")
+        .eq("company_id", req.user.company_id)
+        .eq("status", "active")
+        .maybeSingle();
+      limit = subscription?.saas_plans?.user_limit || 10;
+    } else {
+      limit = 999999;
+    }
+
+    res.json({ users: users || [], limit });
   });
 
-  app.post("/api/users", authenticate, isAdmin, validateBody(['name', 'email', 'password', 'role']), async (req: any, res) => {
+  app.post("/api/users", authenticate, canManageUsers, validateBody(['name', 'email', 'password', 'role']), async (req: any, res) => {
     const { name, email, password, role } = req.body;
 
     // Only master can create master users
-    if (role === 'master' && req.user.role !== 'master') {
+    // Only Master can create Master
+    if (role === 'master' && req.user.normRole !== 'master') {
       return res.status(403).json({ error: "Apenas um administrador master pode criar outros administradores master." });
+    }
+
+    // Enforce license user limits
+    if (req.user.role !== 'master') {
+       const { count } = await supabase
+         .from("users")
+         .select("*", { count: 'exact', head: true })
+         .eq("company_id", req.user.company_id);
+         
+       const { data: subscription } = await supabase
+        .from("saas_subscriptions")
+        .select("*, saas_plans(user_limit)")
+        .eq("company_id", req.user.company_id)
+        .single();
+        
+       // Fallback to 1 if not found or no subscription
+       const limit = subscription?.saas_plans?.user_limit || 1;
+       
+       if ((count || 0) >= limit) {
+         return res.status(403).json({ error: `O limite de ${limit} utilizadores para o seu plano foi atingido. Por favor, actualize a licença.` });
+       }
     }
 
     const hashedPassword = bcrypt.hashSync(password, 10);
@@ -998,23 +1611,53 @@ async function startServer() {
       .from("users")
       .insert([{
         company_id: req.user.company_id,
+        branch_id: req.user.branch_id,
         name,
         email,
         password: hashedPassword,
-        role
+        role,
+        permissions: req.body.permissions || {}
       }])
-      .select("id, name, email, role")
+      .select("id, name, email, role, permissions")
       .single();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      console.error('❌ [CREATE USER] Erro ao cadastrar no Supabase:', error);
+      return res.status(500).json({ error: error.message });
+    }
 
     // Log user creation
     await logActivity(req, 'CREATE', 'USER', `Utilizador ${name} (${email}) criado com perfil ${role}.`, { email, role });
 
     res.json(data);
   });
+ 
+  app.put("/api/users/:id", authenticate, canManageUsers, async (req: any, res) => {
+    const { id } = req.params;
+    const { permissions, name, role } = req.body;
+ 
+    const updatePayload: any = {};
+    if (permissions) updatePayload.permissions = permissions;
+    if (name) updatePayload.name = name;
+    if (role) updatePayload.role = role;
+ 
+    const { data, error } = await supabase
+      .from("users")
+      .update(updatePayload)
+      .eq("id", id)
+      .eq("company_id", req.user.company_id)
+      .select("id, name, email, role, permissions")
+      .single();
+ 
+    if (error) return res.status(500).json({ error: error.message });
+ 
+    // Log the update
+    await logActivity(req, 'UPDATE', 'USER', `Utilizador ID ${id} actualizado.`, updatePayload);
+ 
+    res.json(data);
+  });
 
-  app.delete("/api/users/:id", authenticate, isAdmin, async (req: any, res) => {
+  app.delete("/api/users/:id", authenticate, canManageUsers, async (req: any, res) => {
     // Prevent self-deletion
     if (req.params.id === req.user.id) {
       return res.status(400).json({ error: "Você não pode apagar sua própria conta." });
@@ -1049,11 +1692,13 @@ async function startServer() {
       .from("saas_subscriptions")
       .select("*, saas_plans(*)")
       .eq("company_id", req.user.company_id)
-      .eq("status", "active")
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (error || !subscription) return res.status(404).json({ error: "Nenhuma assinatura ativa encontrada." });
-    res.json(subscription);
+    if (error) return res.status(500).json({ error: error.message });
+    // Return null subscription gracefully instead of 404
+    res.json(subscription || { status: 'pending', saas_plans: null });
   });
 
   app.put("/api/company/profile", authenticate, async (req: any, res) => {
@@ -1610,7 +2255,7 @@ async function startServer() {
 
     let branchId = req.user.branch_id;
     if (!branchId) {
-      console.log(`[Venda] Utilizador ${req.user.email} sem branch_id. À procura de filial...`);
+      console.log(`[Venda] Utilizador ${req.user.email} sem branch_id. í€ procura de filial...`);
       let { data: branch } = await supabase.from("branches").select("id").eq("company_id", req.user.company_id).limit(1).maybeSingle();
 
       if (!branch) {
@@ -1628,7 +2273,7 @@ async function startServer() {
     }
 
     if (!branchId) {
-      console.error(`[Venda] ERRO CRÍTICO: Não foi possível determinar branchId para utilizador ${req.user.email} (Empresa: ${req.user.company_id})`);
+      console.error(`[Venda] ERRO CRíTICO: Não foi possível determinar branchId para utilizador ${req.user.email} (Empresa: ${req.user.company_id})`);
       return res.status(400).json({
         error: "Erro de configuração: Seu utilizador não tem uma filial associada.",
         details: "Isso pode ocorrer se a configuração do servidor (Service Role Key) estiver incorreta ou se os dados foram reparados recentemente.",
@@ -1636,27 +2281,25 @@ async function startServer() {
       });
     }
 
-    // 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata Fetching
+    // [START] PERFORMANCE OPTIMIZATION: Cached & Parallel Metadata Fetching
     const [
       { data: openRegister },
       { data: lastSaleForHash },
-      { data: companyData },
-      { data: config },
-      { data: keys }
+      metadata
     ] = await Promise.all([
       supabase.from("cash_registers").select("id").eq("company_id", req.user.company_id).eq("user_id", req.user.id).eq("status", "open").maybeSingle(),
       supabase.from("sales").select("hash").eq("company_id", req.user.company_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("companies").select("nif").eq("id", req.user.company_id).single(),
-      supabase.from('agt_configs').select('cert_number').eq('company_id', req.user.company_id).maybeSingle(),
-      supabase.from('agt_keys').select('private_key').eq('company_id', req.user.company_id).eq('is_active', true).maybeSingle()
+      getCachedMetadata(req.user.company_id)
     ]);
+
+    const { companyData, config, keys } = metadata;
 
     const companyNif = companyData?.nif || '999999999';
     const prevHash = lastSaleForHash?.hash || '';
     const hashDate = new Date().toISOString().split('T')[0];
     const systemEntryDate = new Date().toISOString().replace('Z', '').substring(0, 19);
 
-    // Sign using RSA 2048 (New AGT Compliance) - 🚀 Optimized: No internal DB call
+    // Sign using RSA 2048 (New AGT Compliance) - [START] Optimized: No internal DB call
     const currentHash = signDocumentRSA(keys?.private_key, hashDate, systemEntryDate, invoice_number, total, prevHash);
 
     const certNo = config?.cert_number || '0000/AGT/2026';
@@ -1664,10 +2307,10 @@ async function startServer() {
     const cert_phrase = `${verb} por programa validado n.º ${certNo}/AGT`;
 
     try {
-      // 1. Create Sale
-      const { data: saleData, error: saleError } = await supabase
-        .from("sales")
-        .insert([{
+      // 🚀 PERFORMANCE OPTIMIZATION: Atomic RPC Transaction
+      // This consolidated call replaces multiple sequential database round-trips.
+      const { data: saleId, error: rpcError } = await supabase.rpc('create_sale_with_items', {
+        p_data: {
           company_id: req.user.company_id,
           branch_id: branchId,
           user_id: req.user.id,
@@ -1676,7 +2319,6 @@ async function startServer() {
           customer_nif: req.body.customer_nif || '',
           customer_name: req.body.customer_name || 'Consumidor Final',
           total,
-
           subtotal,
           tax,
           amount_paid: is_pro_forma ? 0 : amount_paid,
@@ -1688,35 +2330,22 @@ async function startServer() {
           exemption_reason: is_exempt ? exemption_reason : null,
           status,
           invoice_number,
-          // AGT Compliance fields
           hash: currentHash,
           prev_hash: prevHash,
           agt_phrase: cert_phrase,
           is_certified: true
-        }])
-        .select("id")
-        .single();
+        },
+        p_items: items
+      });
 
-      if (saleError) {
-        console.error('❌ Erro Supabase ao inserir venda:', saleError);
-        return res.status(500).json({ error: `Erro na BD: ${saleError.message}`, details: saleError });
+      if (rpcError) {
+        console.error('❌ RPC Sale Error:', rpcError);
+        return res.status(500).json({ error: `Erro Atómico: ${rpcError.message}` });
       }
-      const saleId = saleData.id;
 
-      console.log(`[Venda] Preparando saleItems para inserir. Total itens: ${items.length}`);
-      const saleItems = items.map((item: any) => ({
-        company_id: req.user.company_id,
-        sale_id: saleId,
-        product_id: item.id,
-        quantity: item.quantity,
-        unit_price: item.sale_price,
-        subtotal: item.quantity * item.sale_price
-      }));
+      const saleIdNum = saleId;
 
-      const { error: itemsError } = await supabase.from("sale_items").insert(saleItems);
-      if (itemsError) throw itemsError;
-
-      // 2. 🚀 PERFORMANCE OPTIMIZATION: Update stock & balance ONLY if NOT Pro Forma
+      // 2. [START] PERFORMANCE OPTIMIZATION: Update stock & balance ONLY if NOT Pro Forma
       if (!is_pro_forma) {
         // Parallel stock updates
         const stockTasks = items.map(async (item: any) => {
@@ -1737,11 +2366,16 @@ async function startServer() {
           })();
         }
 
-        // Fire all stock and balance updates in parallel
-        await Promise.allSettled([...stockTasks, balanceTask].filter(Boolean));
+        // Fire all stock and balance updates in background (Performance Optimization)
+        Promise.allSettled([...stockTasks, balanceTask].filter(Boolean)).then(results => {
+          const failures = results.filter(r => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.error('[Venda] Erro em segundo plano ao atualizar stock/saldo:', failures);
+          }
+        });
       }
 
-      // INTEGRAÇÃO AGT: Envia fatura em background se auto_send = true
+      // INTEGRAí‡íƒO AGT: Envia fatura em background se auto_send = true
       onInvoiceCreated({
         id: saleId,
         company_id: req.user.company_id,
@@ -1766,7 +2400,7 @@ async function startServer() {
 
       res.json({ id: saleId, invoice_number, hash: currentHash, cert_phrase });
     } catch (err: any) {
-      console.error('❌ Erro inesperado ao processar venda:', err);
+      console.error('âŒ Erro inesperado ao processar venda:', err);
       res.status(500).json({ error: err.message || "Erro ao processar venda" });
     }
   });
@@ -1861,7 +2495,7 @@ async function startServer() {
       // Log cancellation
       await logActivity(req, 'CANCEL', 'SALE', `Venda ${sale.invoice_number} anulada via ${document_number}. Motivo: ${reason}`, { sale_id: id, nc_number: document_number });
 
-      // INTEGRAÇÃO AGT: Envia Nota de Crédito
+      // INTEGRAí‡íƒO AGT: Envia Nota de Crédito
       onInvoiceCreated({
         id: id, // ID da venda original (ou criar registro de NC se houver tabela própria)
         company_id: req.user.company_id,
@@ -1993,7 +2627,7 @@ async function startServer() {
         document_number = `RE-${Date.now()}`;
       }
 
-      // 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata for Receipts
+      // [START] PERFORMANCE OPTIMIZATION: Parallel Metadata for Receipts
       const [
         { data: lastPaymentForHash },
         { data: companyData },
@@ -2011,7 +2645,7 @@ async function startServer() {
       const hashDate = new Date().toISOString().split('T')[0];
       const systemEntryDate = new Date().toISOString().replace('Z', '').substring(0, 19);
 
-      // Sign using RSA 2048 (New AGT Compliance) - 🚀 Optimized
+      // Sign using RSA 2048 (New AGT Compliance) - [START] Optimized
       const currentHash = signDocumentRSA(keys?.private_key, hashDate, systemEntryDate, document_number, amount, prevHash);
 
       const certNo = config?.cert_number || '0000/AGT/2026';
@@ -2228,7 +2862,7 @@ async function startServer() {
   });
 
 
-  // --- MÓDULO FARMÁCIA APIs ---
+  // --- Mí“DULO FARMíCIA APIs ---
 
   app.get("/api/farmacia/medicamentos", authenticate, checkFeature('pharmacy'), async (req: any, res) => {
     const { data: medicamentos, error } = await supabase
@@ -2621,7 +3255,7 @@ async function startServer() {
       if (!vendas) return res.json([]);
 
       // Agregação manual
-      console.log(`📊 [Relatório Farmácia] Processando ${vendas.length} vendas.`);
+      console.log(`[DIAGNOSTIC] [Relatório Farmácia] Processando ${vendas.length} vendas.`);
 
       const grouped = vendas.reduce((acc: any, venda: any) => {
         const userId = venda.vendedor_id || 'vendedor_desconhecido';
@@ -2652,11 +3286,11 @@ async function startServer() {
       }, {});
 
       const result = Object.values(grouped).sort((a: any, b: any) => b.total_amount - a.total_amount);
-      console.log(`✅ [Relatório Farmácia] Enviando stats de ${result.length} funcionários.`);
+      console.log(`[OK] [Relatório Farmácia] Enviando stats de ${result.length} funcionários.`);
       res.json(result);
 
     } catch (err: any) {
-      console.error('❌ Erro no relatório de farmácia:', err.message);
+      console.error('âŒ Erro no relatório de farmácia:', err.message);
       res.status(500).json({ error: err.message });
     }
   });
@@ -2696,7 +3330,7 @@ async function startServer() {
       numero_factura = `FR-FARM-${Date.now()}`;
     }
 
-    // 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata for Pharmacy
+    // [START] PERFORMANCE OPTIMIZATION: Parallel Metadata for Pharmacy
     const [
       { data: lastPharmSale },
       { data: companyData },
@@ -2716,13 +3350,13 @@ async function startServer() {
     const hashDate = new Date().toISOString().split('T')[0];
     const systemEntryDate = new Date().toISOString().replace('Z', '').substring(0, 19);
 
-    // Sign using RSA 2048 (New AGT Compliance) - 🚀 Optimized
+    // Sign using RSA 2048 (New AGT Compliance) - [START] Optimized
     const currentHash = signDocumentRSA(keys?.private_key, hashDate, systemEntryDate, numero_factura, total, prevHash);
 
     const certNo = config?.cert_number || '0000/AGT/2026';
     const cert_phrase = `Processado por programa validado n.º ${certNo}/AGT`;
 
-    let branchId = branchResult?.data?.id;
+    let branchId = branchResult?.id;
 
     // Create sale record
     const { data: venda, error: vendaError } = await supabase
@@ -2751,11 +3385,11 @@ async function startServer() {
       .single();
 
     if (vendaError) {
-      console.error('❌ Erro Supabase ao inserir venda farmácia:', vendaError);
+      console.error('âŒ Erro Supabase ao inserir venda farmácia:', vendaError);
       return res.status(500).json({ error: `Erro na BD Farmácia: ${vendaError.message}`, details: vendaError });
     }
 
-    // 🚀 PERFORMANCE OPTIMIZATION: Refactored FIFO Loop to remove sequential DB calls
+    // [START] PERFORMANCE OPTIMIZATION: Refactored FIFO Loop to remove sequential DB calls
     const lotUpdates: Promise<any>[] = [];
     const vendaItems: any[] = [];
     const movimentos: any[] = [];
@@ -2785,7 +3419,7 @@ async function startServer() {
         lotUpdates.push(
           supabase.from("lotes_medicamentos")
             .update({ quantidade_atual: lote.quantidade_atual - qtdDeducao })
-            .eq("id", lote.id)
+            .eq("id", lote.id) as any
         );
 
         const itemIva = (qtdDeducao * item.preco_unitario) * 0.14;
@@ -2819,14 +3453,14 @@ async function startServer() {
       }
     }
 
-    // 🚀 BATCH EXECUTION: Execute all pharmacy operations in parallel
+    // [START] BATCH EXECUTION: Execute all pharmacy operations in parallel
     await Promise.all([
       Promise.all(lotUpdates),
       supabase.from("itens_venda_farmacia").insert(vendaItems),
       supabase.from("movimentos_stock_farmacia").insert(movimentos)
     ]);
 
-    // INTEGRAÇÃO AGT: Envia venda de farmácia
+    // INTEGRAí‡íƒO AGT: Envia venda de farmácia
     onInvoiceCreated({
       id: venda.id,
       company_id: req.user.company_id,
@@ -2962,7 +3596,7 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // --- MOVIMENTOS & AJUSTES FARMÁCIA ---
+  // --- MOVIMENTOS & AJUSTES FARMíCIA ---
   app.get("/api/farmacia/movimentos", authenticate, async (req: any, res) => {
     const { data: movements, error } = await supabase
       .from("movimentos_stock_farmacia")
@@ -3008,7 +3642,7 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // --- FIM MÓDULO FARMÁCIA APIs ---
+  // --- FIM Mí“DULO FARMíCIA APIs ---
 
 
   // Reports
@@ -3239,7 +3873,7 @@ async function startServer() {
     }
   });
 
-  // --- MÓDULO RECURSOS HUMANOS APIs ---
+  // --- Mí“DULO RECURSOS HUMANOS APIs ---
 
   // Partners Locations & Hours API
   app.get("/api/public/partners", async (req, res) => {
@@ -3890,7 +4524,7 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // --- FIM MÓDULO RECURSOS HUMANOS APIs ---
+  // --- FIM Mí“DULO RECURSOS HUMANOS APIs ---
 
   // --- PROCUREMENT & INVENTORY APIs ---
   app.get("/api/purchase-orders", authenticate, async (req: any, res) => {
@@ -4060,13 +4694,22 @@ async function startServer() {
   // --- Investment Applications (Bolsa de Valores) ---
   app.get('/api/applications', authenticate, async (req: any, res) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('investimentos')
         .select(`
           *,
           investidores (nome)
-        `)
-        .eq('company_id', req.user.company_id);
+        `);
+      
+      // Se for investidor, filtrar estritamente pelos dele
+      if (req.user.role === 'investor') {
+        query = query.eq('investidor_id', req.user.id);
+      } else {
+        // Se for admin, filtrar pela empresa
+        query = query.eq('company_id', req.user.company_id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       res.json(data);
     } catch (err: any) {
@@ -4088,8 +4731,93 @@ async function startServer() {
     }
   });
 
+  app.put('/api/applications/:id', authenticate, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      // Sanitizar req.body para evitar atualizar campos de sistema se enviados
+      const { id: bodyId, company_id: bodyCId, created_at, ...updateData } = req.body;
+      
+      const { data, error } = await supabase
+        .from('investimentos')
+        .update(updateData)
+        .eq('id', id)
+        .eq('company_id', req.user.company_id)
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/applications/:id/records', authenticate, async (req: any, res) => {
+    try {
+      const { error } = await supabase
+        .from('investimentos_lancamentos')
+        .delete()
+        .eq('investimento_id', req.params.id)
+        .eq('company_id', req.user.company_id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/applications/records/all', authenticate, async (req: any, res) => {
+    try {
+      // OPTIMIZAÇÃO: filtrar diretamente por company_id (1 query em vez de 2)
+      const { data, error } = await supabase
+        .from('investimentos_lancamentos')
+        .select('*')
+        .eq('company_id', req.user.company_id)
+        .order('data', { ascending: true });
+
+      if (error) throw error;
+
+      // Fallback: se não houver resultados, significa que os registros antigos
+      // não têm company_id preenchido — usar join por investimento_id
+      if (!data || data.length === 0) {
+        const { data: invs } = await supabase
+          .from('investimentos')
+          .select('id')
+          .eq('company_id', req.user.company_id);
+        
+        const invIds = invs?.map((i: any) => i.id) || [];
+        if (invIds.length === 0) return res.json([]);
+
+        const { data: fallbackData, error: fErr } = await supabase
+          .from('investimentos_lancamentos')
+          .select('*')
+          .in('investimento_id', invIds)
+          .order('data', { ascending: true });
+          
+        if (fErr) throw fErr;
+        return res.json(fallbackData || []);
+      }
+
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/applications/:id/records', authenticate, async (req: any, res) => {
     try {
+      // Se for investidor, verificar se o investimento pertence a ele antes de dar os records
+      if (req.user.role === 'investor') {
+        const { data: check } = await supabase
+          .from('investimentos')
+          .select('investidor_id')
+          .eq('id', req.params.id)
+          .single();
+        
+        if (!check || check.investidor_id !== req.user.id) {
+          return res.status(403).json({ error: "Acesso negado a este investimento." });
+        }
+      }
+
       const { data, error } = await supabase
         .from('investimentos_lancamentos')
         .select('*')
@@ -4102,50 +4830,88 @@ async function startServer() {
     }
   });
 
+  // BATCH INSERT: Otimização de consolidação
+  app.post('/api/applications/records/batch', authenticate, async (req: any, res) => {
+    try {
+      const records = req.body.records || [];
+      if (records.length === 0) return res.json({ success: true, count: 0 });
+
+      // Injetar company_id em todos os registros
+      const enrichedRecords = records.map((r: any) => ({
+        ...r,
+        company_id: req.user.company_id
+      }));
+
+      const { data, error } = await supabase
+        .from('investimentos_lancamentos')
+        .insert(enrichedRecords)
+        .select();
+
+      if (error) throw error;
+      res.json({ success: true, count: data?.length || 0 });
+    } catch (err: any) {
+      console.error('[BATCH API ERROR]:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/applications/records', authenticate, async (req: any, res) => {
     try {
-      const { investimento_id, tipo, valor, data, descricao } = req.body;
-
-      // 1. Insert the new record
-      const { data: newRecord, error: recordError } = await supabase
+      const { data, error } = await supabase
         .from('investimentos_lancamentos')
-        .insert([{
-          investimento_id,
-          tipo,
-          valor,
-          data,
-          descricao,
-          company_id: req.user.company_id
-        }])
+        .insert([{ ...req.body, company_id: req.user.company_id }])
         .select()
         .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
-      if (recordError) throw recordError;
+    // NEW: Manage single record
+    app.put('/api/applications/records/single/:id', authenticate, async (req: any, res) => {
+      try {
+        const { data, error } = await supabase
+          .from('investimentos_lancamentos')
+          .update({ ...req.body })
+          .eq('id', req.params.id)
+          .eq('company_id', req.user.company_id)
+          .select()
+          .single();
 
-      // 2. Update the total_amount in the parent 'investimentos' table
-      const { data: investment, error: invError } = await supabase
-        .from('investimentos')
-        .select('total_amount')
-        .eq('id', investimento_id)
-        .single();
-
-      if (invError) throw invError;
-
-      let newTotalAmount = investment.total_amount;
-      if (tipo === 'entrada') {
-        newTotalAmount += valor;
-      } else if (tipo === 'saida') {
-        newTotalAmount -= valor;
+        if (error) throw error;
+        res.json(data);
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
       }
+    });
 
-      const { error: updateError } = await supabase
-        .from('investimentos')
-        .update({ total_amount: newTotalAmount })
-        .eq('id', investimento_id);
+    app.delete('/api/applications/records/single/:id', authenticate, async (req: any, res) => {
+      try {
+        const { error } = await supabase
+          .from('investimentos_lancamentos')
+          .delete()
+          .eq('id', req.params.id)
+          .eq('company_id', req.user.company_id);
 
-      if (updateError) throw updateError;
+        if (error) throw error;
+        res.json({ success: true });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
 
-      res.json(newRecord);
+  app.delete('/api/applications/:id/records', authenticate, async (req: any, res) => {
+    try {
+      const { error } = await supabase
+        .from('investimentos_lancamentos')
+        .delete()
+        .eq('investimento_id', req.params.id)
+        .eq('company_id', req.user.company_id);
+      
+      if (error) throw error;
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -4193,7 +4959,7 @@ async function startServer() {
         .from("companies")
         .select(`
           *,
-          saas_subscriptions!company_id (
+          saas_subscriptions (
             status,
             saas_plans (name)
           )
@@ -4268,6 +5034,100 @@ async function startServer() {
 
   // --- FIM PROCUREMENT & INVENTORY APIs ---
 
+  // --- Gestão de Aplicações Financeiras (Bolsa de Valores) ---
+  app.get('/api/investments/investors', authenticate, async (req: any, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('investidores')
+        .select('*')
+        .eq('company_id', req.user.company_id)
+        .order('numero_sequencial', { ascending: true });
+      if (error) throw error;
+      res.json(data || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/investments/investors', authenticate, async (req: any, res) => {
+    try {
+      // Obter o próximo níºmero sequencial para este investidor
+      const { data: lastInv } = await supabase
+        .from('investidores')
+        .select('numero_sequencial')
+        .eq('company_id', req.user.company_id)
+        .order('numero_sequencial', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextNum = (lastInv?.numero_sequencial || 0) + 1;
+
+      const { data, error } = await supabase
+        .from('investidores')
+        .insert([{ 
+          ...req.body, 
+          company_id: req.user.company_id,
+          numero_sequencial: nextNum
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/investments/investors/:id', authenticate, async (req: any, res) => {
+    try {
+      const { password, id: bodyId, company_id: bodyCompanyId, created_at, ...cleanData } = req.body;
+      
+      const updatePayload: any = { ...cleanData, company_id: req.user.company_id };
+      if (password && password.trim() !== '') {
+        updatePayload.password = password.trim();
+      }
+
+      console.log(`[INVESTORS] Updating investor ${req.params.id} for company ${req.user.company_id}:`, JSON.stringify({ ...updatePayload, foto: updatePayload.foto ? '[TRUNCATED]' : null }, null, 2));
+
+      const { data, error, status, statusText } = await supabase
+        .from('investidores')
+        .update(updatePayload)
+        .eq('id', req.params.id)
+        .eq('company_id', req.user.company_id)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.error(`[INVESTORS] Supabase Error (${status} - ${statusText}):`, error);
+        throw error;
+      }
+
+      if (!data) {
+        console.warn(`[INVESTORS] No rows affected for ID ${req.params.id}`);
+        return res.status(404).json({ error: 'Investidor não encontrado ou sem permissão.' });
+      }
+
+      console.log(`[INVESTORS] Update Successful:`, data.id);
+      res.json(data);
+    } catch (err: any) {
+      console.error(`[INVESTORS] Erro na atualização [${req.params.id}]:`, err.message || err);
+      res.status(500).json({ error: err.message || 'Internal Server Error' });
+    }
+  });
+
+  app.delete('/api/investments/investors/:id', authenticate, async (req: any, res) => {
+    try {
+       const { error } = await supabase
+         .from('investidores')
+         .delete()
+         .eq('id', req.params.id);
+       if (error) throw error;
+       res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- SYSTEM CONFIGURATION ---
   app.get("/api/system/config", async (req, res) => {
     try {
@@ -4311,10 +5171,10 @@ async function startServer() {
   // Certified Document Generation (Universal)
   app.post('/api/documents', authenticate, async (req: any, res: any) => {
     const { type, items, customer_name, customer_id, metadata, company_id, is_exempt, exemption_reason } = req.body;
-    console.log('📄 [DOCS] Início de emissão:', { type, customer_name, customer_id, company_id });
+    console.log('ðŸ“„ [DOCS] Início de emissão:', { type, customer_name, customer_id, company_id });
 
     if (!type || !items || !customer_name) {
-      console.log('⚠️ [DOCS] Campos em falta:', { type, items_len: items?.length, customer_name });
+      console.log('[WARN] [DOCS] Campos em falta:', { type, items_len: items?.length, customer_name });
       return res.status(400).json({ error: 'Missing required fields (type, items, customer_name)' });
     }
 
@@ -4330,7 +5190,7 @@ async function startServer() {
       const effCompanyId = company_id || req.user.company_id;
 
       // 1. Get/Update Sequence
-      console.log('📄 [DOCS] Verificando série:', { doc_type, series_name });
+      console.log('ðŸ“„ [DOCS] Verificando série:', { doc_type, series_name });
       let { data: bSeries, error: sError } = await supabase
         .from('billing_series')
         .select('*')
@@ -4340,17 +5200,17 @@ async function startServer() {
         .single();
 
       if (sError && sError.code !== 'PGRST116') {
-        console.log('❌ [DOCS] Erro na série:', sError);
+        console.log('âŒ [DOCS] Erro na série:', sError);
         throw sError;
       }
 
       let nextNum = 1;
       if (bSeries) {
         nextNum = (bSeries.last_number || 0) + 1;
-        console.log('📄 [DOCS] Atualizando número para:', nextNum);
+        console.log('ðŸ“„ [DOCS] Atualizando níºmero para:', nextNum);
         await supabase.from('billing_series').update({ last_number: nextNum, updated_at: new Date().toISOString() }).eq('id', bSeries.id);
       } else {
-        console.log('📄 [DOCS] Criando nova série:', { doc_type, series_name });
+        console.log('ðŸ“„ [DOCS] Criando nova série:', { doc_type, series_name });
         await supabase.from('billing_series').insert({
           doc_type,
           series_name,
@@ -4362,8 +5222,8 @@ async function startServer() {
 
        const paddedNumber = String(nextNum).padStart(3, '0');
        const docNumber = `${doc_type}-${series_name}/${paddedNumber}`;
-       console.log('📄 [DOCS] Número gerado:', docNumber);
-       console.log('📄 [DOCS] doc_type:', doc_type, '| type recebido:', type);
+       console.log('ðŸ“„ [DOCS] Níºmero gerado:', docNumber);
+       console.log('ðŸ“„ [DOCS] doc_type:', doc_type, '| type recebido:', type);
 
       // 2. Calculate Totals (Safely)
       const subtotal = items.reduce((acc: number, i: any) => {
@@ -4373,9 +5233,9 @@ async function startServer() {
 
       const iva = is_exempt ? 0 : subtotal * 0.14;
       const finalTotal = subtotal + (isNaN(iva) ? 0 : iva);
-      console.log('📄 [DOCS] Totais:', { subtotal, iva, finalTotal });
+      console.log('ðŸ“„ [DOCS] Totais:', { subtotal, iva, finalTotal });
 
-      // 3. Security Hash - 🚀 PERFORMANCE OPTIMIZATION: Parallel Metadata
+      // 3. Security Hash - [START] PERFORMANCE OPTIMIZATION: Parallel Metadata
       const [
         { data: lastDoc },
         { data: companyData },
@@ -4410,7 +5270,7 @@ async function startServer() {
         // FAC, NC, ND
          if (paid >= finalTotal) docStatus = 'PAGO';
          else if (paid > 0) docStatus = 'PARCIAL';
-         else docStatus = 'EM DÍVIDA';
+         else docStatus = 'EM DíVIDA';
       }
 
       // Cálculo de vencimento padrão (30 dias)
@@ -4442,19 +5302,19 @@ async function startServer() {
         }
       };
 
-      console.log('📄 [DOCS] Dados para inserção:', JSON.stringify(insertData, null, 2));
-      console.log('📄 [DOCS] Inserindo no Supabase...');
+      console.log('ðŸ“„ [DOCS] Dados para inserção:', JSON.stringify(insertData, null, 2));
+      console.log('ðŸ“„ [DOCS] Inserindo no Supabase...');
       
       // Debug: Check table structure first
-      console.log('📄 [DOCS] A verificar tabela contabil_faturas...');
+      console.log('ðŸ“„ [DOCS] A verificar tabela contabil_faturas...');
       const { data: tableCheck, error: tableError } = await supabase
         .from('contabil_faturas')
         .select('id')
         .limit(1);
-      console.log('📄 [DOCS] Verificação da tabela:', { tableCheck, tableError });
+      console.log('ðŸ“„ [DOCS] Verificação da tabela:', { tableCheck, tableError });
       
       const { data: doc, error: dError } = await supabase.from('contabil_faturas').insert(insertData).select().single();
-      console.log('📄 [DOCS] Resultado da inserção:', { doc, dError });
+      console.log('ðŸ“„ [DOCS] Resultado da inserção:', { doc, dError });
 
       if (doc && paid > 0) {
         // Registar histórico inicial
@@ -4468,7 +5328,7 @@ async function startServer() {
       }
 
       if (dError) {
-        console.log('❌ [DOCS] Erro detalhado na inserção:', JSON.stringify(dError, null, 2));
+        console.log('âŒ [DOCS] Erro detalhado na inserção:', JSON.stringify(dError, null, 2));
         
         // Try minimal fallback with only basic columns
         const basicData = {
@@ -4481,15 +5341,15 @@ async function startServer() {
           tipo: type
         };
         
-        console.log('⚠️ [DOCS] Tentando inserção com dados básicos...');
+        console.log('[WARN] [DOCS] Tentando inserção com dados básicos...');
         const { data: docF, error: dErrorF } = await supabase.from('contabil_faturas').insert(basicData).select().single();
         
         if (dErrorF) {
-          console.error('❌ [DOCS] Erro na inserção mínima:', dErrorF);
+          console.error('âŒ [DOCS] Erro na inserção mínima:', dErrorF);
           throw dErrorF;
         }
         
-        console.log('✅ [DOCS] Documento inserido com dados básicos:', docF.numero_fatura);
+        console.log('[OK] [DOCS] Documento inserido com dados básicos:', docF.numero_fatura);
         
         // Try to add optional fields one by one
         const optionalUpdates: any = {};
@@ -4500,7 +5360,7 @@ async function startServer() {
         if (insertData.metadata) optionalUpdates.metadata = insertData.metadata;
         
         if (Object.keys(optionalUpdates).length > 0) {
-          console.log('⚠️ [DOCS] A tentar adicionar campos opcionais...');
+          console.log('[WARN] [DOCS] A tentar adicionar campos opcionais...');
           await supabase.from('contabil_faturas').update(optionalUpdates).eq('id', docF.id);
         }
         
@@ -4509,7 +5369,7 @@ async function startServer() {
         return res.json({ success: true, doc: updatedDoc, cert_phrase });
       }
 
-      console.log('✅ [DOCS] Documento emitido com sucesso:', doc.numero_fatura);
+      console.log('[OK] [DOCS] Documento emitido com sucesso:', doc.numero_fatura);
 
       // --- ACCOUNTING INTEGRATION ---
       try {
@@ -4542,7 +5402,7 @@ async function startServer() {
             ]);
           }
 
-          // 2. Pagamento Imediato (FR ou Pagamento à cabeça)
+          // 2. Pagamento Imediato (FR ou Pagamento í  cabeça)
           if (paid > 0) {
             const { data: pLnc } = await supabase.from('acc_lancamentos').insert({
               company_id: effCompanyId,
@@ -4563,20 +5423,20 @@ async function startServer() {
           }
         }
       } catch (accErr) {
-        console.error('⚠️ [DOCS] Erro na integração contabilística:', accErr);
+        console.error('[WARN] [DOCS] Erro na integração contabilística:', accErr);
       }
 
       return res.json({ success: true, doc, cert_phrase });
 
       if (!doc) {
-        console.log('❌ [DOCS] Documento retornado nulo');
+        console.log('âŒ [DOCS] Documento retornado nulo');
         throw new Error("Erro ao confirmar criação do documento no banco.");
       }
 
       // 5. Async Logging
       logActivity(req, 'CREATE', 'contabil_faturas', `Documento ${docNumber} emitido.`, { doc_id: doc.id, type });
 
-      // INTEGRAÇÃO AGT: Envia fatura em background se auto_send = true
+      // INTEGRAí‡íƒO AGT: Envia fatura em background se auto_send = true
       onInvoiceCreated({
         id: doc.id,
         company_id: req.user.company_id,
@@ -4588,10 +5448,10 @@ async function startServer() {
         is_pro_forma: doc.type === 'Proforma' || doc.type === 'Proforma (PP)'
       });
 
-      console.log('✅ [DOCS] Sucesso:', docNumber);
+      console.log('[OK] [DOCS] Sucesso:', docNumber);
       res.json(doc);
     } catch (err: any) {
-      console.error('❌ [DOCS] Erro fatal:', err);
+      console.error('âŒ [DOCS] Erro fatal:', err);
       res.status(500).json({ error: err.message || 'Erro interno ao processar documento' });
     }
   });
@@ -4673,7 +5533,7 @@ async function startServer() {
           }
         }
       } catch (accErr) {
-        console.error('⚠️ [PAY] Erro na integração contabilística:', accErr);
+        console.error('[WARN] [PAY] Erro na integração contabilística:', accErr);
       }
 
       logActivity(req, 'PAYMENT', 'contabil_faturas', `Pagamento de ${amount} registado para ${doc.numero_fatura}. Novo Saldo: ${newDebt}`, { doc_id: id, amount });
@@ -4749,14 +5609,14 @@ async function startServer() {
           }
         });
 
-        console.log(`📄 [RE] Gerado com sucesso: ${reNumber} para doc ${doc.numero_fatura}`);
+        console.log(`ðŸ“„ [RE] Gerado com sucesso: ${reNumber} para doc ${doc.numero_fatura}`);
       } catch (reErr) {
-        console.error('⚠️ [RE] Erro ao gerar recibo certificado:', reErr);
+        console.error('[WARN] [RE] Erro ao gerar recibo certificado:', reErr);
       }
 
       res.json({ success: true, new_status: newStatus, new_debt: newDebt });
     } catch (err: any) {
-      console.error('❌ [PAY] Erro ao registar pagamento:', err);
+      console.error('âŒ [PAY] Erro ao registar pagamento:', err);
       res.status(500).json({ error: err.message || 'Erro ao processar pagamento' });
     }
   });
@@ -4767,7 +5627,7 @@ async function startServer() {
     const effCompanyId = req.user.company_id;
 
     try {
-      console.log(`📄 [DOCS] Anulando documento ${id}...`);
+      console.log(`ðŸ“„ [DOCS] Anulando documento ${id}...`);
       const { data: doc, error: fError } = await supabase
         .from('contabil_faturas')
         .select('*')
@@ -4789,7 +5649,7 @@ async function startServer() {
 
       res.json({ success: true });
     } catch (err: any) {
-      console.error('❌ [DOCS] Erro ao anular:', err);
+      console.error('âŒ [DOCS] Erro ao anular:', err);
       res.status(500).json({ error: err.message || 'Erro ao anular documento' });
     }
   });
@@ -4821,7 +5681,7 @@ async function startServer() {
     }
   });
 
-  // --- NOVO: HISTÓRICO DE PAGAMENTOS ---
+  // --- NOVO: HISTí“RICO DE PAGAMENTOS ---
   app.get('/api/documents/:id/history', authenticate, async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -4866,63 +5726,7 @@ async function startServer() {
     }
   });
 
-  app.get('/api/applications', authenticate, async (req: any, res) => {
-    try {
-      const { data, error } = await supabase
-        .from('investimentos')
-        .select(`
-          *,
-          investidores (nome)
-        `)
-        .eq('company_id', req.user.company_id);
-      if (error) throw error;
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
-  app.post('/api/applications', authenticate, async (req: any, res) => {
-    try {
-      const { data, error } = await supabase
-        .from('investimentos')
-        .insert([{ ...req.body, company_id: req.user.company_id }])
-        .select()
-        .single();
-      if (error) throw error;
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get('/api/applications/:id/records', authenticate, async (req: any, res) => {
-    try {
-      const { data, error } = await supabase
-        .from('investimentos_lancamentos')
-        .select('*')
-        .eq('investimento_id', req.params.id)
-        .order('data', { ascending: true });
-      if (error) throw error;
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post('/api/applications/records', authenticate, async (req: any, res) => {
-    try {
-      const { data, error } = await supabase
-        .from('investimentos_lancamentos')
-        .insert([{ ...req.body, company_id: req.user.company_id }])
-        .select()
-        .single();
-      if (error) throw error;
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   app.get('/api/investments/results', authenticate, async (req: any, res) => {
     try {
@@ -4941,7 +5745,7 @@ async function startServer() {
     }
   });
 
-  // ── MÓDULO SAF-T (AOA) XML ────────────────────────────────────────────────
+  // â”€â”€ Mí“DULO SAF-T (AOA) XML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Módulo independente de geração do ficheiro SAF-T (AOA) XML
   registerSaftRoutes(app, authenticate);
 
@@ -4966,7 +5770,7 @@ async function startServer() {
 
   // Global Error Handler
   app.use((err: any, req: any, res: any, next: any) => {
-    console.error('🔥 [GLOBAL ERROR]:', err);
+    console.error('ðŸ”¥ [GLOBAL ERROR]:', err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   });
 }

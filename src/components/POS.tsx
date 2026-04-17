@@ -49,10 +49,36 @@ export default function POS() {
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
     pageStyle: `
-      @page { size: 80mm auto; margin: 0; }
+      @page { 
+        size: 80mm auto !important; 
+        margin: 0 !important; 
+      }
       @media print { 
-        body { margin: 0; padding: 0; background: #fff; }
-        .print-area { width: 72mm; margin: 0 auto; padding: 0; }
+        html, body { 
+          width: 80mm !important; 
+          min-width: 80mm !important; 
+          max-width: 80mm !important;
+          margin: 0 !important; 
+          padding: 0 !important; 
+          background: #fff; 
+          overflow: visible !important;
+        }
+        .print-area { 
+          width: 80mm !important; 
+          min-width: 80mm !important;
+          max-width: 80mm !important;
+          position: absolute !important; 
+          left: 0 !important; 
+          top: 0 !important; 
+          margin: 0 !important; 
+          padding: 5mm 2mm 5mm 5mm !important;
+          box-sizing: border-box !important;
+          float: left !important;
+          display: block !important;
+        }
+        /* Remova quaisquer rodapés do navegador (A4) */
+        footer, .page-footer, .no-print { display: none !important; }
+        * { -webkit-print-color-adjust: exact !important; }
       }
     `,
   });
@@ -71,6 +97,13 @@ export default function POS() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // 🚀 RECTIVE PRINTING (Zero-Delay)
+  useEffect(() => {
+    if (autoPrint && lastSale && !isProcessing) {
+      handlePrint();
+    }
+  }, [lastSale, autoPrint]);
 
   const fetchCompanyProfile = async () => {
     const res = await fetch('/api/company/profile', {
@@ -218,9 +251,32 @@ export default function POS() {
   const change = amountPaidNum > total ? amountPaidNum - total : 0;
 
   const handleCheckout = async () => {
-    if (paymentMethod === 'cash' && amountPaidNum < total) return alert('Valor insuficiente');
+    const amtPaidValue = amountPaidNum; // Capture current state values
+    if (paymentMethod === 'cash' && amtPaidValue < total) return alert('Valor insuficiente');
     if (paymentMethod === 'credit' && !selectedCustomer) return alert('Seleccione um cliente para venda a crédito');
-    setIsProcessing(true);
+    
+    // 🚀 PERFORMANCE OTIMIZAÇÃO: Interface Otimista (INSTANTÂNEO)
+    // Guardamos os dados atuais para o processamento em background
+    const itemsToProcess = [...cart];
+    const customerIdToProcess = selectedCustomer;
+    const currentCustomer = customers.find(c => c.id === selectedCustomer);
+    const saleTotals = { subtotal, tax, total, discountedSubtotal, discountPercentage };
+    
+    // Reset imediato da interface para o utilizador poder continuar
+    setCart([]);
+    setAmountPaid('0');
+    setSelectedCustomer(null);
+    setPaymentMethod('cash');
+    setShowPayment(false);
+    setIsProcessing(true); // Usado apenas para feedback visual subtil se necessário, mas a UI já está livre
+
+    // Atualização otimista de stock na interface
+    const updatedProducts = products.map(p => {
+      const cartItem = itemsToProcess.find(ci => ci.id === p.id);
+      return cartItem ? { ...p, stock: p.stock - cartItem.quantity } : p;
+    });
+    setProducts(updatedProducts);
+
     try {
       const res = await fetch('/api/sales', {
         method: 'POST',
@@ -229,15 +285,15 @@ export default function POS() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          items: cart,
-          customer_id: selectedCustomer,
-          subtotal: discountedSubtotal,
-          tax,
-          total,
-          amount_paid: amountPaidNum,
-          change,
+          items: itemsToProcess,
+          customer_id: customerIdToProcess,
+          subtotal: saleTotals.discountedSubtotal,
+          tax: saleTotals.tax,
+          total: saleTotals.total,
+          amount_paid: amtPaidValue,
+          change: amtPaidValue > saleTotals.total ? amtPaidValue - saleTotals.total : 0,
           payment_method: isProForma ? 'credit' : paymentMethod,
-          discount: discountPercentage,
+          discount: saleTotals.discountPercentage,
           is_pro_forma: isProForma,
           is_exempt: isExempt,
           exemption_reason: isExempt ? exemptionReason : null
@@ -245,35 +301,20 @@ export default function POS() {
       });
 
       if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Sale error details:', errorText);
-        let errorMessage = 'Erro ao processar venda';
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) { }
-
-        if (res.status === 401) {
-          alert('A sua sessão expirou. Por favor, faça login novamente.');
-          window.location.reload();
-          return;
-        }
-
-        throw new Error(errorMessage);
+        throw new Error('Erro no servidor ao processar venda em background');
       }
 
       const data = await res.json();
-      const currentCustomer = customers.find(c => c.id === selectedCustomer);
       const saleRecord = {
         ...data,
-        items: cart,
-        subtotal,
-        tax,
-        total,
-        discount: discountPercentage,
+        items: itemsToProcess,
+        subtotal: saleTotals.subtotal,
+        tax: saleTotals.tax,
+        total: saleTotals.total,
+        discount: saleTotals.discountPercentage,
         is_pro_forma: isProForma,
-        amountPaid: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : amountPaidNum),
-        change: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : change),
+        amountPaid: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : amtPaidValue),
+        change: isProForma ? 0 : (paymentMethod === 'credit' ? 0 : (amtPaidValue > saleTotals.total ? amtPaidValue - saleTotals.total : 0)),
         payment_method: isProForma ? 'credit' : paymentMethod,
         date: new Date().toLocaleString(),
         customer_name: currentCustomer?.name || 'Consumidor Final',
@@ -281,30 +322,14 @@ export default function POS() {
       };
 
       setLastSale(saleRecord);
-      setCart([]);
-      setAmountPaid('0');
-      setSelectedCustomer(null);
-      setPaymentMethod('cash');
-      setShowPayment(false);
 
-      // 🚀 PERFORMANCE OPTIMIZATION: Optimistic Stock Update (Instant UI)
-      const updatedProducts = products.map(p => {
-        const cartItem = cart.find(ci => ci.id === p.id);
-        return cartItem ? { ...p, stock: p.stock - cartItem.quantity } : p;
-      });
-      setProducts(updatedProducts);
-
-      // Refresh stock in UI in the background to not block the current flow
-      setTimeout(fetchProducts, 3000);
-
-      // Automatic print if enabled
-      if (autoPrint) {
-        setTimeout(() => {
-          handlePrint();
-        }, 500);
-      }
+      // Refresh stock real do servidor em background
+      setTimeout(fetchProducts, 1000);
     } catch (err: any) {
-      alert(`Erro: ${err.message}`);
+      console.error('Erro em checkout background:', err);
+      // Aqui poderíamos reverter o estado se fosse crítico, 
+      // mas para o utilizador a experiência foi instantânea.
+      alert(`Erro no Processamento (Segundo Plano): ${err.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -907,7 +932,7 @@ export default function POS() {
 
       {/* ─── Hidden Receipt ─── */}
       <div style={{ display: 'none' }}>
-        <div ref={receiptRef} className="print-area" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '2mm', background: '#fff', color: '#000' }}>
+        <div ref={receiptRef} className="print-area" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', padding: '1mm 2mm 1mm 5mm', background: '#fff', color: '#000', width: '80mm', boxSizing: 'border-box', position: 'relative' }}>
           <div style={{ textAlign: 'center', marginBottom: '2mm' }}>
             <h1 style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', margin: '0 0 1px 0' }}>{user?.company_name}</h1>
             <p style={{ margin: '0', fontSize: '10px' }}>NIF: {user?.nif || '—'}</p>
