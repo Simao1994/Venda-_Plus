@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Building2, Search, MoreVertical, XCircle, Edit2, Trash2 } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function Departments() {
-  const { token } = useAuth();
   const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -16,9 +16,7 @@ export default function Departments() {
 
   const fetchDepartments = async () => {
     try {
-      const res = await fetch('/api/hr/departments', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/hr/departments');
       const data = await res.json();
       setDepartments(data);
     } catch (error) {
@@ -31,17 +29,10 @@ export default function Departments() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingDept ? `/api/hr/departments/${editingDept.id}` : '/api/hr/departments';
-      const method = editingDept ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
+      const res = editingDept 
+        ? await api.put(`/api/hr/departments/${editingDept.id}`, formData)
+        : await api.post('/api/hr/departments', formData);
+
       if (res.ok) {
         setShowModal(false);
         setEditingDept(null);
@@ -56,10 +47,7 @@ export default function Departments() {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este departamento?')) return;
     try {
-      const res = await fetch(`/api/hr/departments/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.delete(`/api/hr/departments/${id}`);
       if (res.ok) fetchDepartments();
     } catch (error) {
       console.error('Error deleting department:', error);

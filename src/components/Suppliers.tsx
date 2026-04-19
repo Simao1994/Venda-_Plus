@@ -14,7 +14,7 @@ interface Supplier {
 }
 
 export default function Suppliers() {
-    const { token, user } = useAuth();
+    const { user } = useAuth();
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');

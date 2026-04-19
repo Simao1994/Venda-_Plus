@@ -6,9 +6,10 @@ import {
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import Calculator from '../ui/Calculator';
+import { api } from '../../lib/api';
 
 export default function PharmacyPOS() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [medicamentos, setMedicamentos] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -91,7 +92,7 @@ export default function PharmacyPOS() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch('/api/customers', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/customers');
       setCustomers(await res.json());
     } catch (err) { console.error('Error fetching customers:', err); }
   };
@@ -101,11 +102,7 @@ export default function PharmacyPOS() {
     if (!newCustomer.name) return;
     setIsCreatingCustomer(true);
     try {
-      const res = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(newCustomer),
-      });
+      const res = await api.post('/api/customers', newCustomer);
       if (!res.ok) throw new Error('Erro ao criar cliente');
       const saved = await res.json();
       setCustomers([...customers, saved]);
@@ -121,7 +118,7 @@ export default function PharmacyPOS() {
 
   const fetchMedicamentos = async () => {
     try {
-      const res = await fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/farmacia/medicamentos');
       setMedicamentos(await res.json());
     } finally { setLoading(false); }
   };
@@ -177,11 +174,7 @@ export default function PharmacyPOS() {
         valor_entregue: amountPaidNum,
         desconto: discountAmt,
       };
-      const res = await fetch('/api/farmacia/vendas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
+      const res = await api.post('/api/farmacia/vendas', payload);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Erro ao finalizar venda' }));
         throw new Error(err.error || 'Erro ao finalizar venda');

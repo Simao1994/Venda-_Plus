@@ -20,9 +20,10 @@ import {
   Area,
   ResponsiveContainer
 } from 'recharts';
+import { api } from '../lib/api';
 
 export default function MobileApp() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [currentModule, setCurrentModule] = useState<'geral' | 'farmacia'>('geral');
 
@@ -43,9 +44,9 @@ export default function MobileApp() {
     try {
       if (currentModule === 'geral') {
         const [statsRes, prodRes, salesRes] = await Promise.all([
-          fetch('/api/dashboard/stats', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/sales', { headers: { Authorization: `Bearer ${token}` } })
+          api.get('/api/dashboard/stats'),
+          api.get('/api/products'),
+          api.get('/api/sales')
         ]);
 
         const [statsData, prodData, salesData] = await Promise.all([
@@ -59,9 +60,9 @@ export default function MobileApp() {
         setRecentSales(salesData.slice(0, 20));
       } else {
         const [statsRes, prodRes, salesRes] = await Promise.all([
-          fetch('/api/farmacia/stats', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/farmacia/vendas', { headers: { Authorization: `Bearer ${token}` } })
+          api.get('/api/farmacia/stats'),
+          api.get('/api/farmacia/medicamentos'),
+          api.get('/api/farmacia/vendas')
         ]);
 
         const [statsData, prodData, salesData] = await Promise.all([

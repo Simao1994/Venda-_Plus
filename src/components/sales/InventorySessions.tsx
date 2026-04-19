@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../lib/api';
 import {
     ClipboardList, Plus, Search, Filter, Play, CheckCircle2,
     XCircle, AlertCircle, Save, ArrowRight, History, Package
 } from 'lucide-react';
 
 export default function InventorySessions() {
-    const { token, user } = useAuth();
+    const { user } = useAuth();
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showNewModal, setShowNewModal] = useState(false);
@@ -22,9 +23,7 @@ export default function InventorySessions() {
 
     const fetchSessions = async () => {
         try {
-            const res = await fetch('/api/inventory/sessions', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/api/inventory/sessions');
             const data = await res.json();
             setSessions(data || []);
         } finally {
@@ -33,23 +32,14 @@ export default function InventorySessions() {
     };
 
     const fetchProducts = async () => {
-        const res = await fetch('/api/products', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await api.get('/api/products');
         setProducts(await res.json());
     };
 
     const createSession = async () => {
         setSaving(true);
         try {
-            const res = await fetch('/api/inventory/sessions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ notes: 'Inventário Geral' })
-            });
+            const res = await api.post('/api/inventory/sessions', { notes: 'Inventário Geral' });
             if (res.ok) {
                 const session = await res.json();
                 setActiveSession(session);
@@ -64,14 +54,7 @@ export default function InventorySessions() {
     const saveCounts = async () => {
         setSaving(true);
         try {
-            await fetch(`/api/inventory/sessions/${activeSession.id}/counts`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ counts })
-            });
+            await api.post(`/api/inventory/sessions/${activeSession.id}/counts`, { counts });
             alert('Contagens salvas com sucesso!');
         } finally {
             setSaving(false);
@@ -82,10 +65,7 @@ export default function InventorySessions() {
         if (!window.confirm('Deseja finalizar o inventário? O stock do sistema será atualizado com base nas contagens.')) return;
         setSaving(true);
         try {
-            const res = await fetch(`/api/inventory/sessions/${activeSession.id}/finalize`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.post(`/api/inventory/sessions/${activeSession.id}/finalize`, {});
             if (res.ok) {
                 setActiveSession(null);
                 fetchSessions();

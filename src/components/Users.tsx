@@ -1,7 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import {
   UserPlus, Mail, Shield, User, Trash2, Check, X, Copy, Link2,
   RefreshCw, Key, Eye, EyeOff, CheckCircle2, Lock, Unlock,
@@ -100,8 +99,8 @@ export default function Users({ authorizedModules = [], readOnly = false }: { au
     try {
       const [usersRes, companyRes, subRes] = await Promise.all([
         api.get('/api/users'),
-        supabase.from('companies').select('id, name, access_token, role_permissions').eq('id', currentUser?.company_id).single(),
-        supabase.from('saas_subscriptions').select('*, saas_plans(user_limit)').eq('company_id', currentUser?.company_id).eq('status', 'active').maybeSingle()
+        api.get('/api/company/profile'),
+        api.get('/api/company/subscription')
       ]);
       if (usersRes.ok) {
         const data = await usersRes.json();
@@ -112,10 +111,10 @@ export default function Users({ authorizedModules = [], readOnly = false }: { au
           : rawUsers.filter((u: any) => u.role !== 'master');
         setUsers(filtered);
         // Get limit from direct Supabase query (more reliable than server response)
-        const limit = subRes.data?.saas_plans?.user_limit || data.limit || 10;
+        const limit = (await subRes.json())?.saas_plans?.user_limit || data.limit || 10;
         setUserLimit(limit);
       }
-      if (companyRes.data) setCompany(companyRes.data);
+      if (companyRes.ok) setCompany(await companyRes.json());
     } catch (err) {
       console.error('Erro ao carregar utilizadores:', err);
     } finally {
@@ -216,13 +215,9 @@ export default function Users({ authorizedModules = [], readOnly = false }: { au
   const generateAccessLink = async () => {
     setGeneratingLink(true);
     try {
-      const token64 = btoa(Math.random().toString(36) + Date.now().toString(36)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
-      const { data, error } = await supabase.from('companies')
-        .update({ access_token: token64, access_link_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() })
-        .eq('id', currentUser?.company_id)
-        .select('access_token')
-        .single();
-      if (error) throw error;
+      const res = await api.post('/api/company/access-token', {});
+      if (!res.ok) throw new Error('Falha ao gerar link');
+      const data = await res.json();
       setCompany((prev: any) => ({ ...prev, access_token: data.access_token }));
       alert('Link de acesso corporativo gerado com sucesso! 🔗');
     } catch (err: any) {

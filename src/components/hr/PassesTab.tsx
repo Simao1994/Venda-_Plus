@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import Logo from '../Logo';
 
 // ─── PVC Card Dimensions (85.6mm × 54mm @ 96dpi ≈ 323px × 204px)
@@ -184,22 +184,18 @@ export default function PassesTab({ autoPrintEmployee, onClearAutoPrint }: { aut
 
     const fetchCompanyProfile = async () => {
         try {
-            const { data } = await supabase
-                .from('companies')
-                .select('logo, name, phone, email, address')
-                .eq('id', user?.company_id)
-                .maybeSingle();
-            setCompanyProfile(data);
+            const res = await api.get('/api/company/profile');
+            if (res.ok) {
+                const data = await res.json();
+                setCompanyProfile(data);
+            }
         } catch (e) { console.error(e); }
     };
 
     const fetchEmployees = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/hr/employees', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await api.get('/api/hr/employees');
             if (!res.ok) throw new Error('Falha ao carregar funcionários');
             const data = await res.json();
             // Filter active employees only

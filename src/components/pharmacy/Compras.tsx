@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Search, ShoppingBag, Eye } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function Compras() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [compras, setCompras] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -28,7 +29,7 @@ export default function Compras() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/farmacia/compras', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/farmacia/compras');
       const data = await res.json();
       setCompras(data);
     } finally {
@@ -39,8 +40,8 @@ export default function Compras() {
   const fetchAuxData = async () => {
     try {
       const [fornRes, medRes] = await Promise.all([
-        fetch('/api/farmacia/fornecedores', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } })
+        api.get('/api/farmacia/fornecedores'),
+        api.get('/api/farmacia/medicamentos')
       ]);
       setFornecedores(await fornRes.json());
       setMedicamentos(await medRes.json());
@@ -80,14 +81,7 @@ export default function Compras() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/farmacia/compras', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
-    });
+    const res = await api.post('/api/farmacia/compras', formData);
     if (res.ok) {
       setShowModal(false);
       setFormData({

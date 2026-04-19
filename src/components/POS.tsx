@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useReactToPrint } from 'react-to-print';
 import PaymentModal from './PaymentModal';
 import Calculator from './ui/Calculator';
+import { api } from '../lib/api';
 
 interface Product {
   id: number;
@@ -16,7 +17,7 @@ interface Product {
 }
 
 export default function POS() {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
@@ -106,17 +107,13 @@ export default function POS() {
   }, [lastSale, autoPrint]);
 
   const fetchCompanyProfile = async () => {
-    const res = await fetch('/api/company/profile', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/company/profile');
     const data = await res.json();
     setCompanyProfile(data);
   };
 
   const fetchTopProducts = async () => {
-    const res = await fetch('/api/dashboard/top-products', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/dashboard/top-products');
     const data = await res.json();
     setTopProducts(data);
   };
@@ -137,23 +134,14 @@ export default function POS() {
   };
 
   const checkRegisterStatus = async () => {
-    const res = await fetch('/api/cash-registers/status', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/cash-registers/status');
     const data = await res.json();
     setCashRegister(data);
     if (!data) setShowOpenRegister(true);
   };
 
   const handleOpenRegister = async () => {
-    const res = await fetch('/api/cash-registers/open', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ initial_value: parseFloat(initialCash) })
-    });
+    const res = await api.post('/api/cash-registers/open', { initial_value: parseFloat(initialCash) });
     if (res.ok) {
       setShowOpenRegister(false);
       checkRegisterStatus();
@@ -164,20 +152,11 @@ export default function POS() {
     if (!confirm('Deseja realmente fechar o caixa?')) return;
 
     // Calculate total sold during this session
-    const resStats = await fetch('/api/dashboard/stats', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const resStats = await api.get('/api/dashboard/stats');
     const stats = await resStats.json();
     const totalToday = stats.salesToday || 0;
 
-    const res = await fetch('/api/cash-registers/close', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ total_sold: totalToday })
-    });
+    const res = await api.post('/api/cash-registers/close', { total_sold: totalToday });
     if (res.ok) {
       checkRegisterStatus();
     }
@@ -185,17 +164,13 @@ export default function POS() {
 
 
   const fetchProducts = async () => {
-    const res = await fetch('/api/products', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/products');
     const data = await res.json();
     setProducts(data);
   };
 
   const fetchCustomers = async () => {
-    const res = await fetch('/api/customers', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/customers');
     const data = await res.json();
     setCustomers(data);
   };
@@ -203,14 +178,7 @@ export default function POS() {
   const handleSaveNewCustomer = async () => {
     if (!newCustomer.name) return alert('Nome é obrigatório');
     try {
-      const res = await fetch('/api/customers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(newCustomer)
-      });
+      const res = await api.post('/api/customers', newCustomer);
       if (res.ok) {
         const savedCustomer = await res.json();
         await fetchCustomers();
@@ -278,26 +246,19 @@ export default function POS() {
     setProducts(updatedProducts);
 
     try {
-      const res = await fetch('/api/sales', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          items: itemsToProcess,
-          customer_id: customerIdToProcess,
-          subtotal: saleTotals.discountedSubtotal,
-          tax: saleTotals.tax,
-          total: saleTotals.total,
-          amount_paid: amtPaidValue,
-          change: amtPaidValue > saleTotals.total ? amtPaidValue - saleTotals.total : 0,
-          payment_method: isProForma ? 'credit' : paymentMethod,
-          discount: saleTotals.discountPercentage,
-          is_pro_forma: isProForma,
-          is_exempt: isExempt,
-          exemption_reason: isExempt ? exemptionReason : null
-        })
+      const res = await api.post('/api/sales', {
+        items: itemsToProcess,
+        customer_id: customerIdToProcess,
+        subtotal: saleTotals.discountedSubtotal,
+        tax: saleTotals.tax,
+        total: saleTotals.total,
+        amount_paid: amtPaidValue,
+        change: amtPaidValue > saleTotals.total ? amtPaidValue - saleTotals.total : 0,
+        payment_method: isProForma ? 'credit' : paymentMethod,
+        discount: saleTotals.discountPercentage,
+        is_pro_forma: isProForma,
+        is_exempt: isExempt,
+        exemption_reason: isExempt ? exemptionReason : null
       });
 
       if (!res.ok) {

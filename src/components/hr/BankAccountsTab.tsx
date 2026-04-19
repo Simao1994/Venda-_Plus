@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { ContaBancariaHR, User } from '../../types';
 import { PlusCircle, Edit, Trash2, Building, CheckCircle2, AlertCircle, RefreshCw, Save } from 'lucide-react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../lib/api';
 
 interface BankAccountsTabProps {
    funcionarioId: string;
@@ -48,15 +48,12 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
    const fetchContas = async () => {
       setLoading(true);
       try {
-         const token = localStorage.getItem('token');
          let url = '/api/hr/bank-accounts';
          if (funcionarioId) {
             url += `?funcionarioId=${funcionarioId}`;
          }
 
-         const res = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-         });
+         const res = await api.get(url);
          if (!res.ok) throw new Error('Falha ao carregar contas');
          const data = await res.json();
          setContas(data || []);
@@ -121,7 +118,6 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
       setIsSubmitting(true);
 
       try {
-         const token = localStorage.getItem('token');
          const payload = {
             ...formData,
             nome_banco: formData.nome_banco,
@@ -132,16 +128,9 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
          };
 
          const url = editingConta ? `/api/hr/bank-accounts/${editingConta.id}` : '/api/hr/bank-accounts';
-         const method = editingConta ? 'PUT' : 'POST';
-
-         const res = await fetch(url, {
-            method,
-            headers: { 
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-         });
+         const res = editingConta 
+            ? await api.put(url, payload)
+            : await api.post(url, payload);
 
          if (!res.ok) throw new Error('Falha ao guardar conta bancária');
 
@@ -160,11 +149,7 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
    const handleDelete = async (id: string) => {
       if (!confirm('Deseja realmente eliminar esta conta?')) return;
       try {
-         const token = localStorage.getItem('token');
-         const res = await fetch(`/api/hr/bank-accounts/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-         });
+         const res = await api.delete(`/api/hr/bank-accounts/${id}`);
          if (!res.ok) throw new Error('Falha ao eliminar conta');
          fetchContas();
          if ((window as any).notify) (window as any).notify("Conta removida com sucesso.", "success");
@@ -176,22 +161,15 @@ const BankAccountsTab: React.FC<BankAccountsTabProps> = ({ funcionarioId, user }
 
    const setAsPrincipal = async (id: string) => {
       try {
-         let clearQuery = supabase.from('rh_contas_bancarias').update({ principal: false });
-         if (funcionarioId) {
-            clearQuery = clearQuery.eq('funcionario_id', funcionarioId);
-         } else if (companyId) {
-            clearQuery = clearQuery.eq('company_id', companyId);
-         }
-         if (!isMaster) {
-            clearQuery = clearQuery.eq('company_id', companyId);
-         }
-         await clearQuery;
-         const { error } = await supabase.from('rh_contas_bancarias').update({ principal: true }).eq('id', id);
-         if (error) throw error;
+         const res = await api.put(`/api/hr/bank-accounts/${id}/principal`, {
+            funcionario_id: funcionarioId,
+            company_id: companyId
+         });
+         if (!res.ok) throw new Error('Falha ao definir como principal');
          await fetchContas();
-      } catch (err) {
+      } catch (err: any) {
          console.error(err);
-         alert("Erro ao definir como principal.");
+         alert(`Erro ao definir como principal: ${err.message}`);
       }
    };
 

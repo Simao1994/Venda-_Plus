@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Search, Edit2, Trash2, Truck } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function Fornecedores() {
-  const { token } = useAuth();
   const [fornecedores, setFornecedores] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ export default function Fornecedores() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/farmacia/fornecedores', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/farmacia/fornecedores');
       const data = await res.json();
       setFornecedores(data);
     } finally {
@@ -32,14 +32,7 @@ export default function Fornecedores() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/farmacia/fornecedores', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
-    });
+    const res = await api.post('/api/farmacia/fornecedores', formData);
     if (res.ok) {
       setShowModal(false);
       setFormData({ nome_empresa: '', nif: '', telefone: '', email: '', endereco: '', licenca_sanitaria: '' });

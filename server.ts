@@ -2264,6 +2264,13 @@ async function startServer() {
         branch = newBranch;
       }
       branchId = branch?.id;
+
+      // [AUTO-HEAL] Salvar a filial encontrada no utilizador para evitar buscas repetidas
+      if (branchId) {
+        supabase.from("users").update({ branch_id: branchId }).eq("id", req.user.id).then(({ error }) => {
+          if (!error) console.log(`[Venda] Filial ${branchId} associada permanentemente ao utilizador ${req.user.email}.`);
+        });
+      }
     }
 
     if (!branchId) {

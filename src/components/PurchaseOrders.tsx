@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ShoppingCart, Plus, ShoppingBag, Truck, CheckCircle2, Clock, AlertCircle, Search, Calendar, Package } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface PurchaseOrder {
     id: number;
@@ -12,7 +13,7 @@ interface PurchaseOrder {
 }
 
 export default function PurchaseOrders() {
-    const { token, user } = useAuth();
+    const { user } = useAuth();
     const [orders, setOrders] = useState<PurchaseOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -31,9 +32,9 @@ export default function PurchaseOrders() {
     const fetchData = async () => {
         try {
             const [ordRes, prodRes, supRes] = await Promise.all([
-                fetch('/api/purchase-orders', { headers: { Authorization: `Bearer ${token}` } }),
-                fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }),
-                fetch('/api/suppliers', { headers: { Authorization: `Bearer ${token}` } })
+                api.get('/api/purchase-orders'),
+                api.get('/api/products'),
+                api.get('/api/suppliers')
             ]);
             setOrders(await ordRes.json() || []);
             setProducts(await prodRes.json() || []);
@@ -50,14 +51,7 @@ export default function PurchaseOrders() {
         if (newOrder.items.length === 0) return;
 
         try {
-            const res = await fetch('/api/purchase-orders', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(newOrder)
-            });
+            const res = await api.post('/api/purchase-orders', newOrder);
 
             if (res.ok) {
                 setShowModal(false);
@@ -71,10 +65,7 @@ export default function PurchaseOrders() {
 
     const markAsReceived = async (id: number) => {
         try {
-            const res = await fetch(`/api/purchase-orders/${id}/receive`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.post(`/api/purchase-orders/${id}/receive`, {});
             if (res.ok) fetchData();
         } catch (e) {
             console.error(e);

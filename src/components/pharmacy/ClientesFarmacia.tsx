@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Search, Users, X, CheckCircle2, AlertCircle, Phone, Mail } from 'lucide-react';
+import { api } from '../../lib/api';
 
 const initialForm = {
   nome: '', data_nascimento: '', telefone: '', email: '',
@@ -8,7 +9,6 @@ const initialForm = {
 };
 
 export default function ClientesFarmacia() {
-  const { token } = useAuth();
   const [clientes, setClientes] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ export default function ClientesFarmacia() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/farmacia/clientes', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/farmacia/clientes');
       setClientes(await res.json());
     } finally { setLoading(false); }
   };
@@ -29,11 +29,7 @@ export default function ClientesFarmacia() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/farmacia/clientes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(formData),
-      });
+      const res = await api.post('/api/farmacia/clientes', formData);
       if (res.ok) {
         setShowModal(false);
         setFormData(initialForm);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Search, Pill, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { api } from '../../lib/api';
 
 const FORMAS = ['Comprimido', 'Cápsula', 'Xarope', 'Injetável', 'Pomada', 'Gotas', 'Supositório'];
 
@@ -22,7 +23,7 @@ const initialForm = {
 };
 
 export default function Medicamentos() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [medicamentos, setMedicamentos] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -36,8 +37,8 @@ export default function Medicamentos() {
   const fetchData = async () => {
     try {
       const [res, suppRes] = await Promise.all([
-        fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/suppliers', { headers: { Authorization: `Bearer ${token}` } })
+        api.get('/api/farmacia/medicamentos'),
+        api.get('/api/suppliers')
       ]);
       setMedicamentos(await res.json());
       setSuppliers(await suppRes.json() || []);
@@ -48,11 +49,7 @@ export default function Medicamentos() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/farmacia/medicamentos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(formData),
-      });
+      const res = await api.post('/api/farmacia/medicamentos', formData);
       if (res.ok) {
         setShowModal(false);
         setFormData(initialForm);

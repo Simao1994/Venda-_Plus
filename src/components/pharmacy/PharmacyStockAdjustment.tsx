@@ -4,9 +4,9 @@ import {
     AlertCircle, ArrowDownCircle, ArrowUpCircle,
     Boxes, Save, Search, History, Trash2, Calendar
 } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function PharmacyStockAdjustment() {
-    const { token } = useAuth();
     const [lotes, setLotes] = useState<any[]>([]);
     const [movements, setMovements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -25,8 +25,8 @@ export default function PharmacyStockAdjustment() {
         setLoading(true);
         try {
             const [lotesRes, movRes] = await Promise.all([
-                fetch('/api/farmacia/lotes', { headers: { Authorization: `Bearer ${token}` } }),
-                fetch('/api/farmacia/movimentos', { headers: { Authorization: `Bearer ${token}` } })
+                api.get('/api/farmacia/lotes'),
+                api.get('/api/farmacia/movimentos')
             ]);
 
             if (lotesRes.ok) {
@@ -58,17 +58,10 @@ export default function PharmacyStockAdjustment() {
         const lote = lotes.find(l => l.id === parseInt(formData.lote_id));
         if (!lote) return;
 
-        const res = await fetch('/api/farmacia/lotes/' + lote.id + '/ajustar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                ...formData,
-                medicamento_id: lote.medicamento_id,
-                quantidade: parseFloat(formData.quantidade)
-            })
+        const res = await api.post(`/api/farmacia/lotes/${lote.id}/ajustar`, {
+            ...formData,
+            medicamento_id: lote.medicamento_id,
+            quantidade: parseFloat(formData.quantidade)
         });
 
         if (res.ok) {

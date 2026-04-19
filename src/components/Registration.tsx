@@ -11,6 +11,7 @@ import {
     ArrowLeft,
     X
 } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface Plan {
     id: number;
@@ -38,7 +39,7 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
 
     useEffect(() => {
         setLoading(true);
-        fetch('/api/saas/plans')
+        api.get('/api/saas/plans')
             .then(res => {
                 if (!res.ok) throw new Error('Falha ao carregar planos');
                 return res.json();
@@ -55,11 +56,7 @@ export default function Registration({ onBack, onSuccess }: { onBack: () => void
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch('/api/saas/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
+            const res = await api.post('/api/saas/register', formData);
             const data = await res.json();
             if (res.ok) {
                 const link = `${window.location.origin}/?token=${data.access_token}`;

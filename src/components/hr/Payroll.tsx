@@ -16,9 +16,10 @@ import {
 import { useReactToPrint } from 'react-to-print';
 import SalaryReceipt from './SalaryReceipt';
 import { A4ReportTemplate } from '../reports/A4ReportTemplate';
+import { api } from '../../lib/api';
 
 export default function Payroll() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [selectedPayroll, setSelectedPayroll] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -51,9 +52,7 @@ export default function Payroll() {
 
   const fetchPayrolls = async () => {
     try {
-      const res = await fetch('/api/hr/payrolls', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/hr/payrolls');
       const data = await res.json();
       setPayrolls(data);
     } catch (error) {
@@ -65,9 +64,7 @@ export default function Payroll() {
 
   const fetchPayrollDetails = async (id: number) => {
     try {
-      const res = await fetch(`/api/hr/payrolls/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get(`/api/hr/payrolls/${id}`);
       const data = await res.json();
       setSelectedPayroll(data);
     } catch (error) {
@@ -78,10 +75,7 @@ export default function Payroll() {
   const handleFinalize = async (id: number) => {
     if (!confirm('Tem certeza que deseja finalizar esta folha? Não poderá mais ser editada.')) return;
     try {
-      const res = await fetch(`/api/hr/payrolls/${id}/finalize`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.put(`/api/hr/payrolls/${id}/finalize`, {});
       if (res.ok) {
         fetchPayrollDetails(id);
         fetchPayrolls();
@@ -94,10 +88,7 @@ export default function Payroll() {
   const handleDeletePayroll = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir esta folha salarial?')) return;
     try {
-      const res = await fetch(`/api/hr/payrolls/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.delete(`/api/hr/payrolls/${id}`);
       if (res.ok) {
         setSelectedPayroll(null);
         fetchPayrolls();
@@ -110,14 +101,7 @@ export default function Payroll() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/hr/payrolls/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(generateData)
-      });
+      const res = await api.post('/api/hr/payrolls/generate', generateData);
       if (res.ok) {
         setShowGenerateModal(false);
         fetchPayrolls();

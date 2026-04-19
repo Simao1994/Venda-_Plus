@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Search, FileSignature, CheckCircle2, Clock, Camera, Trash2, PlusCircle, X } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function Receitas() {
-  const { token } = useAuth();
   const [receitas, setReceitas] = useState<any[]>([]);
   const [medicamentos, setMedicamentos] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -25,7 +25,7 @@ export default function Receitas() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/farmacia/receitas', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/farmacia/receitas');
       const data = await res.json();
       setReceitas(data);
     } finally {
@@ -35,7 +35,7 @@ export default function Receitas() {
 
   const fetchMedicamentos = async () => {
     try {
-      const res = await fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/farmacia/medicamentos');
       const data = await res.json();
       setMedicamentos(data);
     } catch (error) {
@@ -79,14 +79,7 @@ export default function Receitas() {
       alert('Adicione pelo menos um medicamento à receita.');
       return;
     }
-    const res = await fetch('/api/farmacia/receitas', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
-    });
+    const res = await api.post('/api/farmacia/receitas', formData);
     if (res.ok) {
       setShowModal(false);
       setFormData({ 

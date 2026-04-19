@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useReactToPrint } from 'react-to-print';
 import { Printer } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface Customer {
   id: number;
@@ -16,7 +17,7 @@ interface PaymentModalProps {
 }
 
 export default function PaymentModal({ customer, onClose, onSuccess }: PaymentModalProps) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [pendingSales, setPendingSales] = useState<any[]>([]);
   const [selectedSaleId, setSelectedSaleId] = useState<number | ''>('');
   const [amount, setAmount] = useState<string>('0');
@@ -35,9 +36,7 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
   }, []);
 
   const fetchPendingSales = async () => {
-    const res = await fetch(`/api/customers/${customer.id}/pending-sales`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get(`/api/customers/${customer.id}/pending-sales`);
     const data = await res.json();
     setPendingSales(data);
     if (data.length > 0) {
@@ -52,17 +51,10 @@ export default function PaymentModal({ customer, onClose, onSuccess }: PaymentMo
     if (!selectedSaleId || amountNum <= 0) return;
 
     setLoading(true);
-    const res = await fetch('/api/payments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
+    const res = await api.post('/api/payments', {
         sale_id: selectedSaleId,
         amount: amountNum,
         payment_method: paymentMethod
-      })
     });
 
     if (res.ok) {

@@ -4,6 +4,7 @@ import { Wallet, ArrowUpCircle, ArrowDownCircle, Plus, Search, Calendar, User, B
 import { useReactToPrint } from 'react-to-print';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { A4ReportTemplate } from './reports/A4ReportTemplate';
+import { api } from '../lib/api';
 
 interface Expense {
   id: number;
@@ -31,7 +32,7 @@ interface Supplier {
 }
 
 export default function Financial() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'receivable' | 'payable' | 'cashflow'>('receivable');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all');
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
@@ -73,7 +74,7 @@ export default function Financial() {
 
   const fetchSuppliers = async () => {
     try {
-      const res = await fetch('/api/suppliers', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/suppliers');
       setSuppliers(await res.json());
     } catch (e) {
       console.error(e);
@@ -92,16 +93,16 @@ export default function Financial() {
 
       if (activeTab === 'cashflow') {
         const [expRes, recRes] = await Promise.all([
-          fetch(`/api/expenses?${queryParams}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`/api/financial/receivable?${queryParams}`, { headers: { Authorization: `Bearer ${token}` } })
+          api.get(`/api/expenses?${queryParams}`),
+          api.get(`/api/financial/receivable?${queryParams}`)
         ]);
         setExpenses(await expRes.json());
         setReceivables(await recRes.json());
       } else if (activeTab === 'payable') {
-        const res = await fetch(`/api/expenses?${queryParams}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get(`/api/expenses?${queryParams}`);
         setExpenses(await res.json());
       } else {
-        const res = await fetch(`/api/financial/receivable?${queryParams}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get(`/api/financial/receivable?${queryParams}`);
         setReceivables(await res.json());
       }
     } catch (error) {
@@ -114,17 +115,10 @@ export default function Financial() {
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/expenses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      const res = await api.post('/api/expenses', {
           ...newExpense,
           supplier_id: newExpense.supplier_id ? parseInt(newExpense.supplier_id) : null,
           amount: parseFloat(newExpense.amount)
-        })
       });
       if (res.ok) {
         setShowExpenseModal(false);
@@ -145,14 +139,7 @@ export default function Financial() {
   const toggleExpenseStatus = async (id: number, currentStatus: string) => {
     const newStatus = currentStatus === 'pending' ? 'paid' : 'pending';
     try {
-      await fetch(`/api/expenses/${id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
+      await api.patch(`/api/expenses/${id}/status`, { status: newStatus });
       fetchData();
     } catch (error) {
       console.error('Error updating expense status:', error);
@@ -163,17 +150,10 @@ export default function Financial() {
     const amount = r.total - r.amount_paid;
     if (confirm(`Confirmar recebimento de ${amount.toLocaleString()} ${user?.currency} para fatura ${r.invoice_number}?`)) {
       try {
-        const res = await fetch('/api/payments', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
+        const res = await api.post('/api/payments', {
             sale_id: r.id,
             amount: amount,
             payment_method: 'dinheiro'
-          })
         });
         if (res.ok) {
           const paymentData = await res.json();

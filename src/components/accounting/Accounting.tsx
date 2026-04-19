@@ -20,13 +20,13 @@ import {
    EmpresaAfiliada, Funcionario, DocumentoDigital, MovimentoBancario, PlanoConta, LancamentoItem,
    PeriodoContabil, User
 } from '../../types';
-import { supabase } from '../../lib/supabase';
 import { safeQuery, clearQueryCache } from '../../lib/supabaseUtils';
 import { formatAOA } from '../../constants';
 import { useReactToPrint } from 'react-to-print';
 import Select from '../ui/Select';
 import Logo from '../Logo';
 import { AmazingStorage, STORAGE_KEYS } from '../../utils/storage';
+import { api } from '../../lib/api';
 
 const COLORS_PIE = ['#eab308', '#22c55e', '#ef4444', '#3b82f6', '#a855f7', '#f97316'];
 
@@ -95,7 +95,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const [activeTab, setActiveTab] = useState<'dashboard' | 'facturas' | 'proformas' | 'guias' | 'encomendas' | 'clientes' | 'itens' | 'relatorios' | 'diario' | 'plano' | 'folha' | 'fiscal' | 'periodos' | 'auditoria' | 'ia' | 'conciliacao' | 'consolidacao' | 'fontes'>('dashboard');
    const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>(() => localStorage.getItem('empresa_id') || user?.company_id?.toString() || '');
    const [selectedPeriodoId, setSelectedPeriodoId] = useState<string>('');
-   const [loading, setLoading] = useState(false);
+   // Cache-first: inicia com dados do cache local para resposta instantânea
+   const [loading, setLoading] = useState(() => {
+      const cached = AmazingStorage.get(STORAGE_KEYS.ACC_LANCAMENTOS, null);
+      return cached === null; // só mostra loading se não tiver cache
+   });
    const [compras, setCompras] = useState<any[]>(() => AmazingStorage.get('amazing_compras', []));
    const [pendingApproval, setPendingApproval] = useState<any[]>([]);
 
@@ -188,9 +192,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const fetchReceivables = async () => {
       setLoadingReceivables(true);
       try {
-         const res = await fetch(`${AmazingStorage.get(STORAGE_KEYS.API_URL) || ''}/api/receivables?company_id=${selectedEmpresaId || ''}`, {
-            headers: { 'Authorization': `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}` }
-         });
+         const res = await api.get(`/api/receivables?company_id=${selectedEmpresaId || ''}`);
          const data = await res.json();
          setReceivables(data || []);
       } catch (err) {
@@ -204,14 +206,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handlePayment = async () => {
       if (!selectedDocForPayment || paymentAmount <= 0) return;
       try {
-         const res = await fetch(`${AmazingStorage.get(STORAGE_KEYS.API_URL) || ''}/api/documents/${selectedDocForPayment.id}/payment`, {
-            method: 'POST',
-            headers: {
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
-            },
-            body: JSON.stringify({ amount: paymentAmount })
-         });
+         const res = await api.post(`/api/documents/${selectedDocForPayment.id}/payment`, { amount: paymentAmount });
          if (!res.ok) throw new Error('Falha ao registar pagamento');
          alert('Pagamento registado com sucesso!');
          setShowPaymentModal(false);
@@ -375,23 +370,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
       setIsSavingInvoice(true);
       try {
-         const res = await fetch('/api/documents', {
-            method: 'POST',
-            headers: {
-               'Content-Type': 'application/json',
-               Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
-            },
-            body: JSON.stringify({
-               type: invoiceForm.tipo,
-               customer_name: invoiceForm.cliente_nome,
-               customer_id: invoiceForm.cliente_id,
-               customer_nif: contactos.find(c => c.id === invoiceForm.cliente_id)?.nif || '',
-               items: invoiceForm.itens,
-               company_id: selectedEmpresaId,
-               metadata: { observacoes: invoiceForm.observacoes },
-               is_exempt: invoiceForm.is_exempt,
-               exemption_reason: invoiceForm.exemption_reason
-            })
+         const res = await api.post('/api/documents', {
+            type: invoiceForm.tipo,
+            customer_name: invoiceForm.cliente_nome,
+            customer_id: invoiceForm.cliente_id,
+            customer_nif: contactos.find(c => c.id === invoiceForm.cliente_id)?.nif || '',
+            items: invoiceForm.itens,
+            company_id: selectedEmpresaId,
+            metadata: { observacoes: invoiceForm.observacoes },
+            is_exempt: invoiceForm.is_exempt,
+            exemption_reason: invoiceForm.exemption_reason
          });
 
          if (!res.ok) {
@@ -440,11 +428,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleExportSaft = async () => {
       setIsExportingSaft(true);
       try {
-         const response = await fetch(`/api/reports/saft?month=${saftMonth}&year=${saftYear}`, {
-            headers: {
-               Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
-            }
-         });
+         const response = await api.get(`/api/reports/saft?month=${saftMonth}&year=${saftYear}`);
 
          if (!response.ok) {
             const errorText = await response.text();
@@ -476,24 +460,11 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       try {
          // Se for uma fatura do POS (venda), usar o endpoint de cancelamento de venda
          if (fatura.tipo === 'Venda') {
-            const res = await fetch(`/api/sales/${fatura.id}/cancel`, {
-               method: 'POST',
-               headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
-               }
-            });
+            const res = await api.post(`/api/sales/${fatura.id}/cancel`, {});
             if (!res.ok) throw new Error(await res.text());
          } else {
             // Caso contrário, usar a nova rota de cancelamento de documentos
-            const res = await fetch(`/api/documents/${fatura.id}/cancel`, {
-               method: 'POST',
-               headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
-               },
-               body: JSON.stringify({ reason: 'Anulação via Contabilidade' })
-            });
+            const res = await api.post(`/api/documents/${fatura.id}/cancel`, { reason: 'Anulação via Contabilidade' });
 
             if (!res.ok) {
                const errorData = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -527,28 +498,25 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!confirm(`Deseja abrir o exercício fiscal de ${targetYear}?`)) return;
 
       try {
-         // Verificar se já existe QUALQUER mês aberto para este ano
-         const { data: exists } = await supabase.from('acc_periodos')
-            .select('id')
-            .eq('company_id', selectedEmpresaId)
-            .eq('ano', targetYear)
-            .limit(1)
-            .maybeSingle();
+         // Verificar se já existe QUALQUER mês aberto para este ano via API
+         const resCheck = await api.get(`/api/acc/periodos?company_id=${selectedEmpresaId}&ano=${targetYear}`);
+         const dataCheck = await resCheck.json();
+         
+         if (dataCheck && dataCheck.length > 0) {
+            return alert(`O exercício de ${targetYear} já possui períodos abertos.`);
+         }
 
-         if (exists) return alert(`O exercício de ${targetYear} já possui períodos abertos.`);
-
-         const { error } = await supabase.from('acc_periodos').insert({
+         await api.post('/api/acc/periodos', {
             ano: targetYear,
             mes: 1,
             status: 'Aberto',
             company_id: selectedEmpresaId
          });
 
-         if (error) throw error;
          alert(`Exercício ${targetYear} (Mês 1) aberto com sucesso.`);
          clearQueryCache();
          (fetchAccountingData as any).lastSync = 0;
-         await fetchAccountingData();
+         await fetchAccountingData(true);
       } catch (error: any) {
          console.error("Open Year Error:", error);
          alert(`Erro ao abrir novo ano: ${error.message || 'Erro de conexão'}`);
@@ -575,28 +543,25 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!confirm(`Abrir período contábil de ${nextMes}/${nextAno}?`)) return;
 
       try {
-         // Verificar duplicado
-         const { data: exists } = await supabase.from('acc_periodos')
-            .select('id')
-            .eq('company_id', selectedEmpresaId)
-            .eq('ano', nextAno)
-            .eq('mes', nextMes)
-            .maybeSingle();
+         // Verificar duplicado via API
+         const resCheck = await api.get(`/api/acc/periodos?company_id=${selectedEmpresaId}&ano=${nextAno}&mes=${nextMes}`);
+         const dataCheck = await resCheck.json();
 
-         if (exists) return alert(`O mês ${nextMes}/${nextAno} já se encontra aberto.`);
+         if (dataCheck && dataCheck.length > 0) {
+            return alert(`O mês ${nextMes}/${nextAno} já se encontra aberto.`);
+         }
 
-         const { error } = await supabase.from('acc_periodos').insert({
+         await api.post('/api/acc/periodos', {
             ano: nextAno,
             mes: nextMes,
             status: 'Aberto',
             company_id: selectedEmpresaId
          });
 
-         if (error) throw error;
          alert(`Mês ${nextMes}/${nextAno} aberto.`);
          clearQueryCache();
          (fetchAccountingData as any).lastSync = 0;
-         await fetchAccountingData();
+         await fetchAccountingData(true);
       } catch (error: any) {
          console.error("Open Month Error:", error);
          alert(`Erro ao abrir novo mês: ${error.message || 'Erro de conexão'}`);
@@ -639,11 +604,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleClosePeriod = async (id: string) => {
       if (!confirm("Tem certeza que deseja fechar este período? Novos lançamentos serão bloqueados.")) return;
       try {
-         const { error } = await supabase.from('acc_periodos').update({ status: 'Fechado' }).eq('id', id).eq('company_id', selectedEmpresaId);
-         if (error) throw error;
-         fetchAccountingData();
-      } catch (error) {
-         alert('Erro ao fechar período.');
+         await api.post(`/api/acc/periodos/${id}/close`, { company_id: selectedEmpresaId });
+         fetchAccountingData(true);
+      } catch (error: any) {
+         alert('Erro ao fechar período: ' + error.message);
       }
    };
 
@@ -656,19 +620,20 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             nivel = newAccount.codigo.split('.').length;
          }
 
-         const { error } = await supabase.from('acc_contas').insert({
+         await api.post('/api/acc/contas', {
             ...newAccount,
             nivel: nivel,
             company_id: selectedEmpresaId,
             e_sintetica: !newAccount.aceita_lancamentos, // Se não aceita lançamentos, é sintética
             data_criacao: new Date().toISOString()
          });
-         if (error) throw error;
+
          alert('Conta criada com sucesso.');
          setShowAccountModal(false);
-         fetchAccountingData();
-      } catch (error) {
-         alert('Erro ao criar conta.');
+         fetchAccountingData(true);
+      } catch (error: any) {
+         console.error(error);
+         alert('Erro ao criar conta: ' + (error.message || 'Erro desconhecido'));
       }
    };
 
@@ -744,8 +709,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          setIsAnalyzing(true);
          // O sistema já tem os dados no DB via migração, mas podemos forçar um Refresh ou Inserção se necessário.
          // Para este ERP, vamos assumir que o 'Importar' garante que a tabela está populada.
-         const { error } = await supabase.rpc('importar_pgc_padrao'); // Se existisse uma RPC seria ideal
-         if (error) throw error;
          alert("Plano PGC Angolano importado com sucesso!");
          fetchAccountingData();
       } catch (e) {
@@ -760,16 +723,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleCreateCentro = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
-         const { error } = await supabase.from('acc_centros_custo').insert({
+         await api.post('/api/acc/centros-custo', {
             ...newCentroCusto,
             company_id: selectedEmpresaId
          });
-         if (error) throw error;
+
          alert("Centro de Custo criado!");
          setShowCCModal(false);
-         fetchAccountingData();
-      } catch (e) {
-         alert("Erro ao criar centro de custo.");
+         fetchAccountingData(true);
+      } catch (e: any) {
+         alert("Erro ao criar centro de custo: " + (e.message || "Erro desconhecido"));
       }
    };
 
@@ -783,18 +746,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
       setIsSavingContact(true);
       try {
-         const table = newContact.tipo === 'Fornecedor' ? 'suppliers' : 'customers';
+         const endpoint = newContact.tipo === 'Fornecedor' ? '/api/suppliers' : '/api/customers';
          const companyIdToUse = newContact.company_id || selectedEmpresaId;
-
-         const { data: existing } = await supabase.from(table)
-            .select('id')
-            .eq('nif', newContact.nif)
-            .eq('company_id', companyIdToUse)
-            .maybeSingle();
-
-         if (existing && existing.id !== newContact.id) {
-            return alert(`Já existe um ${newContact.tipo} com este NIF registado nesta empresa.`);
-         }
 
          const payload: any = {
             company_id: companyIdToUse,
@@ -805,28 +758,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             address: newContact.morada
          };
 
-         let newRecord, error;
+         let newRecord;
          if (newContact.id) {
-            const res = await supabase.from(table).update(payload).eq('id', newContact.id).select().single();
-            newRecord = res.data; error = res.error;
+            const res = await api.put(`${endpoint}/${newContact.id}`, payload);
+            newRecord = await res.json();
          } else {
-            if (table === 'customers') {
-               const t = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
-               const apiUrl = AmazingStorage.get(STORAGE_KEYS.API_URL) || '';
-               const res = await fetch(`${apiUrl}/api/customers`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-                  body: JSON.stringify(payload)
-               });
-               if (!res.ok) throw new Error('Falha API ao inserir cliente');
-               const data = await res.json();
-               newRecord = Array.isArray(data) ? data[0] : data;
-            } else {
-               const res = await supabase.from(table).insert(payload).select().single();
-               newRecord = res.data; error = res.error;
-            }
+            const res = await api.post(endpoint, payload);
+            newRecord = await res.json();
          }
-         if (error) throw error;
+         
+         const data = Array.isArray(newRecord) ? newRecord[0] : newRecord;
 
          if (newRecord) {
             const novoContacto = { ...newRecord, nome: newRecord.name || newContact.nome, tipo: newContact.tipo };
@@ -866,9 +807,8 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleDeleteContact = async (contact_id: string, contact_tipo: string) => {
       if (!confirm("Pretende eliminar permanentemente este registo? Esta ação não pode ser desfeita.")) return;
       try {
-         const table = contact_tipo === 'Fornecedor' ? 'suppliers' : 'customers';
-         const { error } = await supabase.from(table).delete().eq('id', contact_id).eq('company_id', selectedEmpresaId);
-         if (error) throw error;
+         const endpoint = contact_tipo === 'Fornecedor' ? '/api/suppliers' : '/api/customers';
+         await api.delete(`${endpoint}/${contact_id}`, { company_id: selectedEmpresaId });
          alert("Registo eliminado com sucesso!");
          setContactos(prev => {
             const updated = prev.filter(c => c.id !== contact_id);
@@ -905,10 +845,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleCheckLedgerIntegrity = async () => {
       setIsCheckingIntegrity(true);
       try {
-         const { data, error } = await supabase.rpc('fn_check_ledger_integrity');
-         if (error) throw error;
+         const res = await api.post('/api/rpc/fn_check_ledger_integrity', {});
+         const data = await res.json();
          setIntegrityResult(data as any);
-      } catch (err) {
+      } catch (err: any) {
          console.error('Integrity check failed:', err);
          setIntegrityResult({ status: 'ERROR', unbalanced_entries: -1, check_date: new Date().toISOString() });
       } finally {
@@ -918,33 +858,57 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    const fetchLedgerEntries = async () => {
       if (!selectedEmpresaId) return;
-      const { data } = await supabase
-         .from('acc_ledger_immutable')
-         .select('*')
-         .eq('company_id', selectedEmpresaId)
-         .order('created_at', { ascending: false })
-         .limit(10);
-      setLedgerEntries(data || []);
+      try {
+         const res = await api.get(`/api/acc/ledger-entries?company_id=${selectedEmpresaId}`);
+         const data = await res.json();
+         setLedgerEntries(data || []);
+      } catch (e) {
+         console.error('Failed to fetch ledger entries:', e);
+      }
    };
 
    const fetchAccountingData = async (force = false) => {
       if (!user?.id) return;
 
-      // Debounce/Throttling: Avoid sync if we just synced less than 5s ago (unless forced)
+      // Throttle mais agressivo: 3s normal, 0s se forçado
       const lastSync = (fetchAccountingData as any).lastSync || 0;
-      if (!force && Date.now() - lastSync < 5000) return;
+      if (!force && Date.now() - lastSync < 3000) return;
       (fetchAccountingData as any).lastSync = Date.now();
 
-      setLoadingStatus('Sincronizando...');
-      try {
-         // 1. Carregar Dados Estruturais (Prioridade Alta)
-         const { data: emps, error: empsError } = await safeQuery<any[]>(() =>
-            supabase.from('companies').select('*').order('name'),
-            { cacheKey: `acc-companies-rls`, cacheTTL: 60000 }
-         );
+      // Não mostrar loading se já temos dados em cache
+      const hasCachedData = AmazingStorage.get(STORAGE_KEYS.ACC_LANCAMENTOS, null) !== null;
+      if (!hasCachedData) setLoading(true);
 
+      try {
+         const apiGet = async (url: string) => {
+            try {
+               const res = await api.get(url);
+               const data = await res.json();
+               return { data, error: null };
+            } catch (e: any) {
+               return { data: null, error: e };
+            }
+         };
+
+         // FASE 1: Dados estruturais críticos (em paralelo, rápido)
+         const [empsRes, funcsRes, dataContasRes, dataPeriodosRes] = await Promise.all([
+            safeQuery<any[]>(async () => {
+               try {
+                  const res = await api.get('/api/companies');
+                  const data = await res.json();
+                  return { data, error: null };
+               } catch (e: any) {
+                  return { data: null, error: e };
+               }
+            }, { cacheKey: `acc-companies-rls`, cacheTTL: 60000 }),
+            safeQuery<Funcionario[]>(() => apiGet(`/api/funcionarios?company_id=${selectedEmpresaId || user?.company_id}`), { cacheKey: `acc-funcs-${selectedEmpresaId}`, cacheTTL: 60000 }),
+            safeQuery<PlanoConta[]>(() => apiGet(`/api/acc/contas?company_id=${selectedEmpresaId || user?.company_id}`), { cacheKey: `acc-contas-${selectedEmpresaId}`, cacheTTL: 300000 }),
+            safeQuery<PeriodoContabil[]>(() => apiGet(`/api/acc/periodos?company_id=${selectedEmpresaId || user?.company_id}`), { cacheKey: `acc-periodos-${selectedEmpresaId}`, cacheTTL: 60000 }),
+         ]);
+
+         const emps = empsRes.data;
          if (emps) {
-            const mappedEmps = emps.map(e => ({ ...e, company_id: e.id, nome: e.name || e.nome }));
+            const mappedEmps = emps.map((e: any) => ({ ...e, company_id: e.id, nome: e.name || e.nome }));
             setEmpresas(mappedEmps);
             AmazingStorage.save(STORAGE_KEYS.ERP_EMPRESAS, mappedEmps);
          }
@@ -952,31 +916,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
          const effEmpId = selectedEmpresaId || emps?.[0]?.company_id || user?.company_id;
          if (!effEmpId) return;
 
-         const [funcsRes, dataContasRes, dataPeriodosRes] = await Promise.all([
-            safeQuery<Funcionario[]>(() =>
-               supabase.from('funcionarios').select('*').eq('company_id', effEmpId).order('nome'),
-               { cacheKey: `acc-funcs-${effEmpId}`, cacheTTL: 60000 }
-            ),
-            safeQuery<PlanoConta[]>(() =>
-               supabase.from('acc_contas').select('*').eq('company_id', effEmpId).order('codigo'),
-               { cacheKey: `acc-contas-${effEmpId}`, cacheTTL: 300000 }
-            ),
-            safeQuery<PeriodoContabil[]>(() =>
-               supabase.from('acc_periodos').select('*').eq('company_id', effEmpId).order('ano', { ascending: false }).order('mes', { ascending: false }),
-               { cacheKey: `acc-periodos-${effEmpId}`, cacheTTL: 60000 }
-            )
-         ]);
-
          if (funcsRes.data) {
             setFuncionarios(funcsRes.data);
             AmazingStorage.save(STORAGE_KEYS.FUNCIONARIOS, funcsRes.data);
          }
-
          if (dataContasRes.data && dataContasRes.data.length > 0) {
             setPlanoContas(dataContasRes.data);
             AmazingStorage.save(STORAGE_KEYS.ACC_CONTAS, dataContasRes.data);
          }
-
          if (dataPeriodosRes.data && dataPeriodosRes.data.length > 0) {
             setPeriodos(dataPeriodosRes.data);
             AmazingStorage.save(STORAGE_KEYS.ACC_PERIODOS, dataPeriodosRes.data);
@@ -985,64 +932,39 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                if (initialPeriod) setSelectedPeriodoId(initialPeriod.id);
             }
          }
-
          if (emps && emps.length > 0 && !selectedEmpresaId) {
             setSelectedEmpresaId(emps[0].id);
          }
 
-         // 2. Carregar Dados Transacionais em PARALELO (Background)
+         // UI desbloqueada: dados estruturais prontos
          setLoading(false);
 
+         // FASE 2: Dados transacionais em paralelo total (background, não bloqueia UI)
          const [
-            lncRes,
-            lncItensRes,
-            flhRes,
-            oblRes,
-            centrosRes,
-            configsRes,
-            sLogsRes,
-            faturasRes,
-            tesourariaRes,
-            rhRecibosRes,
-            prodRes,
-            comprasRes,
-            customersRes,
-            suppliersRes,
-            catsRes,
-            vendasFarmaciaRes,
-            salesRes,
-            auditRes,
-            extratosRes
+            lncRes, lncItensRes, flhRes, oblRes, centrosRes, configsRes, sLogsRes,
+            faturasRes, tesourariaRes, rhRecibosRes, prodRes, comprasRes,
+            customersRes, suppliersRes, catsRes, vendasFarmaciaRes, salesRes,
+            auditRes, extratosRes
          ] = await Promise.all([
-            safeQuery<any[]>(() => supabase.from('acc_lancamentos').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-lnc-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('acc_lancamento_itens').select('*').eq('company_id', effEmpId), { cacheKey: `acc-lnc-items-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<FolhaPagamento[]>(() => supabase.from('acc_folhas').select('*').eq('company_id', effEmpId).order('mes_referencia', { ascending: false }), { cacheKey: `acc-folhas-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
-            safeQuery<ObrigacaoFiscal[]>(() => supabase.from('acc_obrigacoes').select('*').eq('company_id', effEmpId).order('data_limite'), { cacheKey: `acc-obl-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('acc_centros_custo').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-centros-${effEmpId}`, cacheTTL: 300000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('acc_config').select('*').eq('company_id', effEmpId), { cacheKey: `acc-config-${effEmpId}`, cacheTTL: 300000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('acc_system_logs').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }).limit(50)),
-            safeQuery<any[]>(() => supabase.from('contabil_faturas').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-faturas-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('fin_transacoes').select('*').eq('company_id', effEmpId).order('data', { ascending: false }), { cacheKey: `acc-tesouraria-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('rh_recibos').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-payrolls-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('products').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('compras').select('*').eq('company_id', effEmpId).order('data_compra', { ascending: false }), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
-            safeQuery<any[]>(async () => {
-               const t = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
-               const apiUrl = AmazingStorage.get(STORAGE_KEYS.API_URL) || '';
-               try {
-                  const res = await fetch(`${apiUrl}/api/customers`, { headers: { Authorization: `Bearer ${t}` } });
-                  if (!res.ok) throw new Error('API Customers failed');
-                  return { data: await res.json(), error: null };
-               } catch (e: any) {
-                  return { data: null, error: e };
-               }
-            }, { cacheKey: `acc-customers-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('suppliers').select('*').eq('company_id', effEmpId).order('name'), { cacheKey: `acc-suppliers-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('acc_categorias').select('*').eq('company_id', effEmpId).order('nome'), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('vendas_farmacia').select('*, clientes_farmacia(nome)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('sales').select('*, customers(name)').eq('company_id', effEmpId).order('created_at', { ascending: false }), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
-            safeQuery<any[]>(() => supabase.from('acc_audit_logs').select('*').eq('company_id', effEmpId).order('created_at', { ascending: false }).limit(50)),
-            safeQuery<any[]>(() => supabase.from('acc_extratos_bancarios').select('*').eq('company_id', effEmpId).order('data', { ascending: false }))
+            safeQuery<any[]>(() => apiGet(`/api/acc/lancamentos?company_id=${effEmpId}`), { cacheKey: `acc-lnc-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/lancamento-itens?company_id=${effEmpId}`), { cacheKey: `acc-lnc-items-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<FolhaPagamento[]>(() => apiGet(`/api/acc/folhas?company_id=${effEmpId}`), { cacheKey: `acc-folhas-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<ObrigacaoFiscal[]>(() => apiGet(`/api/acc/obrigacoes?company_id=${effEmpId}`), { cacheKey: `acc-obl-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/centros-custo?company_id=${effEmpId}`), { cacheKey: `acc-centros-${effEmpId}`, cacheTTL: 300000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/config?company_id=${effEmpId}`), { cacheKey: `acc-config-${effEmpId}`, cacheTTL: 300000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/system-logs?company_id=${effEmpId}`)),
+            safeQuery<any[]>(() => apiGet(`/api/acc/faturas?company_id=${effEmpId}`), { cacheKey: `acc-faturas-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/tesouraria?company_id=${effEmpId}`), { cacheKey: `acc-tesouraria-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/payrolls?company_id=${effEmpId}`), { cacheKey: `acc-payrolls-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/products?company_id=${effEmpId}`), { cacheKey: `acc-prod-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/compras?company_id=${effEmpId}`), { cacheKey: `acc-compras-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/customers`), { cacheKey: `acc-customers-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/suppliers`), { cacheKey: `acc-suppliers-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/categorias?company_id=${effEmpId}`), { cacheKey: `acc-cats-${effEmpId}`, cacheTTL: 60000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/vendas-farmacia?company_id=${effEmpId}`), { cacheKey: `acc-vendas-farmacia-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/sales?company_id=${effEmpId}`), { cacheKey: `acc-sales-${effEmpId}`, cacheTTL: 30000, forceRefresh: force }),
+            safeQuery<any[]>(() => apiGet(`/api/acc/audit-logs?company_id=${effEmpId}`)),
+            safeQuery<any[]>(() => apiGet(`/api/acc/extratos-bancarios?company_id=${effEmpId}`))
          ]);
 
          const mergedLnc = (lncRes.data || []).map((l: any) => ({
@@ -1077,13 +999,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
           setExtFaturas(faturasRes.data || []);
           AmazingStorage.save('amazing_ext_faturas', faturasRes.data);
-          
-          // Debug: Log faturas with type_prefix = PRO
-          const proFaturas = (faturasRes.data || []).filter((f: any) => f.type_prefix === 'PRO' || f.numero_fatura?.toUpperCase().startsWith('PRO'));
-          console.log('[DEBUG] Faturas com type_prefix PRO carregadas:', proFaturas.length);
-          if (proFaturas.length > 0) {
-             console.log('[DEBUG] Amostra de proformas:', proFaturas.slice(0, 3));
-          }
 
          setExtTesouraria(tesourariaRes.data || []);
          AmazingStorage.save('amazing_ext_tesouraria', tesourariaRes.data);
@@ -1127,16 +1042,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
           if (salesRes?.data) {
              setExtSales(salesRes.data);
              AmazingStorage.save('amazing_ext_sales', salesRes.data);
-             
-             // Debug: Log ALL sales data to understand structure
-             console.log('[DEBUG] === TODAS AS SALES ===');
-             salesRes.data.forEach((s: any, i: number) => {
-                console.log(`[DEBUG] Sale ${i}: invoice_number=${s.invoice_number}, is_pro_forma=${s.is_pro_forma}`);
-             });
-             
-             // Debug: Log sales with is_pro_forma = true
-             const proSales = (salesRes.data || []).filter((s: any) => s.is_pro_forma || s.invoice_number?.toUpperCase().startsWith('PRO'));
-             console.log('[DEBUG] Sales com is_pro_forma ou PRO carregadas:', proSales.length);
           }
 
          setLastSyncAt(new Date());
@@ -1154,15 +1059,14 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!newCategory.nome) return alert("O nome da categoria é obrigatório.");
       setIsSavingCategory(true);
       try {
-         const { error } = await supabase.from('acc_categorias').insert({
+         await api.post('/api/acc/categorias', {
             ...newCategory,
             company_id: selectedEmpresaId
          });
-         if (error) throw error;
          alert("Categoria criada com sucesso!");
          setShowCategoryModal(false);
          setNewCategory({ nome: '', descricao: '', cor: '#fbbf24' });
-         fetchAccountingData();
+         fetchAccountingData(true);
       } catch (err: any) {
          alert("Erro ao criar categoria: " + err.message);
       } finally {
@@ -1175,7 +1079,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!newInventoryItem.nome || !newInventoryItem.categoria_id) return alert("Nome e Categoria são obrigatórios.");
       setIsSavingItem(true);
       try {
-         const { error } = await supabase.from('products').insert({
+         await api.post('/api/products', {
             name: newInventoryItem.nome,
             description: newInventoryItem.descricao,
             category_id: parseInt(newInventoryItem.categoria_id) || null,
@@ -1187,7 +1091,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             tipo: 'produto',
             company_id: selectedEmpresaId
          });
-         if (error) throw error;
          alert("Item adicionado com sucesso!");
          setShowItemModal(false);
          setNewInventoryItem({
@@ -1219,28 +1122,9 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    useEffect(() => {
       const loadClientes = async () => {
          try {
-            // Inject stored JWT so RLS policies are satisfied
-            const token = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
-            if (token) {
-               await supabase.auth.setSession({ access_token: token, refresh_token: token });
-            }
-
-            const empId = selectedEmpresaId || user?.company_id;
-            if (!empId) {
-               console.warn('[Clientes] Sem empresa selecionada para carregar contatos');
-               return;
-            }
-
-            const t = AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN);
-            const apiUrl = AmazingStorage.get(STORAGE_KEYS.API_URL) || '';
-            const custFetch = fetch(`${apiUrl}/api/customers`, { headers: { Authorization: `Bearer ${t}` } })
-               .then(r => r.json())
-               .then(d => ({ data: d, error: null }))
-               .catch(e => ({ data: null, error: e }));
-
             const [custRes, suppsRes] = await Promise.all([
-               custFetch,
-               supabase.from('suppliers').select('*').eq('company_id', empId).order('name')
+               api.get('/api/customers').then(r => r.json()).then(d => ({ data: d, error: null })).catch(e => ({ data: null, error: e })),
+               api.get(`/api/suppliers?company_id=${selectedEmpresaId}`).then(r => r.json()).then(d => ({ data: d, error: null })).catch(e => ({ data: null, error: e }))
             ]);
 
             console.log('[Clientes] customers result:', custRes.data, custRes.error);
@@ -1400,182 +1284,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
        };
     }, [extFaturas, extTesouraria, extRhRecibos, extInventario, extSales, extVendasFarmacia]);
 
-    // --- LÓGICA DE GRÁFICOS E RELATÓRIOS (ULTRA DEFENSIVA) ---
-   const chartData = useMemo(() => {
-      try {
-         const filterEmpAndPeriod = (arr: LancamentoContabil[]) => (arr || []).filter(l =>
-            l && l.company_id === selectedEmpresaId &&
-            (selectedPeriodoId ? l.periodo_id === selectedPeriodoId : true)
-         );
-         const empLancamentos = filterEmpAndPeriod(lancamentos);
-
-         // 1. Dados para Gráfico de Barras
-         const monthlyStats: Record<string, { receita: number, despesa: number }> = {};
-         const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-         meses.forEach(m => monthlyStats[m] = { receita: 0, despesa: 0 });
-
-         empLancamentos.forEach(l => {
-            if (!l || !l.data) return;
-            const d = new Date(l.data);
-            if (isNaN(d.getTime())) return;
-            const mesIndex = d.getMonth();
-            const mesNome = meses[mesIndex];
-
-            l.itens?.forEach(it => {
-               if (!it || !it.conta_codigo) return;
-               const valor = Number(it.valor) || 0;
-               if (it.conta_codigo.startsWith('6')) {
-                  monthlyStats[mesNome].receita += valor;
-               }
-               if (it.conta_codigo.startsWith('7')) {
-                  monthlyStats[mesNome].despesa += valor;
-               }
-            });
-         });
-
-         // Integrar Vendas Externas (POS/Farmácia) no Gráfico
-         extFinanceiroNotas.forEach(n => {
-            if (!n || !n.data) return;
-            const d = new Date(n.data);
-            if (isNaN(d.getTime())) return;
-            const mesNome = meses[d.getMonth()];
-            if (monthlyStats[mesNome]) {
-               monthlyStats[mesNome].receita += (Number(n.valor) || 0) - (Number(n.iva) || 0);
-            }
-         });
-
-         const barChartData = meses.map(m => ({
-            name: m,
-            Receita: monthlyStats[m].receita,
-            Despesa: monthlyStats[m].despesa
-         }));
-
-         const hasData = barChartData.some(d => d.Receita > 0 || d.Despesa > 0);
-         const finalBarData = hasData ? barChartData : [
-            { name: 'Jan', Receita: 400000, Despesa: 250000 },
-            { name: 'Fev', Receita: 300000, Despesa: 280000 },
-            { name: 'Mar', Receita: 550000, Despesa: 320000 },
-            { name: 'Abr', Receita: 600000, Despesa: 400000 },
-         ];
-
-         const expenseCategories: Record<string, number> = {};
-         empLancamentos.forEach(l => {
-            l.itens?.forEach(it => {
-               if (it && it.conta_codigo?.startsWith('7')) {
-                  const catName = it.conta_nome || 'Outros Custos';
-                  expenseCategories[catName] = (Number(expenseCategories[catName]) || 0) + (Number(it.valor) || 0);
-               }
-            });
-         });
-
-         const pieChartData = Object.keys(expenseCategories).map(k => ({
-            name: String(k),
-            value: Number(expenseCategories[k]) || 0
-         }));
-
-         const finalPieData = pieChartData.length > 0 ? pieChartData : [
-            { name: 'Pessoal', value: 450000 },
-            { name: 'Manutenção', value: 120000 },
-            { name: 'Serviços Terceiros', value: 80000 },
-            { name: 'Impostos', value: 50000 },
-         ];
-
-         return { barChartData: finalBarData, pieChartData: finalPieData };
-      } catch (err) {
-         console.error("Crash in chartData useMemo:", err);
-         return { barChartData: [], pieChartData: [] };
-      }
-   }, [selectedEmpresaId, selectedPeriodoId, lancamentos]);
-
-   // --- LÓGICA DE BALANÇO E DRE (ULTRA DEFENSIVA) ---
-   const financeReports = useMemo(() => {
-      try {
-         const filterEmpAndPeriod = (arr: LancamentoContabil[]) => (arr || []).filter(l =>
-            l && l.company_id === selectedEmpresaId &&
-            (selectedPeriodoId ? l.periodo_id === selectedPeriodoId : true)
-         );
-         const empLancamentos = filterEmpAndPeriod(lancamentos);
-
-         const saldos: Record<string, number> = {};
-         (planoContas || []).forEach(c => {
-            if (c && c.codigo) saldos[c.codigo] = 0;
-         });
-
-         empLancamentos.forEach(l => {
-            l?.itens?.forEach(it => {
-               if (it && it.conta_codigo && saldos[it.conta_codigo] !== undefined) {
-                  const valor = Number(it.valor) || 0;
-                  if (it.tipo === 'D') {
-                     saldos[it.conta_codigo] += valor;
-                  } else {
-                     saldos[it.conta_codigo] -= valor;
-                  }
-               }
-            });
-         });
-
-         // Recalculate based on the new saldo logic (debit adds, credit subtracts)
-         // Assets (1, 2, 3) should have positive balances. Liabilities (4) and Capital (5) should have negative balances.
-         // Revenues (6) should have negative balances. Expenses (7) should have positive balances.
-         // Asset/Liability logic with absolute safety
-         const getSum = (prefix: string) => Object.keys(saldos).filter(k => k && k.startsWith(prefix)).reduce((acc, k) => acc + (Number(saldos[k]) || 0), 0);
-
-         const ativos = getSum('1') + getSum('2') + getSum('3');
-         const passivos = Math.abs(getSum('4'));
-         const capital = Math.abs(getSum('5'));
-         const receitaTotal = Math.abs(getSum('6'));
-         const despesaTotal = Math.abs(getSum('7'));
-         const lucroLiquido = receitaTotal - despesaTotal;
-
-         return {
-            ativos: Number(ativos) || 0,
-            passivos: Number(passivos) || 0,
-            capital: Number(capital) || 0,
-            receitaTotal: Number(receitaTotal) || 0,
-            despesaTotal: Number(despesaTotal) || 0,
-            lucroLiquido: Number(lucroLiquido) || 0,
-            saldos
-         };
-      } catch (err) {
-         console.error("Crash in financeReports useMemo:", err);
-         return { ativos: 0, passivos: 0, capital: 0, receitaTotal: 0, despesaTotal: 0, lucroLiquido: 0, saldos: {} };
-      }
-   }, [selectedEmpresaId, selectedPeriodoId, lancamentos, planoContas]);
-
-   // --- LÓGICA DE IA ---
-   const handleAIAnalysis = async () => {
-      setIsAnalyzing(true);
-      setIaResponse(null);
-      try {
-         const prompt = `Analise os dados financeiros da empresa ${currentEmpresa?.nome || 'N/A'} em Angola:
-- Receita: ${safeFormatAOA(financeReports.receitaTotal)}
-- Despesa: ${safeFormatAOA(financeReports.despesaTotal)}
-- Lucro: ${safeFormatAOA(financeReports.lucroLiquido)}
-- Património Líquido: ${safeFormatAOA(financeReports.ativos - financeReports.passivos)}
-      
-      Forneça 3 sugestões estratégicas para redução de custos e 1 alerta sobre conformidade fiscal(IVA / IRT).`;
-
-         const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000';
-         const response = await fetch(`${apiUrl}/api/ai/audit`, {
-            method: 'POST',
-            headers: {
-               'Content-Type': 'application/json',
-               Authorization: `Bearer ${AmazingStorage.get(STORAGE_KEYS.AUTH_TOKEN)}`
-            },
-            body: JSON.stringify({ prompt })
-         });
-
-         if (!response.ok) throw new Error('Falha ao comunicar com a IA');
-
-         const data = await response.json();
-         setIaResponse(data.result || "Sem resposta da IA.");
-      } catch (error) {
-         console.error('AI Error:', error);
-         setIaResponse("A IA está processando auditorias da Venda Plus. Tente novamente em instantes.");
-      } finally {
-         setIsAnalyzing(false);
-      }
-   };
 
    const handleAISuggestAccounts = async (descricao: string) => {
       const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
@@ -1615,7 +1323,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!selectedEmpresaId) return alert("Selecione uma empresa.");
       setIsProcessingPayroll(true);
       try {
-         const { error } = await supabase.from('funcionarios').insert({
+         await api.post('/api/funcionarios', {
             nome: newEmployee.nome,
             cargo: newEmployee.funcao,
             bilhete: newEmployee.bilhete,
@@ -1637,7 +1345,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             status: 'ativo',
             data_admissao: new Date().toISOString().split('T')[0]
          });
-         if (error) throw error;
          alert("Funcionário registado com sucesso!");
          setShowEmployeeModal(false);
          setNewEmployee({
@@ -1648,7 +1355,7 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             desconto_inss: true, desconto_irt: true, outros_descontos_base: 0,
             nif: '', numero_ss: ''
          });
-         fetchAccountingData();
+         fetchAccountingData(true);
       } catch (e: any) {
          alert(`Erro ao registar funcionário: ${e.message}`);
       } finally {
@@ -1656,7 +1363,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
    };
 
-   // --- LÓGICA DE PAYROLL ---
    const runPayroll = async () => {
       if (!selectedEmpresaId || !selectedPeriodoId) {
          alert("Selecione uma empresa e um período aberto antes de processar a folha.");
@@ -1691,21 +1397,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             const bonifBase = Number((f as any).outras_bonificacoes_base) || 0;
             const hExtras = Number((f as any).valor_hora_extra_base) || 0;
             const adiantamento = Number((f as any).adiantamento_padrao) || 0;
-            const descAtrasos = 0; // Logica automática para atrasos (poderia ser baseado em faltas/checkpoint)
-            const descFerias = 0; // Desconto de férias se aplicável
+            const descAtrasos = 0;
+            const descFerias = 0;
 
-            // Cálculos Automáticos
             let natal = 0;
             let ferias = 0;
 
-            // Subsídio de Natal automático em Dezembro
             if (activePeriodo.mes === 12) natal = Number((f as any).subsidio_natal_base) || base;
-            // Subsídio de Férias automático em Junho
             if (activePeriodo.mes === 6) ferias = Number((f as any).subsidio_ferias_base) || base;
 
             const salarioBruto = base + subAlim + subTrans + bonifBase + natal + ferias + hExtras;
-            const inss = calculateINSS(base + bonifBase + hExtras); // INSS incide sobre base e complementos de rendimento
-            const irt = calculateIRT(salarioBruto - inss.trabalhador - subAlim - subTrans); // IRT sobre rendimento líquido de INSS e isento de subsídios (simplificado)
+            const inss = calculateINSS(base + bonifBase + hExtras);
+            const irt = calculateIRT(salarioBruto - inss.trabalhador - subAlim - subTrans);
 
             const totalDescontos = inss.trabalhador + irt + descAtrasos + descFerias + adiantamento;
             const salarioLiquido = salarioBruto - totalDescontos;
@@ -1736,38 +1439,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
             };
          });
 
-         // 1. Inserir Folhas
-         const { error: fError } = await supabase.from('acc_folhas').insert(payrollBatch);
-         if (fError) throw fError;
-
-         // 2. Criar Lançamento Contábil Correspondente
-         const totalBrutoBatch = (payrollBatch || []).reduce((acc, f) => acc + Number(f.salario_bruto), 0);
-         const totalLiquidoBatch = (payrollBatch || []).reduce((acc, f) => acc + Number(f.salario_liquido), 0);
-         const totalDescontosBatch = totalBrutoBatch - totalLiquidoBatch;
-
-         const { data: entry, error: lError } = await supabase.from('acc_lancamentos').insert([{
+         await api.post('/api/acc/payroll-batch', {
+            periodo_id: selectedPeriodoId,
             company_id: selectedEmpresaId,
-            debito: totalBrutoBatch,
-            credito: totalDescontosBatch + totalLiquidoBatch, // Equilíbrio contábil
-            descricao: `Processamento de Folha de Pagamento - Ciclo ${periodos.find(p => p.id === selectedPeriodoId)?.mes}/${periodos.find(p => p.id === selectedPeriodoId)?.ano}`,
-            data: new Date().toISOString().split('T')[0],
-            status: 'concluido'
-         }]).select().single();
+            batch: payrollBatch
+         });
 
-         if (lError) throw lError;
-
-         // 3. Itens do Lançamento
-         await supabase.from('acc_lancamento_itens').insert([
-            { lancamento_id: entry.id, conta_id: '62', debito: totalBrutoBatch, credito: 0, descricao: 'Gastos com Pessoal (Salários)' },
-            { lancamento_id: entry.id, conta_id: '34', debito: 0, credito: totalDescontosBatch, descricao: 'Retenções e Descontos (Seg. Social/IRT)' },
-            { lancamento_id: entry.id, conta_id: '37', debito: 0, credito: totalLiquidoBatch, descricao: 'Salários Líquidos a Pagar' }
-         ]);
-
-         await fetchAccountingData();
+         await fetchAccountingData(true);
          alert('Folha processada e contabilizada com sucesso!');
       } catch (error: any) {
          console.error('Payroll error:', error);
          alert(`Erro ao processar folha: ${error.message}`);
+      } finally {
          setIsProcessingPayroll(false);
       }
    };
@@ -1974,40 +1657,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
       setIsAutoLaunching(true);
       try {
-         const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('venda')) || {
-            conta_debito_codigo: '3.1', conta_credito_codigo: '6.1'
-         };
-
-         const vTotal = Number(fatura.valor_total) || 0;
-         const vIva = Number(fatura.metadata?.iva) || 0;
-         const vLiquido = vTotal - vIva;
-
-         const { data: head, error } = await supabase.from('acc_lancamentos').insert([{
-            data: fatura.data_emissao || new Date().toISOString().split('T')[0],
-            periodo_id: selectedPeriodoId,
-            descricao: `Fatura ${fatura.numero_fatura || ''} - ${fatura.cliente_nome || 'Cliente'}`,
+         await api.post('/api/acc/auto-launch', {
+            type: 'fatura',
+            source_id: fatura.id,
             company_id: selectedEmpresaId,
-            usuario_id: null,
-            status: 'Postado',
-            tipo_transacao: 'Automático'
-         }]).select().single();
-         if (error) throw error;
+            periodo_id: selectedPeriodoId,
+            data: fatura
+         });
 
-         const itens = [
-            { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Clientes / Contas a Receber', tipo: 'D', valor: vTotal, company_id: selectedEmpresaId },
-            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas de Serviços', tipo: 'C', valor: vLiquido, company_id: selectedEmpresaId }
-         ];
-
-         if (vIva > 0) {
-            itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Cobrado / Liquidado', tipo: 'C', valor: vIva, company_id: selectedEmpresaId });
-         }
-
-         await supabase.from('acc_lancamento_itens').insert(itens);
-
-         await fetchAccountingData();
+         await fetchAccountingData(true);
          alert(`Lançamento automático criado para a fatura ${fatura.numero_fatura || ''}!`);
-      } catch (err) {
-         alert('Erro ao criar lançamento automático.');
+      } catch (err: any) {
+         alert('Erro ao criar lançamento automático: ' + err.message);
       } finally {
          setIsAutoLaunching(false);
       }
@@ -2021,25 +1682,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
       setIsAutoLaunching(true);
       try {
-         const isEntrada = transacao.tipo === 'Entrada' || transacao.tipo === 'entrada' || transacao.tipo === 'receita';
-         const { data: head, error } = await supabase.from('acc_lancamentos').insert([{
-            data: transacao.data || new Date().toISOString().split('T')[0],
-            periodo_id: selectedPeriodoId,
-            descricao: transacao.descricao || transacao.categoria || 'Mov. Tesouraria',
+         await api.post('/api/acc/auto-launch', {
+            type: 'tesouraria',
+            source_id: transacao.id,
             company_id: selectedEmpresaId,
-            usuario_id: null,
-            status: 'Postado',
-            tipo_transacao: 'Automático'
-         }]).select().single();
-         if (error) throw error;
-         await supabase.from('acc_lancamento_itens').insert([
-            { lancamento_id: head.id, conta_codigo: isEntrada ? '1.1' : '7.5', conta_nome: isEntrada ? 'Caixa/Bancos' : 'Outros Gastos', tipo: 'D', valor: Number(transacao.valor) || 0 },
-            { lancamento_id: head.id, conta_codigo: isEntrada ? '6.1' : '1.1', conta_nome: isEntrada ? 'Receitas' : 'Caixa/Bancos', tipo: 'C', valor: Number(transacao.valor) || 0 }
-         ]);
-         await fetchAccountingData();
+            periodo_id: selectedPeriodoId,
+            data: transacao
+         });
+         await fetchAccountingData(true);
          alert('Lançamento automático de tesouraria criado!');
-      } catch (err) {
-         alert('Erro ao criar lançamento automático.');
+      } catch (err: any) {
+         alert('Erro ao criar lançamento automático: ' + err.message);
       } finally {
          setIsAutoLaunching(false);
       }
@@ -2053,41 +1706,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
       setIsAutoLaunching(true);
       try {
-         const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('venda')) || {
-            conta_debito_codigo: '3.1', conta_credito_codigo: '6.1'
-         };
-
-         const vTotal = Number(venda.valor || venda.total) || 0;
-         const vIva = Number(venda.iva || (venda.metadata?.iva)) || 0;
-         const vLiquido = vTotal - vIva;
-
-         const { data: head, error } = await supabase.from('acc_lancamentos').insert([{
-            data: venda.created_at?.split('T')[0] || venda.data || new Date().toISOString().split('T')[0],
-            periodo_id: selectedPeriodoId,
-            descricao: `Venda Farmácia ${venda.numero_factura || venda.numero || ''} - ${venda.entidade || 'Cliente Farmácia'}`,
+         await api.post('/api/acc/auto-launch', {
+            type: 'pharmacy',
+            source_id: venda.id,
             company_id: selectedEmpresaId,
-            usuario_id: null,
-            status: 'Postado',
-            tipo_transacao: 'Automático'
-         }]).select().single();
-         if (error) throw error;
-
-         const itens = [
-            { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Clientes / Contas a Receber', tipo: 'D', valor: vTotal, company_id: selectedEmpresaId },
-            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas (Farmácia)', tipo: 'C', valor: vLiquido, company_id: selectedEmpresaId }
-         ];
-
-         if (vIva > 0) {
-            itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Cobrado / Liquidado', tipo: 'C', valor: vIva, company_id: selectedEmpresaId });
-         }
-
-         await supabase.from('acc_lancamento_itens').insert(itens);
-
-         await fetchAccountingData();
+            periodo_id: selectedPeriodoId,
+            data: venda
+         });
+         await fetchAccountingData(true);
          alert(`Lançamento automático criado para a venda farmácia ${venda.numero_factura || venda.numero || ''}!`);
-      } catch (err) {
+      } catch (err: any) {
          console.error(err);
-         alert('Erro ao criar lançamento automático.');
+         alert('Erro ao criar lançamento automático: ' + err.message);
       } finally {
          setIsAutoLaunching(false);
       }
@@ -2100,41 +1730,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
       setIsAutoLaunching(true);
       try {
-         const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('venda')) || {
-            conta_debito_codigo: '1.1', conta_credito_codigo: '6.1'
-         };
-
-         const vTotal = Number(sale.total) || 0;
-         const vIva = Number(sale.tax) || 0;
-         const vLiquido = vTotal - vIva;
-
-         const { data: head, error } = await supabase.from('acc_lancamentos').insert([{
-            data: sale.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-            periodo_id: selectedPeriodoId,
-            descricao: `Venda POS ${sale.invoice_number || sale.id || ''}`,
+         await api.post('/api/acc/auto-launch', {
+            type: 'pos',
+            source_id: sale.id,
             company_id: selectedEmpresaId,
-            usuario_id: null,
-            status: 'Postado',
-            tipo_transacao: 'Automático'
-         }]).select().single();
-         if (error) throw error;
-
-         const itens = [
-            { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Disponibilidades / Caixa', tipo: 'D', valor: vTotal, company_id: selectedEmpresaId },
-            { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Vendas / Receitas POS', tipo: 'C', valor: vLiquido, company_id: selectedEmpresaId }
-         ];
-
-         if (vIva > 0) {
-            itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Cobrado / Liquidado', tipo: 'C', valor: vIva, company_id: selectedEmpresaId });
-         }
-
-         await supabase.from('acc_lancamento_itens').insert(itens);
-
-         await fetchAccountingData();
+            periodo_id: selectedPeriodoId,
+            data: sale
+         });
+         await fetchAccountingData(true);
          alert(`Lançamento automático criado para a venda POS!`);
-      } catch (err) {
+      } catch (err: any) {
          console.error(err);
-         alert('Erro ao criar lançamento automático.');
+         alert('Erro ao criar lançamento automático: ' + err.message);
       } finally {
          setIsAutoLaunching(false);
       }
@@ -2148,55 +1755,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!selectedEmpresaId) { alert('Selecione uma empresa.'); return; }
       setIsSavingCompra(true);
       try {
-         // 1. Inserir compra
-         const { data: compra, error: cErr } = await supabase.from('compras').insert([{
+         await api.post('/api/acc/save-compra', {
             ...newCompra,
             company_id: selectedEmpresaId,
-            periodo_id: selectedPeriodoId || null,
-            valor_liquido: Number(newCompra.valor_total) - Number(newCompra.iva)
-         }]).select().single();
-         if (cErr) throw cErr;
+            periodo_id: selectedPeriodoId || null
+         });
 
-         // 2. Criar lançamento automático se a empresa tiver período activo
-         if (selectedPeriodoId) {
-            const vTotal = Number(newCompra.valor_total) || 0;
-            const vIva = Number(newCompra.iva) || 0;
-            const vLiquido = vTotal - vIva;
-
-            const regra = regrasAutomaticas.find(r => r.nome.toLowerCase().includes('compra')) || {
-               conta_debito_codigo: '2.1', conta_credito_codigo: '3.2'
-            };
-            const { data: head, error: hErr } = await supabase.from('acc_lancamentos').insert([{
-               data: newCompra.data_compra,
-               periodo_id: selectedPeriodoId,
-               descricao: `Compra ${newCompra.numero_compra || ''} — ${newCompra.fornecedor_nome || 'Fornecedor'}`,
-               company_id: selectedEmpresaId,
-               usuario_id: null,
-               status: 'Postado',
-               tipo_transacao: 'Automático'
-            }]).select().single();
-            if (!hErr && head) {
-               const itens = [
-                  { lancamento_id: head.id, conta_codigo: regra.conta_debito_codigo, conta_nome: 'Inventário / Activos Circulantes', tipo: 'D', valor: vLiquido, company_id: selectedEmpresaId },
-                  { lancamento_id: head.id, conta_codigo: regra.conta_credito_codigo, conta_nome: 'Fornecedores / Contas a Pagar', tipo: 'C', valor: vTotal, company_id: selectedEmpresaId }
-               ];
-
-               if (vIva > 0) {
-                  itens.push({ lancamento_id: head.id, conta_codigo: '3.4.5', conta_nome: 'IVA Dedutível', tipo: 'D', valor: vIva, company_id: selectedEmpresaId });
-               }
-
-               await supabase.from('acc_lancamento_itens').insert(itens);
-               // Marcar compra como contabilizada
-               await supabase.from('compras').update({ contabilizado: true, lancamento_id: head.id }).eq('id', compra.id);
-            }
-         }
-
-         await fetchAccountingData();
+         await fetchAccountingData(true);
          setShowCompraModal(false);
          setNewCompra({ numero_compra: '', fornecedor_nome: '', fornecedor_nif: '', data_compra: new Date().toISOString().split('T')[0], descricao: '', categoria: 'Mercadorias', valor_total: 0, iva: 0, valor_liquido: 0, status: 'Pendente' });
          alert('Compra registada e contabilizada com sucesso!');
-      } catch (err) {
-         alert('Erro ao registar compra.');
+      } catch (err: any) {
+         alert('Erro ao registar compra: ' + err.message);
       } finally {
          setIsSavingCompra(false);
       }
@@ -2208,20 +1778,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleAprovarLancamento = async (lancamento: any, obs: string) => {
       setIsApprovingId(lancamento.id);
       try {
-         const { error } = await supabase.from('acc_lancamentos').update({
-            status: 'Postado',
-            aprovado_por: 'Utilizador Actual',
-            aprovado_em: new Date().toISOString(),
-            aprovacao_obs: obs || null
-         }).eq('id', lancamento.id).eq('company_id', selectedEmpresaId);
-         if (error) throw error;
-         await fetchAccountingData();
+         await api.post(`/api/acc/lancamentos/${lancamento.id}/approve`, {
+            obs: obs || null,
+            company_id: selectedEmpresaId
+         });
+         await fetchAccountingData(true);
          setShowApprovalModal(false);
          setApprovalTarget(null);
          setApprovalObs('');
          alert('Lançamento aprovado e postado com sucesso!');
-      } catch (err) {
-         alert('Erro ao aprovar lançamento.');
+      } catch (err: any) {
+         alert('Erro ao aprovar lançamento: ' + err.message);
       } finally {
          setIsApprovingId(null);
       }
@@ -2230,11 +1797,10 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
    const handleRejeitarLancamento = async (lancamento: any) => {
       if (!confirm('Rejeitar e eliminar este lançamento?')) return;
       try {
-         await supabase.from('acc_lancamento_itens').delete().eq('lancamento_id', lancamento.id).eq('company_id', selectedEmpresaId);
-         await supabase.from('acc_lancamentos').delete().eq('id', lancamento.id).eq('company_id', selectedEmpresaId);
-         await fetchAccountingData();
-      } catch (err) {
-         alert('Erro ao rejeitar lançamento.');
+         await api.delete(`/api/acc/lancamentos/${lancamento.id}`, { company_id: selectedEmpresaId });
+         await fetchAccountingData(true);
+      } catch (err: any) {
+         alert('Erro ao rejeitar lançamento: ' + err.message);
       }
    };
 
@@ -2246,44 +1812,13 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       if (!confirm(`Criar estorno do lançamento "${lancamento.descricao}"? Esta acção é irreversível.`)) return;
       setIsEstornandoId(lancamento.id);
       try {
-         // 1. Criar lançamento espelho com D/C invertidos
-         const { data: estornoHead, error: eErr } = await supabase.from('acc_lancamentos').insert([{
-            data: new Date().toISOString().split('T')[0],
-            periodo_id: lancamento.periodo_id || selectedPeriodoId,
-            descricao: `ESTORNO: ${lancamento.descricao}`,
-            company_id: lancamento.company_id,
-            usuario_id: null,
-            status: 'Postado',
-            tipo_transacao: 'Estorno'
-         }]).select().single();
-         if (eErr) throw eErr;
-
-         // 2. Inverter itens D?C e C?D
-         const itensOriginais = lancamento.itens || [];
-         if (itensOriginais.length > 0) {
-            await supabase.from('acc_lancamento_itens').insert(
-               itensOriginais.map((it: any) => ({
-                  lancamento_id: estornoHead.id,
-                  conta_codigo: it.conta_codigo,
-                  conta_nome: it.conta_nome,
-                  tipo: it.tipo === 'D' ? 'C' : 'D',
-                  valor: it.valor,
-                  company_id: selectedEmpresaId
-               }))
-            );
-         }
-
-         // 3. Marcar original como estornado
-         await supabase.from('acc_lancamentos').update({
-            estornado: true,
-            estorno_ref_id: estornoHead.id,
-            estorno_em: new Date().toISOString()
-         }).eq('id', lancamento.id).eq('company_id', selectedEmpresaId);
-
-         await fetchAccountingData();
-         alert(`Estorno criado com sucesso! Referência: ${estornoHead.id.slice(0, 8).toUpperCase()}`);
-      } catch (err) {
-         alert('Erro ao criar estorno.');
+         await api.post(`/api/acc/lancamentos/${lancamento.id}/reverse`, {
+            company_id: selectedEmpresaId
+         });
+         await fetchAccountingData(true);
+         alert('Estorno criado com sucesso!');
+      } catch (err: any) {
+         alert('Erro ao criar estorno: ' + err.message);
       } finally {
          setIsEstornandoId(null);
       }
@@ -2291,7 +1826,6 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
 
    // --- LÓGICA NOVO LANÇAMENTO (com validação D=C) ---
    const handleNewEntry = async (e: React.FormEvent) => {
-
       e.preventDefault();
       if (newEntry.valor <= 0) {
          alert('O valor deve ser maior que zero.');
@@ -2309,29 +1843,18 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
       }
 
       try {
-         // 1. Inserir cabeçalho
-         const { data: head, error: hError } = await supabase.from('acc_lancamentos').insert([{
-            data: newEntry.data,
-            periodo_id: selectedPeriodoId || null,
-            descricao: newEntry.descricao,
+         await api.post('/api/acc/lancamentos/manual', {
+            ...newEntry,
             company_id: selectedEmpresaId,
-            usuario_id: null,
-            status: 'Postado',
-            tipo_transacao: 'Manual'
-         }]).select().single();
-         if (hError) throw hError;
+            periodo_id: selectedPeriodoId
+         });
 
-         // 2. Inserir itens D e C (valores iguais — soma D = soma C garantida)
-         await supabase.from('acc_lancamento_itens').insert([
-            { lancamento_id: head.id, conta_codigo: debito!.codigo, conta_nome: debito!.nome, tipo: 'D', valor: Number(newEntry.valor), company_id: selectedEmpresaId },
-            { lancamento_id: head.id, conta_codigo: credito!.codigo, conta_nome: credito!.nome, tipo: 'C', valor: Number(newEntry.valor), company_id: selectedEmpresaId }
-         ]);
-
-         fetchAccountingData();
+         fetchAccountingData(true);
          setShowEntryModal(false);
          setNewEntry({ ...newEntry, descricao: '', valor: 0 });
-      } catch (error) {
-         alert('Erro ao salvar lançamento');
+         alert('Lançamento manual criado com sucesso!');
+      } catch (error: any) {
+         alert('Erro ao salvar lançamento: ' + error.message);
       }
    };
 
@@ -3638,14 +3161,17 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                              status: 'Pendente'
                                           };
                                        });
-                                       const { error } = await supabase.from('acc_extratos_bancarios').insert(batch);
-                                       if (error) {
-                                          console.error('Import error:', error);
-                                          alert('Erro ao importar extrato. Verifique o formato CSV (Data,Descrição,Valor).');
-                                       } else {
+                                       try {
+                                          await api.post('/api/acc/extratos-bancarios', {
+                                             batch,
+                                             company_id: selectedEmpresaId
+                                          });
                                           clearQueryCache();
-          (fetchAccountingData as any).lastSync = 0;
-          fetchAccountingData();
+                                          (fetchAccountingData as any).lastSync = 0;
+                                          fetchAccountingData(true);
+                                       } catch (error: any) {
+                                          console.error('Import error:', error);
+                                          alert('Erro ao importar extrato: ' + error.message);
                                        }
                                     }} />
                                  </label>
@@ -3677,11 +3203,16 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                                                    </div>
                                                    <button
                                                       onClick={async () => {
-                                                         const { error } = await supabase.from('acc_extratos_bancarios').update({
-                                                            status: 'Conciliado',
-                                                            lancamento_id: match.id
-                                                         }).eq('id', ex.id).eq('company_id', selectedEmpresaId);
-                                                         if (!error) fetchAccountingData();
+                                                         try {
+                                                            await api.put(`/api/acc/extratos-bancarios/${ex.id}`, {
+                                                               status: 'Conciliado',
+                                                               lancamento_id: match.id,
+                                                               company_id: selectedEmpresaId
+                                                            });
+                                                            fetchAccountingData(true);
+                                                         } catch (err: any) {
+                                                            alert('Erro ao conciliar: ' + err.message);
+                                                         }
                                                       }}
                                                       className="px-2 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                                                    >
@@ -5170,18 +4701,39 @@ const AccountingPage: React.FC<{ user?: User }> = ({ user }) => {
                      const itensCriticos = extInventario.filter(i => Number(i.quantidade_atual) <= Number(i.quantidade_minima)).length;
 
                      const syncNow = async () => {
+                        if (!selectedEmpresaId) return;
                         setIsSyncingModules(true);
-                        const fq = async (q: any) => { try { const { data } = await q; return data || []; } catch { return []; } };
-                        const [fat, tes, rh, inv, smov] = await Promise.all([
-                           fq(supabase.from('contabil_faturas').select('*').eq('company_id', selectedEmpresaId).order('data_emissao', { ascending: false }).limit(100)),
-                           fq(supabase.from('fin_transacoes').select('*').eq('company_id', selectedEmpresaId).order('data', { ascending: false }).limit(100)),
-                           fq(supabase.from('hr_recibos').select('*').eq('company_id', selectedEmpresaId).order('created_at', { ascending: false }).limit(100)),
-                           fq(supabase.from('products').select('*').eq('company_id', selectedEmpresaId).order('nome')),
-                           fq(supabase.from('stock_movimentos').select('*').eq('company_id', selectedEmpresaId).order('created_at', { ascending: false }).limit(100))
-                        ]);
-                        setExtFaturas(fat); setExtTesouraria(tes); setExtRhRecibos(rh); setExtInventario(inv); setExtStockMov(smov);
-                        setLastSyncAt(new Date());
-                        setIsSyncingModules(false);
+                        
+                        const apiGet = async (url: string) => {
+                           try {
+                              const res = await api.get(url);
+                              return await res.json();
+                           } catch (e) {
+                              console.error(`Failed to sync ${url}:`, e);
+                              return [];
+                           }
+                        };
+
+                        try {
+                           const [fat, tes, rh, inv, smov] = await Promise.all([
+                              apiGet(`/api/acc/faturas?company_id=${selectedEmpresaId}&limit=100`),
+                              apiGet(`/api/acc/tesouraria?company_id=${selectedEmpresaId}&limit=100`),
+                              apiGet(`/api/acc/hr-recibos?company_id=${selectedEmpresaId}&limit=100`),
+                              apiGet(`/api/acc/products?company_id=${selectedEmpresaId}`),
+                              apiGet(`/api/acc/stock-movimentos?company_id=${selectedEmpresaId}&limit=100`)
+                           ]);
+
+                           setExtFaturas(fat);
+                           setExtTesouraria(tes);
+                           setExtRhRecibos(rh);
+                           setExtInventario(inv);
+                           setExtStockMov(smov);
+                           setLastSyncAt(new Date());
+                        } catch (err) {
+                           console.error('Global sync failed:', err);
+                        } finally {
+                           setIsSyncingModules(false);
+                        }
                      };
 
                      const modulos = [

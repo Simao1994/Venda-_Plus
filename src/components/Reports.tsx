@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Download, Printer, Filter, Search, Package, TrendingUp, BarChart3, Users, DollarSign, PieChart } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
+import { api } from '../lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RePieChart, Pie } from 'recharts';
 import { A4ReportTemplate } from './reports/A4ReportTemplate';
 
@@ -205,7 +206,7 @@ PrintableReport.displayName = 'PrintableReport';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Reports() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'sales' | 'products' | 'profit' | 'hr'>('sales');
   const [allSales, setAllSales] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
@@ -252,7 +253,7 @@ export default function Reports() {
 
   const fetchRegisters = async () => {
     try {
-      const res = await fetch('/api/cash-registers', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/cash-registers');
       setRegisters(await res.json());
     } catch (error) { console.error('Error fetching registers:', error); }
   };
@@ -265,16 +266,16 @@ export default function Reports() {
         if (startDate) queryParams.append('start_date', startDate);
         if (endDate) queryParams.append('end_date', endDate);
         if (registerId) queryParams.append('register_id', registerId);
-        const res = await fetch(`/api/sales?${queryParams.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get(`/api/sales?${queryParams.toString()}`);
         setAllSales(await res.json());
       } else if (activeTab === 'products') {
-        const res = await fetch('/api/reports/top-selling', { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get('/api/reports/top-selling');
         setTopProducts(await res.json());
       } else if (activeTab === 'profit') {
-        const res = await fetch('/api/reports/profit', { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get('/api/reports/profit');
         setProfitReport(await res.json());
       } else if (activeTab === 'hr') {
-        const res = await fetch('/api/hr/payrolls', { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get('/api/hr/payrolls');
         setPayrollSummary(await res.json());
       }
     } catch (error) {

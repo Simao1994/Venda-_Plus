@@ -6,16 +6,20 @@
 const getBaseUrl = () => {
     // If running in a native Capacitor environment (Android/iOS)
     // We MUST use a full URL, relative paths like /api will fail.
+    
+    // Explicitly provided API URL via env
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) return envApiUrl;
 
     // Detection for Capacitor
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
 
     if (isCapacitor) {
-        // Production API URL for native apps
-        return import.meta.env.VITE_API_URL || 'https://api.venda-plus.com';
+        // Fallback for native apps if no env var is provided
+        return 'https://venda-plus.vercel.app'; // Default to Vercel domain if none provided
     }
 
-    // For Web/PWA, we can use relative paths or the current origin
+    // For Web/PWA without explicit API URL, we use relative paths
     return '';
 };
 

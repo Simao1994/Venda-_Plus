@@ -3,6 +3,7 @@ import { FileText, TrendingUp, Search, Printer, Download, Package, ChevronDown, 
 import { useAuth } from '../../contexts/AuthContext';
 import { useReactToPrint } from 'react-to-print';
 import { A4ReportTemplate } from '../reports/A4ReportTemplate';
+import { api } from '../../lib/api';
 
 // ─── A4 Printable Template ────────────────────────────────────────────────────
 const PrintableA4 = React.forwardRef<HTMLDivElement, { user: any; vendas: any[]; period: string }>(
@@ -79,7 +80,7 @@ PrintableA4.displayName = 'PrintableA4';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function RelatoriosFarmacia() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -107,7 +108,7 @@ export default function RelatoriosFarmacia() {
 
   const fetchVendas = async () => {
     try {
-      const res = await fetch(`/api/farmacia/vendas?period=${filterDate}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get(`/api/farmacia/vendas?period=${filterDate}`);
       setVendas(await res.json());
     } finally { setLoading(false); }
   };

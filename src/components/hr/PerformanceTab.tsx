@@ -9,6 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Cell 
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { safeQuery } from '../../lib/supabaseUtils';
 import { formatAOA } from '../../constants';
@@ -28,10 +29,9 @@ export default function PerformanceTab() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const [funcRes, metaRes] = await Promise.all([
-        fetch('/api/hr/employees', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-        fetch('/api/hr/metas', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+        api.get('/api/hr/employees').then(r => r.json()),
+        api.get('/api/hr/metas').then(r => r.json())
       ]);
       setFuncionarios(Array.isArray(funcRes) ? funcRes : []);
       setMetas(Array.isArray(metaRes) ? metaRes : []);
@@ -55,15 +55,7 @@ export default function PerformanceTab() {
     };
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/hr/metas', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(nova)
-      });
+      const res = await api.post('/api/hr/metas', nova);
       
       const responseData = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -81,11 +73,7 @@ export default function PerformanceTab() {
   const handleDeleteMeta = async (id: string) => {
     if (!confirm('Deseja realmente eliminar esta meta?')) return;
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/hr/metas/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await api.delete(`/api/hr/metas/${id}`);
       if (!res.ok) throw new Error('Falha ao eliminar meta');
       fetchData();
     } catch (err) {
@@ -96,17 +84,9 @@ export default function PerformanceTab() {
 
   const updateMetaProgresso = async (id: string, novoProgresso: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/hr/metas/${id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          progresso: novoProgresso,
-          status: novoProgresso === 100 ? 'Concluída' : 'Em curso'
-        })
+      const res = await api.put(`/api/hr/metas/${id}`, {
+        progresso: novoProgresso,
+        status: novoProgresso === 100 ? 'Concluída' : 'Em curso'
       });
       if (!res.ok) throw new Error('Falha ao atualizar progresso');
       fetchData();

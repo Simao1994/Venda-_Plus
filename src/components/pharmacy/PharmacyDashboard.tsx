@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Pill, AlertTriangle, Activity, TrendingUp, Package, Users, ShoppingBag, Clock } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { api } from '../../lib/api';
 
 export default function PharmacyDashboard() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [alertas, setAlertas] = useState<any[]>([]);
   const [vendas, setVendas] = useState<any[]>([]);
@@ -17,9 +18,9 @@ export default function PharmacyDashboard() {
   const fetchAll = async () => {
     try {
       const [statsRes, alertasRes, vendasRes] = await Promise.all([
-        fetch('/api/farmacia/stats', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/farmacia/alertas', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/farmacia/vendas?period=7days', { headers: { Authorization: `Bearer ${token}` } }),
+        api.get('/api/farmacia/stats'),
+        api.get('/api/farmacia/alertas'),
+        api.get('/api/farmacia/vendas?period=7days'),
       ]);
       const [s, a, v] = await Promise.all([statsRes.json(), alertasRes.json(), vendasRes.json()]);
       setStats(s);

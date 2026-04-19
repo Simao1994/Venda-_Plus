@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Search, Calendar, Boxes, AlertCircle, Trash2 } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function Lotes() {
-  const { token } = useAuth();
   const [lotes, setLotes] = useState<any[]>([]);
   const [medicamentos, setMedicamentos] = useState<any[]>([]);
   const [fornecedores, setFornecedores] = useState<any[]>([]);
@@ -27,9 +27,9 @@ export default function Lotes() {
   const fetchData = async () => {
     try {
       const [lotesRes, medsRes, fornecRes] = await Promise.all([
-        fetch('/api/farmacia/lotes', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/farmacia/medicamentos', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/farmacia/fornecedores', { headers: { Authorization: `Bearer ${token}` } })
+        api.get('/api/farmacia/lotes'),
+        api.get('/api/farmacia/medicamentos'),
+        api.get('/api/farmacia/fornecedores')
       ]);
 
       const [lotesData, medsData, fornecData] = await Promise.all([
@@ -48,14 +48,7 @@ export default function Lotes() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/farmacia/lotes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
-    });
+    const res = await api.post('/api/farmacia/lotes', formData);
     if (res.ok) {
       setShowModal(false);
       setFormData({

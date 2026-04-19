@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import {
   Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
   RefreshCw, TrendingUp, Users, Download, ChevronLeft, ChevronRight
@@ -28,10 +29,9 @@ export default function Attendance() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const [empRes, attRes] = await Promise.all([
-        fetch('/api/hr/employees?status=active', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-        fetch(`/api/hr/attendance?date=${date}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+        api.get('/api/hr/employees?status=active').then(r => r.json()),
+        api.get(`/api/hr/attendance?date=${date}`).then(r => r.json())
       ]);
       const emps = empRes || [];
       const atts = attRes || [];
@@ -64,15 +64,7 @@ export default function Attendance() {
         check_out: status === 'present' ? times.out : null,
       };
 
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/hr/attendance', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const res = await api.post('/api/hr/attendance', payload);
       if (!res.ok) throw new Error('Falha ao registar presença');
       await fetchData();
     } catch (err) {

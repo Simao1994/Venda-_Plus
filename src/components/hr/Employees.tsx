@@ -11,6 +11,7 @@ import {
 import { useReactToPrint } from 'react-to-print';
 import { A4ReportTemplate } from '../reports/A4ReportTemplate';
 import BankAccountsTab from './BankAccountsTab';
+import { api } from '../../lib/api';
 
 const Field = ({ label, children }: any) => (
   <div className="space-y-1.5">
@@ -54,10 +55,9 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const [empRes, depRes] = await Promise.all([
-        fetch('/api/hr/employees', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-        fetch('/api/hr/departments', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+        api.get('/api/hr/employees').then(r => r.json()),
+        api.get('/api/hr/departments').then(r => r.json())
       ]);
       setEmployees(empRes || []);
       setDepartments(depRes || []);
@@ -84,26 +84,11 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
         other_deductions: Number(formData.other_deductions) || 0,
       };
 
-      const token = localStorage.getItem('token');
       if (editingEmployee) {
-        const res = await fetch(`/api/hr/employees/${editingEmployee.id}`, {
-          method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
+        const res = await api.put(`/api/hr/employees/${editingEmployee.id}`, payload);
         if (!res.ok) throw new Error('Falha ao atualizar funcionário');
       } else {
-        const res = await fetch('/api/hr/employees', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
+        const res = await api.post('/api/hr/employees', payload);
         if (!res.ok) throw new Error('Falha ao criar funcionário');
         const newEmployee = await res.json();
         if (onAutoPrint) onAutoPrint(newEmployee);
@@ -121,11 +106,7 @@ export default function Employees({ onAutoPrint }: { onAutoPrint?: (emp: any) =>
   const handleDelete = async (id: number) => {
     if (!confirm('Tem a certeza que deseja eliminar este funcionário?')) return;
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/hr/employees/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await api.delete(`/api/hr/employees/${id}`);
       if (!res.ok) throw new Error('Falha ao eliminar funcionário');
       fetchData();
     } catch (err: any) {

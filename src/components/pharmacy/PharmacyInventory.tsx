@@ -4,9 +4,9 @@ import {
     ClipboardList, Plus, Search, Play, CheckCircle2,
     AlertCircle, Save, History, Boxes, Activity
 } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function PharmacyInventory() {
-    const { token } = useAuth();
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showNewModal, setShowNewModal] = useState(false);
@@ -22,9 +22,7 @@ export default function PharmacyInventory() {
 
     const fetchSessions = async () => {
         try {
-            const res = await fetch('/api/farmacia/inventory/sessions', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/api/farmacia/inventory/sessions');
             const data = await res.json();
             setSessions(data || []);
         } finally {
@@ -33,23 +31,14 @@ export default function PharmacyInventory() {
     };
 
     const fetchLotes = async () => {
-        const res = await fetch('/api/farmacia/lotes', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await api.get('/api/farmacia/lotes');
         setLotes(await res.json());
     };
 
     const createSession = async () => {
         setSaving(true);
         try {
-            const res = await fetch('/api/farmacia/inventory/sessions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ notes: 'Inventário Geral de Lotes' })
-            });
+            const res = await api.post('/api/farmacia/inventory/sessions', { notes: 'Inventário Geral de Lotes' });
             if (res.ok) {
                 const session = await res.json();
                 setActiveSession(session);
@@ -64,14 +53,7 @@ export default function PharmacyInventory() {
     const saveCounts = async () => {
         setSaving(true);
         try {
-            await fetch(`/api/farmacia/inventory/sessions/${activeSession.id}/counts`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ counts })
-            });
+            await api.post(`/api/farmacia/inventory/sessions/${activeSession.id}/counts`, { counts });
             alert('Contagens de lotes salvas!');
         } finally {
             setSaving(false);
@@ -82,10 +64,7 @@ export default function PharmacyInventory() {
         if (!window.confirm('Deseja finalizar o inventário da farmácia? O stock dos lotes será atualizado.')) return;
         setSaving(true);
         try {
-            const res = await fetch(`/api/farmacia/inventory/sessions/${activeSession.id}/finalize`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.post(`/api/farmacia/inventory/sessions/${activeSession.id}/finalize`, {});
             if (res.ok) {
                 setActiveSession(null);
                 fetchSessions();

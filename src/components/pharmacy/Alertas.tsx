@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AlertTriangle, Clock, PackageX, CheckCircle2 } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function Alertas() {
-  const { token } = useAuth();
   const [alertas, setAlertas] = useState<{ stockBaixo: any[]; validadeProxima: any[] }>({
     stockBaixo: [],
     validadeProxima: [],
@@ -14,7 +14,7 @@ export default function Alertas() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/farmacia/alertas', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/farmacia/alertas');
       const data = await res.json();
       setAlertas(data);
     } finally { setLoading(false); }

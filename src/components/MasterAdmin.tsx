@@ -14,9 +14,10 @@ import {
     Database,
     Shield,
     Eye,
-    Landmark,
-    Check
+    Check,
+    Landmark
 } from 'lucide-react';
+import { api } from '../lib/api';
 import {
     BarChart,
     Bar,
@@ -129,13 +130,12 @@ export default function MasterAdmin() {
 
     const fetchData = async () => {
         try {
-            const token = localStorage.getItem('erp_token');
             const [statsRes, companiesRes, plansRes] = await Promise.all([
-                fetch('/api/saas/master/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/saas/master/companies', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/saas/plans', { headers: { 'Authorization': `Bearer ${token}` } })
+                api.get('/api/saas/master/stats'),
+                api.get('/api/saas/master/companies'),
+                api.get('/api/saas/plans')
             ]);
-
+            
             const statsData = await statsRes.json();
             const companiesData = await companiesRes.json();
             const plansData = await plansRes.json();
@@ -146,19 +146,19 @@ export default function MasterAdmin() {
 
             // Fetch configs if in config tab
             if (activePortalTab === 'config') {
-                const configRes = await fetch('/api/saas/master/config', { headers: { 'Authorization': `Bearer ${token}` } });
+                const configRes = await api.get('/api/saas/master/config');
                 const configData = await configRes.json();
                 setConfigs(Array.isArray(configData) ? configData : []);
             }
 
             // Fetch payments if in payments tab
             if (activePortalTab === 'payments') {
-                const payRes = await fetch('/api/saas/master/payments', { headers: { 'Authorization': `Bearer ${token}` } });
+                const payRes = await api.get('/api/saas/master/payments');
                 const payData = await payRes.json();
                 setPayments(Array.isArray(payData) ? payData : []);
             }
             // Fetch payment config
-            const payConfigRes = await fetch('/api/saas/config/payment', { headers: { 'Authorization': `Bearer ${token}` } });
+            const payConfigRes = await api.get('/api/saas/config/payment');
             if (payConfigRes.ok) {
                 const payConfigData = await payConfigRes.json();
                 // Ensure string format for inputs
@@ -177,12 +177,7 @@ export default function MasterAdmin() {
     const savePaymentConfig = async () => {
         setSavingPaymentConfig(true);
         try {
-            const token = localStorage.getItem('erp_token');
-            const res = await fetch('/api/saas/config/payment', {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(paymentConfig)
-            });
+            const res = await api.put('/api/saas/config/payment', paymentConfig);
             if (res.ok) alert('✅ Informações bancárias atualizadas com sucesso!');
             else {
                 const err = await res.json();
@@ -197,15 +192,7 @@ export default function MasterAdmin() {
 
     const approveCompany = async (id: number) => {
         try {
-            const token = localStorage.getItem('erp_token');
-            await fetch('/api/saas/master/approve-subscription', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ company_id: id })
-            });
+            await api.post('/api/saas/master/approve-subscription', { company_id: id });
             fetchData();
         } catch (error) {
             console.error('Error approving company:', error);
@@ -215,15 +202,7 @@ export default function MasterAdmin() {
     const approvePayment = async (id: number) => {
         if (!confirm('Dar baixa neste pagamento e activar a licença?')) return;
         try {
-            const token = localStorage.getItem('erp_token');
-            console.log('ðŸ“¡ [Master Portal] A tentar aprovar pagamento:', id, 'com token:', token?.substring(0, 10) + '...');
-            const res = await fetch(`/api/saas/master/payments/${id}/approve`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const res = await api.post(`/api/saas/master/payments/${id}/approve`, {});
             if (res.ok) {
                 alert('Pagamento aprovado e licença activada!');
                 fetchData();
@@ -242,15 +221,7 @@ export default function MasterAdmin() {
         if (!selectedCompany) return;
         setIsSaving(true);
         try {
-            const token = localStorage.getItem('erp_token');
-            const res = await fetch(`/api/saas/master/companies/${selectedCompany.id}/subscription`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(subscriptionFormData)
-            });
+            const res = await api.put(`/api/saas/master/companies/${selectedCompany.id}/subscription`, subscriptionFormData);
 
             if (res.ok) {
                 setShowSubscriptionModal(false);
@@ -272,15 +243,7 @@ export default function MasterAdmin() {
         if (!confirm(`Tem certeza que deseja alterar o estado para ${status}?`)) return;
 
         try {
-            const token = localStorage.getItem('erp_token');
-            const res = await fetch(`/api/saas/master/companies/${selectedCompany.id}/status`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status })
-            });
+            const res = await api.post(`/api/saas/master/companies/${selectedCompany.id}/status`, { status });
 
             if (res.ok) {
                 alert('Estado da entidade atualizado com sucesso!');
@@ -298,18 +261,10 @@ export default function MasterAdmin() {
     const handlePlanSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('erp_token');
             const url = editingPlan ? `/api/saas/master/plans/${editingPlan.id}` : '/api/saas/master/plans';
-            const method = editingPlan ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(planFormData)
-            });
+            const res = editingPlan 
+                ? await api.put(url, planFormData)
+                : await api.post(url, planFormData);
 
             if (res.ok) {
                 setShowPlanModal(false);
@@ -328,19 +283,11 @@ export default function MasterAdmin() {
     const handleCompanySubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('erp_token');
-            const res = await fetch('/api/saas/register', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    ...companyFormData,
-                    plan_id: plans[0]?.id || 1, // Default to first plan
-                    tipo_plano: 'mensal',
-                    status: 'active' // Direct activation by Master Admin
-                })
+            const res = await api.post('/api/saas/register', {
+                ...companyFormData,
+                plan_id: plans[0]?.id || 1, // Default to first plan
+                tipo_plano: 'mensal',
+                status: 'active' // Direct activation by Master Admin
             });
 
             if (res.ok) {
@@ -361,11 +308,7 @@ export default function MasterAdmin() {
     const deletePlan = async (id: number) => {
         if (!confirm('Tem certeza que deseja eliminar este plano?')) return;
         try {
-            const token = localStorage.getItem('erp_token');
-            await fetch(`/api/saas/master/plans/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            await api.delete(`/api/saas/master/plans/${id}`);
             fetchData();
         } catch (error) {
             console.error('Error deleting plan:', error);
@@ -800,15 +743,7 @@ export default function MasterAdmin() {
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        const token = localStorage.getItem('erp_token');
-                                                        const res = await fetch(`/api/saas/master/config/${cfg.key}`, {
-                                                            method: 'PUT',
-                                                            headers: {
-                                                                'Content-Type': 'application/json',
-                                                                'Authorization': `Bearer ${token}`
-                                                            },
-                                                            body: JSON.stringify({ value: cfg.value })
-                                                        });
+                                                        const res = await api.put(`/api/saas/master/config/${cfg.key}`, { value: cfg.value });
                                                         if (res.ok) alert('Deployment Success: Global instance updated.');
                                                     } catch (e) {
                                                         alert('Critical Failure: Could not synchronize registry.');

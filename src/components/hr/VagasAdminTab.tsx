@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { safeQuery } from '../../lib/supabaseUtils';
 import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../lib/api';
 import { RhVaga, RhCandidaturaPublica } from '../../types';
 import { Plus, Edit2, Trash2, Users, ExternalLink, Download, Search, CheckCircle, XCircle, Clock, X } from 'lucide-react';
 
@@ -34,10 +35,7 @@ const VagasAdminTab: React.FC = () => {
     const fetchVagas = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/hr/vagas', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await api.get('/api/hr/vagas');
             if (!res.ok) throw new Error('Falha ao carregar vagas');
             const data = await res.json();
             setVagas(data || []);
@@ -51,10 +49,7 @@ const VagasAdminTab: React.FC = () => {
 
     const fetchCandidaturas = async (vagaId: string) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`/api/hr/candidaturas?vagaId=${vagaId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await api.get(`/api/hr/candidaturas?vagaId=${vagaId}`);
             if (!res.ok) throw new Error('Falha ao carregar candidaturas');
             const data = await res.json();
             setCandidaturas(data || []);
@@ -72,18 +67,10 @@ const VagasAdminTab: React.FC = () => {
     const handleSaveVaga = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
             const url = editingVaga.id ? `/api/hr/vagas/${editingVaga.id}` : '/api/hr/vagas';
-            const method = editingVaga.id ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(editingVaga)
-            });
+            const res = editingVaga.id 
+                ? await api.put(url, editingVaga)
+                : await api.post(url, editingVaga);
 
             if (!res.ok) throw new Error('Falha ao guardar vaga');
             
@@ -99,29 +86,16 @@ const VagasAdminTab: React.FC = () => {
     const handleDeleteVaga = async (id: string, titulo: string) => {
         if (!confirm(`Apagar a vaga ${titulo}? Todas as candidaturas associadas serão apagadas.`)) return;
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`/api/hr/vagas/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await api.delete(`/api/hr/vagas/${id}`);
             if (!res.ok) throw new Error('Falha ao eliminar vaga');
             fetchVagas();
         } catch (error: any) {
             alert(`Erro: ${error.message}`);
         }
     };
-
     const handleUpdateCandidaturaStatus = async (id: string, newStatus: string) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`/api/hr/candidaturas/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ status: newStatus })
-            });
+            const res = await api.put(`/api/hr/candidaturas/${id}`, { status: newStatus });
             if (!res.ok) throw new Error('Falha ao atualizar status da candidatura');
             if (selectedVaga) fetchCandidaturas(selectedVaga.id);
         } catch (error: any) {

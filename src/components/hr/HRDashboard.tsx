@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Users, Building2, TrendingUp, DollarSign, PieChart, Calendar, Banknote } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { api } from '../../lib/api';
 
 export default function HRDashboard() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -12,7 +13,7 @@ export default function HRDashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/hr/stats', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/api/hr/stats');
       setStats((await res.json()) || {});
     } catch (e) { console.error('HR stats error:', e); }
     finally { setLoading(false); }

@@ -3,9 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { Plus, Search, Edit2, Trash2, Package, Filter, Printer, History, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { A4ReportTemplate } from './reports/A4ReportTemplate';
+import { api } from '../lib/api';
 
 export default function Products() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -43,10 +44,10 @@ export default function Products() {
   const fetchData = async () => {
     try {
       const [prodRes, catRes, movRes, suppRes] = await Promise.all([
-        fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/categories', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/inventory/movements', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/suppliers', { headers: { Authorization: `Bearer ${token}` } })
+        api.get('/api/products'),
+        api.get('/api/categories'),
+        api.get('/api/inventory/movements'),
+        api.get('/api/suppliers')
       ]);
       const [prodData, catData, movData, suppData] = await Promise.all([prodRes.json(), catRes.json(), movRes.json(), suppRes.json()]);
       setProducts(prodData);
@@ -60,14 +61,10 @@ export default function Products() {
 
   const handleManualEntry = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/inventory/movements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
+    const res = await api.post('/api/inventory/movements', {
         ...entryData,
         product_id: parseInt(entryData.product_id),
         quantity: parseFloat(entryData.quantity)
-      })
     });
     if (res.ok) {
       setShowEntryModal(false);
@@ -78,14 +75,10 @@ export default function Products() {
 
   const handleManualAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/inventory/movements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
+    const res = await api.post('/api/inventory/movements', {
         ...entryData,
         product_id: parseInt(entryData.product_id),
         quantity: parseFloat(entryData.quantity)
-      })
     });
     if (res.ok) {
       setShowEntryModal(false);
@@ -99,14 +92,7 @@ export default function Products() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = await fetch('/api/products', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
-    });
+    const res = await api.post('/api/products', formData);
     if (res.ok) {
       setShowModal(false);
       setFormData({ name: '', barcode: '', category_id: '', supplier_id: '', cost_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'un', expiry_date: '', tipo: 'produto', lote: '' });

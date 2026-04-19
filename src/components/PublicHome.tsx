@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import {
   Store,
   Search,
@@ -20,6 +19,7 @@ import {
   Zap,
   Settings,
   X,
+  Menu,
   Clock,
   Calendar,
   MessageSquare
@@ -72,6 +72,7 @@ export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin
   const [selectedModule, setSelectedModule] = useState<any>(null);
   const [showIntro, setShowIntro] = useState(false);
   const [showInvestorLogin, setShowInvestorLogin] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const ModuleDetailedInfo: any = {
     'Vendas & Facturação': {
@@ -144,16 +145,11 @@ export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin
 
   const fetchVagas = async () => {
     try {
-      const { data, error } = await supabase
-        .from('rh_vagas')
-        .select(`
-          *,
-          companies (name)
-        `)
-        .eq('status', 'ativa')
-        .order('data_publicacao', { ascending: false });
-
-      if (!error) setVagas(data || []);
+      const res = await api.get('/api/public/vagas');
+      if (res.ok) {
+        const data = await res.json();
+        setVagas(data || []);
+      }
     } catch (error) {
       console.error('Erro ao buscar vagas:', error);
     }
@@ -171,13 +167,11 @@ export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin
 
   const fetchCompanies = async () => {
     try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, name, bio_nome, bio_foto, bio_formacao, bio_profissao, bio_competencias, bio_contactos, bio_emails, bio_resumo, bio_publicado')
-        .in('status', ['active', 'pending'])
-        .eq('bio_publicado', true)
-        .order('name');
-      if (!error) setCompanies(data || []);
+      const res = await api.get('/api/public/companies');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data || []);
+      }
     } catch (error) {
       console.error('Erro ao buscar empresas:', error);
     }
@@ -220,11 +214,12 @@ export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div
             onClick={() => setShowIntro(true)}
-            className="flex items-center group cursor-pointer -ml-6 pr-16"
+            className="flex items-center group cursor-pointer -ml-4 pr-4 md:-ml-6 md:pr-16"
           >
             <Logo />
           </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-10">
             <a href="#solucoes" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Soluções</a>
             <a href="#market" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Mercado</a>
@@ -233,12 +228,13 @@ export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin
             <a href="#contacto" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-gold-primary transition-colors">Contacto</a>
           </div>
 
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 md:gap-8">
             <div className="hidden lg:block">
               <DigitalClock />
             </div>
 
-            <div className="flex items-center gap-4">
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-4">
               <button
                 onClick={() => setShowInvestorLogin(true)}
                 className="flex items-center gap-2 px-6 py-3 bg-gold-primary/10 text-gold-primary rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gold-primary hover:text-bg-deep transition-all border border-gold-primary/20 hover:border-gold-primary shadow-xl italic whitespace-nowrap"
@@ -254,8 +250,50 @@ export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin
                 Acesso Restrito
               </button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button 
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gold-primary hover:bg-gold-primary/10 transition-all"
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        {isMenuOpen && (
+          <div className="md:hidden fixed inset-0 top-20 bg-bg-deep/95 backdrop-blur-2xl z-40 flex flex-col p-8 gap-8 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex flex-col gap-6 border-b border-white/5 pb-8">
+              <a href="#solucoes" onClick={() => setIsMenuOpen(false)} className="text-lg font-black uppercase tracking-[0.2em] text-white/60 hover:text-gold-primary">Soluções</a>
+              <a href="#market" onClick={() => setIsMenuOpen(false)} className="text-lg font-black uppercase tracking-[0.2em] text-white/60 hover:text-gold-primary">Mercado</a>
+              <a href="#vagas" onClick={() => setIsMenuOpen(false)} className="text-lg font-black uppercase tracking-[0.2em] text-white/60 hover:text-gold-primary">Vagas</a>
+              <a href="#precos" onClick={() => setIsMenuOpen(false)} className="text-lg font-black uppercase tracking-[0.2em] text-white/60 hover:text-gold-primary">Preços</a>
+              <a href="#contacto" onClick={() => setIsMenuOpen(false)} className="text-lg font-black uppercase tracking-[0.2em] text-white/60 hover:text-gold-primary">Contacto</a>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={() => { setShowInvestorLogin(true); setIsMenuOpen(false); }}
+                className="w-full h-16 flex items-center justify-center gap-3 bg-gold-primary/10 text-gold-primary rounded-3xl font-black text-sm uppercase tracking-[0.1em] border border-gold-primary/20 italic"
+              >
+                <Wallet size={20} />
+                Minha Consulta
+              </button>
+              <button
+                onClick={() => { onLoginClick(); setIsMenuOpen(false); }}
+                className="w-full h-16 flex items-center justify-center gap-3 bg-white/5 text-white rounded-3xl font-black text-sm uppercase tracking-[0.1em] border border-white/10 italic"
+              >
+                <ShieldCheck size={20} className="text-gold-primary/40" />
+                Acesso Restrito
+              </button>
+            </div>
+
+            <div className="mt-auto pt-8 flex justify-center border-t border-white/5">
+              <DigitalClock />
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -734,8 +772,8 @@ export default function PublicHome({ onLoginClick, onStartClick, onInvestorLogin
                 };
 
                 try {
-                  const { error } = await supabase.from('public_inquiries').insert([data]);
-                  if (error) throw error;
+                  const res = await api.post('/api/public/inquiries', data);
+                  if (!res.ok) throw new Error('Falha ao enviar');
                   alert('Protocolo enviado com sucesso! Verifique o Blog Corporativo.');
                   form.reset();
                 } catch (err) {

@@ -4,6 +4,7 @@ import { User, Plus, Search, Phone, Mail, MapPin, CreditCard, Package, AlertTria
 import { useReactToPrint } from 'react-to-print';
 import { A4ReportTemplate } from './reports/A4ReportTemplate';
 import PaymentModal from './PaymentModal';
+import { api } from '../lib/api';
 
 interface Customer {
   id: number;
@@ -16,7 +17,7 @@ interface Customer {
 }
 
 export default function Customers() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -42,23 +43,14 @@ export default function Customers() {
   }, []);
 
   const fetchCustomers = async () => {
-    const res = await fetch('/api/customers', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/customers');
     const data = await res.json();
     setCustomers(data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/customers', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
-    });
+    const res = await api.post('/api/customers', formData);
 
     if (res.ok) {
       setShowModal(false);
@@ -335,7 +327,7 @@ export default function Customers() {
 }
 
 function CustomerDetailsModal({ customer, onClose }: { customer: Customer, onClose: () => void }) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
@@ -346,9 +338,7 @@ function CustomerDetailsModal({ customer, onClose }: { customer: Customer, onClo
   }, []);
 
   const fetchHistory = async () => {
-    const res = await fetch(`/api/customers/${customer.id}/history`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get(`/api/customers/${customer.id}/history`);
     const data = await res.json();
     setHistory(data);
     setLoading(false);

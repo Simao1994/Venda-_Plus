@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Trash2, Megaphone, Image as ImageIcon, Type, FileText, X, CheckCircle2, Edit } from 'lucide-react';
+import { api } from '../lib/api';
 
 export default function Marketing() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [publications, setPublications] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -23,7 +24,7 @@ export default function Marketing() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/public/publications');
+      const res = await api.get('/api/public/publications');
       const data = await res.json();
       // Filter only current company publications
       setPublications(data.filter((p: any) => p.company_id === user?.company_id));
@@ -50,14 +51,7 @@ export default function Marketing() {
     const url = editingId ? `/api/publications/${editingId}` : '/api/publications';
     const method = editingId ? 'PUT' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(formData)
-    });
+    const res = await (method === 'PUT' ? api.put(url, formData) : api.post(url, formData));
     if (res.ok) {
       alert(editingId ? 'Actualizado com sucesso!' : 'Publicado com sucesso!');
       setShowModal(false);
@@ -105,10 +99,7 @@ export default function Marketing() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja eliminar esta publicação?')) return;
-    const res = await fetch(`/api/publications/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.delete(`/api/publications/${id}`);
     if (res.ok) {
       fetchData();
     }

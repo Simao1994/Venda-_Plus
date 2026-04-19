@@ -340,14 +340,10 @@ export default function App() {
 
     if (token) {
       console.log('🔗 [Token Login] Detectado link de acesso exclusivo...');
-      fetch('/api/auth/token-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.token && data.user) {
+      api.post('/api/auth/token-login', { token })
+        .then(async res => {
+          const data = await res.json();
+          if (res.ok && data.token && data.user) {
             console.log('✅ [Token Login] Sucesso! Redirecionando para o portal...');
             login(data.token, data.user);
             setView('erp');
@@ -393,10 +389,7 @@ export default function App() {
 
     const fetchSubscription = async () => {
         try {
-            const token = localStorage.getItem('erp_token');
-            const res = await fetch('/api/company/subscription', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await api.get('/api/company/subscription');
             
             if (res.status === 401) {
                 setIsLoading(false);

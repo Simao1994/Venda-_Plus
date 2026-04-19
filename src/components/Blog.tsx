@@ -4,9 +4,9 @@ import Button from './ui/Button';
 import Input from './ui/Input';
 import Select from './ui/Select';
 import { BlogPost, User } from '../types';
-import { supabase } from '../lib/supabase';
 import { uploadBlogMedia, uploadMultipleBlogMedia } from '../lib/supabaseUtils';
-import { Upload, FileVideo } from 'lucide-react';
+import { Upload, FileVideo, RefreshCw as RefreshCwIcon } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface BlogPageProps {
   user?: User;
@@ -35,26 +35,18 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('blog_posts')
-        .select('*');
-
-      if (appUser && appUser.role !== 'master') {
-        query = query.eq('company_id', appUser.company_id);
-      }
-
-      const { data, error } = await query.order('data_publicacao', { ascending: false });
-
-      if (error) throw error;
+      const res = await api.get('/api/blog/posts');
+      if (!res.ok) throw new Error('Falha ao carregar posts');
+      const data = await res.json();
 
       // Map to frontend type
-      const mapped = (data || []).map(p => ({
+      const mapped = (data || []).map((p: any) => ({
         id: p.id,
         titulo: p.titulo,
         categoria: p.categoria,
         conteudo: p.conteudo,
-        autor: p.autor || p.autor_name, // Suporte a ambas as colunas se existirem
-        data: p.data || p.data_publicacao, // Suporte a ambas as colunas
+        autor: p.autor || p.autor_name,
+        data: p.data || p.data_publicacao,
         imagem_url: p.imagem_url,
         video_url: p.video_url,
         galeria_urls: p.galeria_urls,
@@ -73,17 +65,9 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
 
   const fetchInquiries = async () => {
     try {
-      let query = supabase
-        .from('public_inquiries')
-        .select('*');
-
-      if (appUser && appUser.role !== 'master') {
-        query = query.eq('company_id', appUser.company_id);
-      }
-
-      const { data, error } = await query.order('data_envio', { ascending: false });
-
-      if (error) throw error;
+      const res = await api.get('/api/blog/inquiries');
+      if (!res.ok) throw new Error('Falha ao carregar inquéritos');
+      const data = await res.json();
       setInquiries(data || []);
     } catch (err) {
       console.error('Erro ao carregar mensagens:', err);
@@ -113,20 +97,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
     const isEditing = !!editingItem;
 
     try {
-      // Robust session check: try to fetch current user definitive session
-      let { data: { session } } = await supabase.auth.getSession();
-
-      // If no session, try to refresh it
-      if (!session) {
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        session = refreshData.session;
-      }
-
-      // Final check: if still no session and no appUser, block
-      if (!session && !appUser) {
-        alert("Sua sessão expirou. Por favor, faça login novamente para publicar.");
-        return;
-      }
+      // API handles session and token automatically via lib/api.ts
 
       let finalImageUrl = formData.get('imagem_url') as string;
       let finalVideoUrl = formData.get('video_url') as string;
@@ -168,16 +139,11 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
       };
 
       if (isEditing) {
-        const { error } = await supabase
-          .from('blog_posts')
-          .update(dataPayload)
-          .eq('id', editingItem.id);
-        if (error) throw error;
+        const res = await api.put(`/api/blog/posts/${editingItem.id}`, dataPayload);
+        if (!res.ok) throw new Error('Falha ao atualizar post');
       } else {
-        const { error } = await supabase
-          .from('blog_posts')
-          .insert([dataPayload]);
-        if (error) throw error;
+        const res = await api.post('/api/blog/posts', dataPayload);
+        if (!res.ok) throw new Error('Falha ao criar post');
       }
 
       await fetchPosts();
@@ -198,11 +164,8 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
   const handleDelete = async (id: string, titulo: string) => {
     if (confirm(`Remover permanentemente o artigo "${titulo}"?`)) {
       try {
-        const { error } = await supabase
-          .from('blog_posts')
-          .delete()
-          .eq('id', id);
-        if (error) throw error;
+        const res = await api.delete(`/api/blog/posts/${id}`);
+        if (!res.ok) throw new Error('Falha ao eliminar artigo');
         await fetchPosts();
       } catch (err) {
         console.error('Erro ao eliminar artigo:', err);
@@ -397,15 +360,12 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
                           if (resp) {
                             setSaving(true);
                             try {
-                              const { error } = await supabase
-                                .from('public_inquiries')
-                                .update({
-                                  resposta: resp,
-                                  status: 'respondida',
-                                  data_resposta: new Date().toISOString()
-                                })
-                                .eq('id', inquiry.id);
-                              if (error) throw error;
+                              const res = await api.put(`/api/blog/inquiries/${inquiry.id}`, {
+                                resposta: resp,
+                                status: 'respondida',
+                                data_resposta: new Date().toISOString()
+                              });
+                              if (!res.ok) throw new Error('Falha ao responder');
                               fetchInquiries();
                             } catch (err) {
                               console.error('Erro ao responder:', err);
@@ -422,8 +382,8 @@ const BlogPage: React.FC<BlogPageProps> = ({ user: appUser }) => {
                     <button
                       onClick={async () => {
                         if (confirm('Eliminar esta mensagem?')) {
-                          const { error } = await supabase.from('public_inquiries').delete().eq('id', inquiry.id);
-                          if (!error) fetchInquiries();
+                          const res = await api.delete(`/api/blog/inquiries/${inquiry.id}`);
+                          if (res.ok) fetchInquiries();
                         }
                       }}
                       className="p-2.5 text-zinc-300 hover:text-red-500 transition-all rounded-xl"

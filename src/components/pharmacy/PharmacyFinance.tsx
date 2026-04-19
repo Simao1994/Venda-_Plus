@@ -5,9 +5,10 @@ import {
     AlertCircle, Search, Filter, Calendar, DollarSign,
     ArrowUpRight, ArrowDownRight, FileText
 } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function PharmacyFinance() {
-    const { token, user } = useAuth();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [receivables, setReceivables] = useState<any[]>([]);
     const [payables, setPayables] = useState<any[]>([]);
@@ -24,18 +25,14 @@ export default function PharmacyFinance() {
         try {
             // Mocking or fetching from real endpoints if they exist
             // For now, let's fetch sales with status 'credit' or 'pending' for receivables
-            const resSales = await fetch(`/api/farmacia/vendas?date=${filterDate}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const resSales = await api.get(`/api/farmacia/vendas?date=${filterDate}`);
             const sales = await resSales.json();
 
             const rec = sales.filter((s: any) => s.forma_pagamento === 'credit' || s.status === 'pending');
             setReceivables(rec);
 
             // Fetch expenses for payables
-            const resExp = await fetch(`/api/finances/expenses?module=pharmacy&date=${filterDate}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const resExp = await api.get(`/api/finances/expenses?module=pharmacy&date=${filterDate}`);
             const exp = await resExp.json();
             setPayables(exp);
 
